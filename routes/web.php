@@ -34,6 +34,7 @@ $announcements = [
 
 $studentNav = [
     ['key' => 'dashboard', 'label' => 'Dashboard', 'icon' => '&#8962;', 'route' => 'student.dashboard'],
+    ['key' => 'calendar', 'label' => 'Calendar', 'icon' => '&#128197;', 'route' => 'student.calendar'],
     ['key' => 'schedule', 'label' => 'My Schedule', 'icon' => '&#128197;', 'route' => 'student.schedule'],
     ['key' => 'announcements', 'label' => 'Announcements', 'icon' => '&#128227;', 'route' => 'student.announcements'],
     ['key' => 'attendance', 'label' => 'Attendance', 'icon' => '&#9745;', 'route' => 'student.attendance'],
@@ -44,6 +45,7 @@ $studentNav = [
 $studentPage = function (string $page) use ($studentNav, $announcements) {
     $content = [
         'dashboard' => ['Dashboard', "Here's what's happening with your sports activities", null],
+        'calendar' => ['Calendar', 'View your sports activities and important dates', null],
         'schedule' => ['My Schedule', 'Your upcoming training sessions and events', null],
         'announcements' => ['Announcements', 'Stay updated with the latest news and updates', null],
         'attendance' => ['Attendance Record', 'Track your attendance for training sessions and events', null],
@@ -55,6 +57,7 @@ $studentPage = function (string $page) use ($studentNav, $announcements) {
 
 Route::get('/student', fn () => redirect()->route('student.dashboard'));
 Route::get('/student/dashboard', fn () => $studentPage('dashboard'))->name('student.dashboard');
+Route::get('/student/calendar', fn () => $studentPage('calendar'))->name('student.calendar');
 Route::get('/student/schedule', fn () => $studentPage('schedule'))->name('student.schedule');
 Route::get('/student/announcements', fn () => $studentPage('announcements'))->name('student.announcements');
 Route::get('/student/attendance', fn () => $studentPage('attendance'))->name('student.attendance');
@@ -63,9 +66,11 @@ Route::get('/student/profile', fn () => $studentPage('profile'))->name('student.
 
 $adminNav = [
     ['key' => 'dashboard', 'label' => 'Dashboard', 'icon' => '&#8962;', 'route' => 'dashboard'],
+    ['key' => 'calendar', 'label' => 'Calendar', 'icon' => '&#128197;', 'route' => 'admin.calendar'],
     ['key' => 'applications', 'label' => 'Applications', 'icon' => '&#9745;', 'route' => 'admin.applications'],
     ['key' => 'sports', 'label' => 'Sports', 'icon' => '&#127942;', 'route' => 'sports.index'],
     ['key' => 'athletes', 'label' => 'Athletes', 'icon' => '&#127939;', 'route' => 'athletes.index'],
+    ['key' => 'medical', 'label' => 'Medical', 'icon' => '&#9877;', 'route' => 'admin.medical'],
     ['key' => 'coaches', 'label' => 'Coaches', 'icon' => '&#9813;', 'route' => 'coaches.index'],
     ['key' => 'events', 'label' => 'Events', 'icon' => '&#128197;', 'route' => 'events.index'],
     ['key' => 'attendance', 'label' => 'Attendance', 'icon' => '&#9745;', 'route' => 'admin.attendance'],
@@ -76,9 +81,11 @@ $adminNav = [
 $adminPage = function (string $page) use ($adminNav, $announcements) {
     $content = [
         'dashboard' => ['Admin Dashboard', 'Overview of SNNHS Sports Activity Hub', null],
+        'calendar' => ['Calendar', 'View scheduled sports activities and events', null],
         'applications' => ['Applications Management', 'Review and process athlete applications', null],
         'sports' => ['Sports Management', 'Manage sports programs and categories', 'Add New Sport'],
         'athletes' => ['Athlete Management', 'Manage registered athlete accounts', null],
+        'medical' => ['Medical Records', 'Manage athlete health information and clearances', 'Add Medical Record'],
         'coaches' => ['Coach Management', 'Manage coach records and assignments', 'Add New Coach'],
         'events' => ['Event Scheduling', 'Manage training sessions and competitions', 'Create Event'],
         'attendance' => ['Attendance Management', 'Track and record athlete attendance', null],
@@ -89,9 +96,11 @@ $adminPage = function (string $page) use ($adminNav, $announcements) {
 };
 
 Route::get('/dashboard', fn () => $adminPage('dashboard'))->name('dashboard');
+Route::get('/admin/calendar', fn () => $adminPage('calendar'))->name('admin.calendar');
 Route::get('/applications', fn () => $adminPage('applications'))->name('admin.applications');
 Route::get('/sports', fn () => $adminPage('sports'))->name('sports.index');
 Route::get('/athletes', fn () => $adminPage('athletes'))->name('athletes.index');
+Route::get('/admin/medical', fn () => $adminPage('medical'))->name('admin.medical');
 Route::get('/coaches', fn () => $adminPage('coaches'))->name('coaches.index');
 Route::get('/events', fn () => $adminPage('events'))->name('events.index');
 Route::get('/admin/attendance', fn () => $adminPage('attendance'))->name('admin.attendance');

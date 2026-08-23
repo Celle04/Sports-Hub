@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SNNHS SportsHub</title>
+    <link rel="manifest" href="{{ asset('manifest.webmanifest') }}">
     <link rel="stylesheet" href="{{ asset('css/landing.css') }}">
 </head>
 <body>
@@ -53,5 +54,6 @@
     </main>
 
     <footer class="site-footer">&copy; 2026 Surigao del Norte National High School. All rights reserved.<br>Sports Activity Hub - Empowering Athletes, Building Champions</footer>
+    <script src="{{ asset('js/offline.js') }}" defer></script>
 </body>
 </html>

@@ -1,0 +1,16 @@
+{
+    "name": "SNNHS SportsHub",
+    "short_name": "SportsHub",
+    "start_url": "/",
+    "display": "standalone",
+    "background_color": "#ffffff",
+    "theme_color": "#90002b",
+    "description": "SNNHS sports activity management hub",
+    "icons": [
+        {
+            "src": "/images/snnhs logo.png",
+            "sizes": "any",
+            "type": "image/png"
+        }
+    ]
+}

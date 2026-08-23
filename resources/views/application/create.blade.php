@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Apply for Sports Program</title>
+    <link rel="manifest" href="{{ asset('manifest.webmanifest') }}">
     <link rel="stylesheet" href="{{ asset('css/landing.css') }}">
     <style>
         .application-page { width: min(100% - 32px, 620px); margin: 40px auto 70px; }
@@ -38,5 +39,6 @@
             </form>
         </section>
     </main>
+    <script src="{{ asset('js/offline.js') }}" defer></script>
 </body>
 </html>

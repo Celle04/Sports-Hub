@@ -17,7 +17,7 @@
                 <img class="brand-logo" src="{{ asset('images/snnhs logo.png') }}" alt="SNNHS logo">
                 <span>
                     <b>Sports Hub</b>
-                    <small>Administrator Panel</small>
+                    <small>Administrator</small>
                 </span>
             </div>
 

@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SNNHS Sports Hub Login</title>
+    <link rel="manifest" href="{{ asset('manifest.webmanifest') }}">
     <link rel="stylesheet" href="{{ asset('css/portal.css') }}">
     <style>
         .login-page { min-height: 100vh; display: grid; place-items: center; padding: 24px; background: #fff; }
@@ -35,5 +36,6 @@
             <a class="login-back" href="{{ url('/') }}">&larr; Back to Home</a>
         </form>
     </main>
+    <script src="{{ asset('js/offline.js') }}" defer></script>
 </body>
 </html>
