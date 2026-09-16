@@ -22,7 +22,7 @@
         <section class="hero">
             <h1>Join the Champions</h1>
             <p>Be part of SNNHS's legacy of excellence in sports. Discover your potential, build character, and achieve great things through athletics.</p>
-            <a class="primary-button" href="{{ route('application.create') }}">Apply Now <span aria-hidden="true">&rarr;</span></a>
+            <a class="primary-button" href="{{ route('application.create') }}">Apply Now</a>
         </section>
 
         <section class="stats" aria-label="Sports activity summary">
@@ -32,7 +32,7 @@
         </section>
 
         <section class="announcements" id="announcements">
-            <h2 class="section-title">&#128227; Latest Announcements</h2>
+            <h2 class="section-title centered-title">Latest Announcements</h2>
             <div class="announcement-grid">
                 <article class="announcement"><div class="announcement-date">May 5, 2026</div><h3>Basketball Tryouts This Friday</h3><p>Basketball team tryouts will be held at the main court this Friday at 3:00 PM. All interested students are welcome to participate.</p></article>
                 <article class="announcement"><div class="announcement-date">May 1, 2026</div><h3>Regional Sports Meet - June 2026</h3><p>SNNHS will host the Regional Sports Meet in June. Athletes are encouraged to intensify their training sessions.</p></article>
@@ -53,7 +53,7 @@
         </section>
     </main>
 
-    <footer class="site-footer">&copy; 2026 Surigao del Norte National High School. All rights reserved.<br>Sports Activity Hub - Empowering Athletes, Building Champions</footer>
+    <footer class="site-footer">&copy; 2026 Surigao del Norte National High School. All rights reserved.<br>SportsHub - Empowering Athletes, Building Champions</footer>
     <script src="{{ asset('js/offline.js') }}" defer></script>
 </body>
 </html>

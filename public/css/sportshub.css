@@ -10,7 +10,8 @@
 
 body {
     margin: 0;
-    background: #fafafd;
+    background: linear-gradient(135deg, #fafafd 0%, #f2eef9 55%, #e9edf5 100%);
+    background-attachment: fixed;
 }
 
 
@@ -153,8 +154,10 @@ h1 {
     padding: 20px;
     border: 1px solid #f0eff5;
     border-radius: 4px;
-    background: #fff;
-    box-shadow: 0 2px 7px rgba(39, 29, 89, .025);
+    background: rgba(255, 255, 255, .7);
+    box-shadow: 0 8px 22px rgba(39, 29, 89, .08);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
 }
 
 .stat-label,
@@ -210,8 +213,10 @@ h1 {
     padding: 20px;
     border: 1px solid #f0eff5;
     border-radius: 4px;
-    background: #fff;
-    box-shadow: 0 2px 7px rgba(39, 29, 89, .025);
+    background: rgba(255, 255, 255, .7);
+    box-shadow: 0 8px 22px rgba(39, 29, 89, .08);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
 }
 
 .events h2,

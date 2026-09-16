@@ -19,7 +19,7 @@
 </head>
 <body>
     <header class="site-header">
-        <a class="site-brand" href="{{ url('/') }}"><img class="site-logo" src="{{ asset('images/snnhs logo.png') }}" alt="SNNHS logo"><span><span class="site-name">SNNHS Sports Activity Hub</span><span class="site-school">Surigao del Norte National High School</span></span></a>
+        <a class="site-brand" href="{{ url('/') }}"><img class="site-logo" src="{{ asset('images/snnhs logo.png') }}" alt="SNNHS logo"><span><span class="site-name">SNNHS SportsHub</span></span></a>
         <a class="site-login" href="{{ route('login') }}">Login</a>
     </header>
     <main class="application-page">
@@ -34,7 +34,7 @@
                 <label>Full name<input name="name" type="text" required></label>
                 <label>Grade level<input name="grade" type="text" required></label>
                 <label>Email address<input name="email" type="email" required></label>
-                <label>Preferred sport<select name="sport" required><option value="">Choose a sport</option><option>Basketball</option><option>Volleyball</option><option>Track and Field</option><option>Badminton</option><option>Table Tennis</option><option>Chess</option></select></label>
+                <label>Preferred sport<select name="sport" required><option value="">Choose a sport</option>@foreach($sports as $sport)<option value="{{ $sport->name }}" @selected(old('sport') === $sport->name)>{{ $sport->name }}</option>@endforeach</select></label>
                 <button class="primary-button" type="submit">Submit Application</button>
             </form>
         </section>

@@ -15,6 +15,7 @@
         .login-card label { display: block; margin: 0 0 6px; font-size: 11px; font-weight: 700; }
         .login-card input, .login-card select { width: 100%; margin-bottom: 14px; padding: 11px; border: 1px solid var(--line); border-radius: 6px; background: #f7f7f8; font: inherit; font-size: 11px; }
         .login-card .button { width: 100%; }
+        .form-error { margin: -6px 0 12px; color: #a32424; font-size: 11px; }
         .login-back { display: block; margin-top: 18px; text-align: center; color: var(--red); font-size: 11px; text-decoration: none; }
     </style>
 </head>
@@ -29,11 +30,12 @@
             <label for="role">Login As</label>
             <select id="role" name="role"><option>Administrator</option><option>Student</option></select>
             <label for="username">Email Address</label>
-            <input id="username" name="username" type="email" placeholder="your.email@snhhs.edu.ph" autocomplete="username" required>
+            <input id="username" name="username" type="email" placeholder="your.email@snhhs.edu.ph" autocomplete="username" value="{{ old('username') }}" required>
             <label for="password">Password</label>
             <input id="password" name="password" type="password" placeholder="Enter your password" autocomplete="current-password" required>
+            @error('username')<p class="form-error">{{ $message }}</p>@enderror
             <button class="button" type="submit">Sign In</button>
-            <a class="login-back" href="{{ url('/') }}">&larr; Back to Home</a>
+            <a class="login-back" href="{{ url('/') }}"> Back to Home</a>
         </form>
     </main>
     <script src="{{ asset('js/offline.js') }}" defer></script>

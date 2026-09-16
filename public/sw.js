@@ -1,4 +1,4 @@
-const CACHE_NAME = 'snnhs-sportshub-v1';
+const CACHE_NAME = 'snnhs-sportshub-v2';
 const APP_SHELL = [
     '/',
     '/login',

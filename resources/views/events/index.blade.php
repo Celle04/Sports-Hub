@@ -1,4 +1,16 @@
-﻿<!DOCTYPE html>
+﻿@extends('layouts.portal')
+
+@section('content')
+<div class="module-header"><div><h1>Event Scheduling</h1><p class="page-subtitle">Manage scheduled sports activities and competitions</p></div><a class="button" href="{{ route('events.create') }}">Create Event</a></div>
+@if (session('success'))<div class="notice">{{ session('success') }}</div>@endif
+<div class="grid grid-2">
+    @forelse ($events as $event)
+        <article class="card list-card"><h3>{{ $event->title }} <span class="badge">{{ $event->status }}</span></h3><p>{{ $event->description }}</p><div class="meta">{{ $event->sport?->name ?? 'All sports' }} | {{ $event->starts_at->format('M j, Y g:i A') }} - {{ $event->ends_at->format('g:i A') }} | {{ $event->venue }}</div><div style="display:flex;gap:8px;margin-top:14px"><a class="button" href="{{ route('events.edit', $event) }}">Edit</a><form method="POST" action="{{ route('events.destroy', $event) }}">@csrf @method('DELETE')<button class="button" type="submit">Delete</button></form></div></article>
+    @empty
+        <div class="card"><p>No events have been scheduled yet.</p></div>
+    @endforelse
+</div>
+@endsection{{-- <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -131,4 +143,4 @@
     </div>
 
 </body>
-</html>
+</html> --}}

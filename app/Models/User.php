@@ -21,8 +21,15 @@ class User extends Authenticatable
     protected $fillable = [
         'name',
         'email',
+        'role',
+        'sport_id',
         'password',
     ];
+
+    public function sport()
+    {
+        return $this->belongsTo(Sport::class);
+    }
 
     /**
      * The attributes that should be hidden for serialization.
