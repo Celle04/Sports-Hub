@@ -1,59 +1,413 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
     <title>SNNHS SportsHub</title>
-    <link rel="manifest" href="{{ asset('manifest.webmanifest') }}">
+
     <link rel="stylesheet" href="{{ asset('css/landing.css') }}">
 </head>
+
 <body>
+
+    <!-- =====================================================
+         HEADER / NAVIGATION
+    ====================================================== -->
+
     <header class="site-header">
-        <a class="site-brand" href="{{ url('/') }}" aria-label="SNNHS SportsHub home">
-            <img class="site-logo" src="{{ asset('images/snnhs logo.png') }}" alt="SNNHS logo">
-            <span>
+
+        <a
+            class="site-brand"
+            href="{{ url('/') }}"
+            aria-label="SNNHS SportsHub home"
+        >
+            <img
+                class="site-logo"
+                src="{{ asset('images/snnhs logo.png') }}"
+                alt="SNNHS logo"
+            >
+
+            <div class="brand-text">
                 <span class="site-name">SNNHS SportsHub</span>
-            </span>
+                <span class="site-school">
+                    Surigao del Norte National High School
+                </span>
+            </div>
         </a>
-        <a class="site-login" href="{{ route('login') }}">Login</a>
+
+
+        <nav class="main-nav" aria-label="Main navigation">
+
+            <a href="{{ url('/') }}" class="nav-link active">
+                Home
+            </a>
+
+            <a href="#announcements" class="nav-link">
+                Announcements
+            </a>
+
+            <a href="#programs" class="nav-link">
+                Sports Programs
+            </a>
+
+            <a href="#about" class="nav-link">
+                About
+            </a>
+
+        </nav>
+
+
+        <div class="header-actions">
+
+            <a
+                class="login-button"
+                href="{{ route('login') }}"
+            >
+                Login
+            </a>
+
+            <a
+                class="header-apply"
+                href="{{ route('application.create') }}"
+            >
+                Apply Now
+            </a>
+
+        </div>
+
     </header>
 
+
+    <!-- =====================================================
+         MAIN CONTENT
+    ====================================================== -->
+
     <main>
+
+
+        <!-- =================================================
+             HERO SECTION
+        ================================================== -->
+
         <section class="hero">
-            <h1>Join the Champions</h1>
-            <p>Be part of SNNHS's legacy of excellence in sports. Discover your potential, build character, and achieve great things through athletics.</p>
-            <a class="primary-button" href="{{ route('application.create') }}">Apply Now</a>
+
+            <div class="hero-content">
+
+                <div class="hero-icon">
+                    ✓
+                </div>
+
+                <h1>
+                    Where Sports <span>Thrive</span>
+                </h1>
+
+                <p>
+                    Discover school sports, connect with athletes,
+                    explore programs, and build your potential
+                    through athletics.
+                </p>
+
+
+                <div class="hero-buttons">
+
+                    <a
+                        class="hero-primary-button"
+                        href="{{ route('application.create') }}"
+                    >
+                        Apply for Sports
+                    </a>
+
+                    <a
+                        class="hero-secondary-button"
+                        href="#programs"
+                    >
+                        Explore Programs
+                    </a>
+
+                </div>
+
+            </div>
+
         </section>
 
-        <section class="stats" aria-label="Sports activity summary">
-            <article class="info-card"><div class="info-icon" aria-hidden="true">&#127942;</div><div class="info-number">15+</div><div class="info-label">Sports Programs</div></article>
-            <article class="info-card"><div class="info-icon" aria-hidden="true">&#128101;</div><div class="info-number">500+</div><div class="info-label">Active Athletes</div></article>
-            <article class="info-card"><div class="info-icon" aria-hidden="true">&#128197;</div><div class="info-number">30+</div><div class="info-label">Events Annually</div></article>
+
+        <!-- =================================================
+             SPORTS IMAGE / BANNER
+        ================================================== -->
+
+        <section class="sports-banner">
+
+            <div class="sports-banner-overlay">
+
+                <div class="banner-content">
+                    <span class="banner-label">
+                        SNNHS SPORTS
+                    </span>
+
+                    <h2>
+                        Empowering Athletes.
+                        <br>
+                        Building Champions.
+                    </h2>
+
+                    <p>
+                        A central hub for sports activities,
+                        athletes, coaches, events, and school
+                        athletic programs.
+                    </p>
+                </div>
+
+            </div>
+
         </section>
 
-        <section class="announcements" id="announcements">
-            <h2 class="section-title centered-title">Latest Announcements</h2>
+
+        <!-- =================================================
+             ANNOUNCEMENTS
+        ================================================== -->
+
+        <section
+            class="announcements"
+            id="announcements"
+        >
+
+            <div class="section-heading">
+
+                <div>
+                    <span class="section-label">
+                        STAY UPDATED
+                    </span>
+
+                    <h2>
+                        Latest Announcements
+                    </h2>
+                </div>
+
+            </div>
+
+
             <div class="announcement-grid">
-                <article class="announcement"><div class="announcement-date">May 5, 2026</div><h3>Basketball Tryouts This Friday</h3><p>Basketball team tryouts will be held at the main court this Friday at 3:00 PM. All interested students are welcome to participate.</p></article>
-                <article class="announcement"><div class="announcement-date">May 1, 2026</div><h3>Regional Sports Meet - June 2026</h3><p>SNNHS will host the Regional Sports Meet in June. Athletes are encouraged to intensify their training sessions.</p></article>
-                <article class="announcement"><div class="announcement-date">April 28, 2026</div><h3>New Sports Equipment Available</h3><p>The school has acquired new training equipment for volleyball and track and field. Check with your coaches for availability.</p></article>
+
+                @forelse($announcements as $announcement)
+
+                    <article class="announcement">
+
+                        <div class="announcement-top">
+
+                            <span class="announcement-date">
+                                {{ $announcement->published_at?->format('F j, Y') ?? 'Upcoming' }}
+                            </span>
+
+                            @if($announcement->sport)
+                                <span class="sport-tag">
+                                    {{ $announcement->sport->name }}
+                                </span>
+                            @endif
+
+                        </div>
+
+
+                        <h3>
+                            {{ $announcement->title }}
+                        </h3>
+
+
+                        <p>
+                            {{ $announcement->body }}
+                        </p>
+
+                    </article>
+
+                @empty
+
+                    <article class="announcement empty">
+
+                        <div class="announcement-icon">
+                            !
+                        </div>
+
+                        <h3>
+                            No announcements yet
+                        </h3>
+
+                        <p>
+                            Please check back for sports updates
+                            and tryout schedules.
+                        </p>
+
+                    </article>
+
+                @endforelse
+
             </div>
+
         </section>
 
-        <section class="programs" id="programs">
-            <h2 class="section-title centered-title">Sports Programs</h2>
-            <div class="program-grid">
-                <article class="program"><div class="program-icon">&#127936;</div><h3>Basketball</h3><p>Men's and Women's teams</p></article>
-                <article class="program"><div class="program-icon">&#127952;</div><h3>Volleyball</h3><p>Indoor and Beach Volleyball</p></article>
-                <article class="program"><div class="program-icon">&#127939;</div><h3>Track and Field</h3><p>Various athletic events</p></article>
-                <article class="program"><div class="program-icon">&#127992;</div><h3>Badminton</h3><p>Singles and Doubles</p></article>
-                <article class="program"><div class="program-icon">&#127991;</div><h3>Table Tennis</h3><p>Competitive play</p></article>
-                <article class="program"><div class="program-icon">&#9823;</div><h3>Chess</h3><p>Strategic board game</p></article>
+
+        <!-- =================================================
+             SPORTS PROGRAMS
+        ================================================== -->
+
+        <section
+            class="programs"
+            id="programs"
+        >
+
+            <div class="section-heading centered">
+
+                <span class="section-label">
+                    EXPLORE ATHLETICS
+                </span>
+
+                <h2>
+                    Sports Programs
+                </h2>
+
+                <p>
+                    Discover the different sports programs
+                    available at SNNHS.
+                </p>
+
             </div>
+
+
+            <div class="program-grid">
+
+                @forelse($sports as $sport)
+
+                    <article class="program">
+
+                        <div class="program-icon">
+                            &#127942;
+                        </div>
+
+                        <div class="program-content">
+
+                            <h3>
+                                {{ $sport->name }}
+                            </h3>
+
+                            <p>
+                                {{ $sport->description }}
+                            </p>
+
+                        </div>
+
+                    </article>
+
+                @empty
+
+                    <article class="program empty">
+
+                        <div class="program-icon">
+                            &#127942;
+                        </div>
+
+                        <h3>
+                            Programs coming soon
+                        </h3>
+
+                        <p>
+                            New sports programs will be
+                            available soon.
+                        </p>
+
+                    </article>
+
+                @endforelse
+
+            </div>
+
         </section>
+
+
+        <!-- =================================================
+             ABOUT / CTA
+        ================================================== -->
+
+        <section
+            class="about-section"
+            id="about"
+        >
+
+            <div class="about-content">
+
+                <span class="section-label">
+                    SNNHS SPORTSHUB
+                </span>
+
+                <h2>
+                    Your journey to becoming
+                    a champion starts here.
+                </h2>
+
+                <p>
+                    SportsHub makes it easier for students to
+                    discover sports opportunities, submit
+                    applications, follow athletic activities,
+                    and stay connected with the school's
+                    sports community.
+                </p>
+
+                <a
+                    class="about-button"
+                    href="{{ route('application.create') }}"
+                >
+                    Start Your Application
+                    
+                </a>
+
+            </div>
+
+        </section>
+
     </main>
 
-    <footer class="site-footer">&copy; 2026 Surigao del Norte National High School. All rights reserved.<br>SportsHub - Empowering Athletes, Building Champions</footer>
-    <script src="{{ asset('js/offline.js') }}" defer></script>
+
+    <!-- =====================================================
+         FOOTER
+    ====================================================== -->
+
+    <footer class="site-footer">
+
+        <div class="footer-content">
+
+            <div class="footer-brand">
+
+                <img
+                    src="{{ asset('images/snnhs logo.png') }}"
+                    alt="SNNHS logo"
+                >
+
+                <div>
+                    <strong>SNNHS SportsHub</strong>
+
+                    <span>
+                        Surigao del Norte National High School
+                    </span>
+                </div>
+
+            </div>
+
+
+            <div class="footer-text">
+
+                &copy; {{ now()->year }}
+                Surigao del Norte National High School.
+                All rights reserved.
+
+                <br>
+
+                SportsHub - Empowering Athletes, Building Champions
+
+            </div>
+
+        </div>
+
+    </footer>
+
 </body>
+
 </html>

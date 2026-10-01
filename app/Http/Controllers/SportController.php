@@ -9,18 +9,42 @@ use Illuminate\View\View;
 
 class SportController extends Controller
 {
-    public function index(): View
+    public function index(Request $request): View
     {
         $this->ensureAdministrator();
 
-        return view('sports.index', $this->portalData(['sports' => Sport::latest()->get()]));
+        $sports = Sport::withCount(['athletes', 'coaches', 'events', 'applications'])
+            ->when($request->filled('search'), function ($query) use ($request) {
+                $search = trim($request->string('search')->toString());
+                $query->where(function ($sportQuery) use ($search) {
+                    $sportQuery->where('name', 'like', "%{$search}%")
+                        ->orWhere('classification', 'like', "%{$search}%")
+                        ->orWhere('description', 'like', "%{$search}%");
+                });
+            })
+            ->when($request->filled('classification'), fn ($query) => $query->where('classification', $request->string('classification')->toString()))
+            ->when($request->filled('status'), fn ($query) => $query->where('status', $request->string('status')->toString()))
+            ->orderBy('name')
+            ->get();
+
+        return view('sports.index', $this->portalData([
+            'sports' => $sports,
+            'classifications' => self::classifications(),
+            'statuses' => self::statuses(),
+            'summary' => [
+                'total' => Sport::count(),
+                'team' => Sport::where('classification', 'Team Sport')->count(),
+                'individual' => Sport::where('classification', 'Individual')->count(),
+                'active' => Sport::where('status', 'Active')->count(),
+            ],
+        ]));
     }
 
     public function create(): View
     {
         $this->ensureAdministrator();
 
-        return view('sports.create', $this->portalData());
+        return view('sports.create', $this->portalData(['classifications' => self::classifications(), 'statuses' => self::statuses()]));
     }
 
     public function store(Request $request): RedirectResponse
@@ -36,7 +60,22 @@ class SportController extends Controller
     {
         $this->ensureAdministrator();
 
-        return view('sports.edit', $this->portalData(['sport' => $sport]));
+        return view('sports.edit', $this->portalData(['sport' => $sport, 'classifications' => self::classifications(), 'statuses' => self::statuses()]));
+    }
+
+    public function show(Sport $sport): View
+    {
+        $this->ensureAdministrator();
+
+        $sport->loadCount(['athletes', 'coaches', 'events', 'applications']);
+        $sport->load([
+            'athletes' => fn ($query) => $query->where('role', 'Student')->orderBy('name'),
+            'coaches' => fn ($query) => $query->orderBy('name'),
+            'events' => fn ($query) => $query->withCount('attendanceRecords')->whereIn('status', ['Scheduled', 'Ongoing'])->where('starts_at', '>=', now())->orderBy('starts_at')->limit(5),
+            'applications' => fn ($query) => $query->latest()->limit(5),
+        ]);
+
+        return view('sports.show', $this->portalData(['sport' => $sport]));
     }
 
     public function update(Request $request, Sport $sport): RedirectResponse
@@ -52,6 +91,13 @@ class SportController extends Controller
     {
         $this->ensureAdministrator();
 
+        $hasRelatedRecords = $sport->athletes()->exists() || $sport->coaches()->exists() || $sport->events()->exists() || $sport->applications()->exists();
+
+        if ($hasRelatedRecords) {
+            $sport->update(['status' => 'Inactive']);
+            return redirect()->route('sports.index')->with('success', 'This sport is in use and was set to inactive instead of deleted.');
+        }
+
         $sport->delete();
 
         return redirect()->route('sports.index')->with('success', 'Sport deleted successfully.');
@@ -61,11 +107,26 @@ class SportController extends Controller
     {
         $uniqueName = 'unique:sports,name' . ($sport ? ',' . $sport->id : '');
 
-        return $request->validate([
+        $validated = $request->validate([
             'name' => ['required', 'string', 'max:100', $uniqueName],
-            'classification' => ['required', 'string', 'max:100'],
+            'classification' => ['required', 'in:'.implode(',', self::classifications())],
             'description' => ['required', 'string', 'max:1000'],
+            'status' => ['nullable', 'in:'.implode(',', self::statuses())],
         ]);
+
+        $validated['status'] = $validated['status'] ?? 'Active';
+
+        return $validated;
+    }
+
+    public static function classifications(): array
+    {
+        return ['Team Sport', 'Individual', 'Racket Sport', 'Athletics', 'Mind Sport', 'Combat Sport', 'Other'];
+    }
+
+    public static function statuses(): array
+    {
+        return ['Active', 'Inactive'];
     }
 
     private function portalData(array $data = []): array

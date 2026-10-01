@@ -1,19 +1,24 @@
 @extends('layouts.portal')
+
 @section('content')
-<div class="module-header"><div><h1>{{ $heading }}</h1><p class="page-subtitle">{{ $subtitle }}</p></div>@if($action)<a class="button" href="{{ $action['url'] }}">{{ $action['label'] }}</a>@endif</div>
-@if($page === 'dashboard')
-<div class="grid grid-3"><div class="card stat"><span class="stat-icon">&#128197;</span><strong>8</strong><small>Upcoming Events</small></div><div class="card stat"><span class="stat-icon">&#127942;</span><strong>95%</strong><small>Attendance Rate</small></div><div class="card stat"><span class="stat-icon">&#9201;</span><strong>24h</strong><small>Training This Week</small></div></div><div class="grid grid-2" style="margin-top:16px"><section class="card soft-card"><h2>Upcoming Schedule</h2>@foreach(['Basketball Practice','Scrimmage Game','Team Meeting'] as $event)<div class="card list-card"><h3>{{ $event }}</h3><div class="meta">&#128197; May {{ 8 + $loop->index }}, 2026 &nbsp; &#9201; {{ 3 + $loop->index }}:00 PM - {{ 5 + $loop->index }}:00 PM</div><p>&#128205; Main Court</p></div>@endforeach</section><section class="card soft-card"><h2>Recent Announcements</h2>@foreach($announcements as $announcement)<div class="card list-card"><h3>{{ $announcement[0] }}</h3><div class="meta">{{ $announcement[1] }}</div></div>@endforeach<a class="button" href="{{ route('student.announcements') }}">View All Announcements</a></section></div>
-@elseif($page === 'calendar')
-<div class="card calendar-card"><div class="calendar-toolbar"><a class="calendar-arrow" href="{{ route('student.calendar', ['month' => $calendarMonth->copy()->subMonth()->format('Y-m')]) }}" aria-label="Previous month">&larr;</a><h2>{{ $calendarMonth->format('F Y') }}</h2><a class="calendar-arrow" href="{{ route('student.calendar', ['month' => $calendarMonth->copy()->addMonth()->format('Y-m')]) }}" aria-label="Next month">&rarr;</a></div><div class="calendar-grid calendar-weekdays"><span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span></div><div class="calendar-grid">@foreach($calendarDays as $day)<div class="calendar-day {{ $day && isset($calendarEvents[$calendarMonth->copy()->day($day)->toDateString()]) ? 'has-event' : '' }}">{{ $day }}@if($day && isset($calendarEvents[$calendarMonth->copy()->day($day)->toDateString()]))<small></small>@foreach($calendarEvents[$calendarMonth->copy()->day($day)->toDateString()] as $event)<span class="calendar-event">{{ $event->title }}</span>@endforeach @endif</div>@endforeach</div><div class="calendar-legend"><span><i class="calendar-dot"></i> Sports activity</span><span><i class="calendar-dot today-dot"></i> Today</span></div></div>
-@elseif($page === 'schedule')
-@forelse($events as $event)<div class="card list-card"><h3>{{ $event->title }} <span class="badge">{{ $event->status }}</span></h3><div class="grid grid-3"><div class="meta">&#128197; {{ $event->starts_at->format('M j, Y') }}</div><div class="meta">&#9201; {{ $event->starts_at->format('g:i A') }} - {{ $event->ends_at->format('g:i A') }}</div><div class="meta">&#128205; {{ $event->venue }}</div></div>@if($event->description)<p>{{ $event->description }}</p>@endif</div>@empty<div class="card"><p>No upcoming events are scheduled yet.</p></div>@endforelse
-@elseif($page === 'announcements')
-@foreach($announcements as $announcement)<article class="card list-card"><h3>{{ $announcement[0] }} <span class="badge">Important</span></h3><div class="meta">{{ $announcement[1] }}</div><p>{{ $announcement[2] }}</p></article>@endforeach
-@elseif($page === 'attendance')
-<div class="card soft-card grid grid-3"><div><strong>88%</strong><small class="meta">Attendance Rate</small></div><div><strong>7</strong><small class="meta">Sessions Attended</small></div><div><strong>1</strong><small class="meta">Sessions Missed</small></div></div><div class="table-wrap" style="margin-top:16px"><table class="data-table"><thead><tr><th>Event</th><th>Date</th><th>Time</th><th>Status</th></tr></thead><tbody>@foreach(['Basketball Practice','Strength Training','Basketball Practice','Team Meeting'] as $event)<tr><td>{{ $event }}</td><td>May {{ 6 - $loop->index }}, 2026</td><td>3:00 PM - 5:00 PM</td><td><span class="badge {{ $loop->last ? 'status-absent' : 'status-present' }}">{{ $loop->last ? 'Absent' : 'Present' }}</span></td></tr>@endforeach</tbody></table></div>
-@elseif($page === 'coach')
-<div class="card"><div class="profile-hero"><div class="avatar">RM</div><div><h2>Coach Roberto Martinez</h2><p>Basketball Coach<br>Offensive Strategies &amp; Player Development</p></div></div><div class="grid grid-2" style="margin-top:20px"><div class="card soft-card">Email<br><strong>r.martinez@snhhs.edu.ph</strong></div><div class="card soft-card">Phone<br><strong>+63 912 345 6789</strong></div></div><h2>About Coach</h2><p class="meta">Coach Martinez has been leading the SNNHS basketball program for over 5 years, developing young athletes into competitive players.</p></div>
+<div class="module-header">
+    <div>
+        <h1>{{ $heading }}</h1>
+        <p class="page-subtitle">{{ $subtitle }}</p>
+    </div>
+</div>
+
+@if (session('success'))
+    <div class="notice">{{ session('success') }}</div>
+@endif
+
+@if ($errors->any())
+    <div class="notice">Please correct the highlighted form fields.</div>
+@endif
+
+@if (in_array($page, ['dashboard', 'sports', 'calendar', 'schedule', 'announcements', 'attendance', 'application', 'coach', 'profile'], true))
+    @include('student.modules.'.$page)
 @else
-<div class="card"><div class="profile-hero"><div class="avatar">JDC</div><div><h2>Juan Dela Cruz</h2><p>Basketball Athlete<br>Grade 11</p></div></div><h2>Personal Information</h2><div class="form-grid"><div class="form-group"><label>Full Name</label><input class="form-control" value="Juan Dela Cruz" readonly></div><div class="form-group"><label>Student ID</label><input class="form-control" value="2026-0001" readonly></div><div class="form-group"><label>Email Address</label><input class="form-control" value="athlete@snhhs.edu.ph" readonly></div><div class="form-group"><label>Contact Number</label><input class="form-control" value="+63 912 345 6789" readonly></div></div></div>
+    <div class="card"><p>Use the navigation to access this section.</p></div>
 @endif
 @endsection

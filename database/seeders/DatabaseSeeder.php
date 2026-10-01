@@ -5,8 +5,15 @@ namespace Database\Seeders;
 use App\Models\User;
 use App\Models\Sport;
 use App\Models\Event;
+use App\Models\Announcement;
+use App\Models\Attendance;
+use App\Models\Application;
+use App\Models\Coach;
+use App\Models\MedicalRecord;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
 
 class DatabaseSeeder extends Seeder
 {
@@ -22,13 +29,16 @@ class DatabaseSeeder extends Seeder
         User::updateOrCreate(['email' => 'admin@example.com'], [
             'name' => 'Admin User',
             'role' => 'Administrator',
-            'password' => 'password',
+            'username' => 'admin',
+            'password' => Hash::make('password'),
         ]);
 
         User::updateOrCreate(['email' => 'student@example.com'], [
             'name' => 'Juan Dela Cruz',
             'role' => 'Student',
-            'password' => 'password',
+            'username' => 'juan.delacruz',
+            'student_id' => '2026-0001',
+            'password' => Hash::make('password'),
         ]);
 
         foreach ([
@@ -64,5 +74,50 @@ class DatabaseSeeder extends Seeder
                     : Sport::where('name', 'Basketball')->value('id'),
             ]);
         }
+
+        $student = User::where('email', 'student@example.com')->firstOrFail();
+        $event = Event::where('title', 'Basketball Practice')->firstOrFail();
+
+        $application = Application::updateOrCreate(['email' => 'maria.santos@example.com'], [
+            'name' => 'Maria Santos', 'student_id' => '2026-0002', 'grade' => 'Grade 10', 'gender' => 'Female', 'sport' => 'Volleyball', 'sport_id' => Sport::where('name', 'Volleyball')->value('id'), 'medical_certificate_path' => 'application-documents/seed/medical.pdf', 'birth_certificate_path' => 'application-documents/seed/birth.pdf', 'parent_consent_path' => 'application-documents/seed/consent.pdf', 'status' => 'Pending',
+        ]);
+
+        foreach (['medical_certificate_path', 'birth_certificate_path', 'parent_consent_path'] as $document) {
+            Storage::disk('private')->put($application->{$document}, "%PDF-1.4\nSportsHub sample document\n%%EOF\n");
+        }
+
+        foreach ([
+            ['Coach Roberto Martinez', 'coach.martinez@snhhs.edu.ph', '+63 912 345 6789', 'Basketball'],
+            ['Coach Linda Santos', 'coach.santos@snhhs.edu.ph', '+63 913 456 7890', 'Volleyball'],
+        ] as [$name, $email, $phone, $specialty]) {
+            Coach::updateOrCreate(['email' => $email], compact('name', 'email', 'phone', 'specialty'));
+        }
+
+        MedicalRecord::updateOrCreate(['user_id' => $student->id], [
+            'athlete_id' => $student->id,
+            'examination_date' => now()->subDays(20),
+            'medical_status' => 'Cleared',
+            'next_checkup_date' => now()->addDays(300),
+            'findings' => 'Healthy and fit for school competitions.',
+            'restrictions' => 'None',
+            'clearance' => 'Cleared',
+            'last_checkup' => now()->subDays(20),
+            'notes' => 'Cleared for school sports activities.',
+        ]);
+
+        Attendance::updateOrCreate(['event_id' => $event->id, 'user_id' => $student->id], [
+            'status' => 'Present', 'attended_on' => $event->starts_at->toDateString(),
+        ]);
+
+        foreach ([
+            ['Basketball Tryouts This Friday', 'Basketball team tryouts will be held at the main court this Friday at 3:00 PM.'],
+            ['Regional Sports Meet - June 2026', 'Athletes are encouraged to intensify their training sessions for the regional meet.'],
+        ] as [$title, $body]) {
+            Announcement::updateOrCreate(['title' => $title], [
+                'body' => $body, 'published_at' => now()->toDateString(), 'status' => 'Published',
+            ]);
+        }
     }
 }
+
+

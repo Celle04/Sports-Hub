@@ -17,6 +17,25 @@ class AuthenticationTest extends TestCase
         $this->withoutMiddleware(ValidateCsrfToken::class);
     }
 
+    public function test_administrator_can_log_in_with_database_credentials(): void
+    {
+        User::factory()->create([
+            'email' => 'admin@example.com',
+            'username' => 'admin',
+            'password' => 'password',
+            'role' => 'Administrator',
+        ]);
+
+        $response = $this->post(route('login.submit'), [
+            'username' => 'admin@example.com',
+            'password' => 'password',
+            'role' => 'Administrator',
+        ]);
+
+        $response->assertRedirect(route('dashboard'));
+        $this->assertAuthenticated();
+    }
+
     public function test_student_can_log_in_with_database_credentials(): void
     {
         User::factory()->create([
@@ -27,6 +46,25 @@ class AuthenticationTest extends TestCase
 
         $response = $this->post(route('login.submit'), [
             'username' => 'student@example.com',
+            'password' => 'password',
+            'role' => 'Student',
+        ]);
+
+        $response->assertRedirect(route('student.dashboard'));
+        $this->assertAuthenticated();
+    }
+
+    public function test_student_can_log_in_with_username(): void
+    {
+        User::factory()->create([
+            'email' => 'student2@example.com',
+            'username' => 'juan.delacruz',
+            'password' => 'password',
+            'role' => 'Student',
+        ]);
+
+        $response = $this->post(route('login.submit'), [
+            'username' => 'juan.delacruz',
             'password' => 'password',
             'role' => 'Student',
         ]);

@@ -45,13 +45,27 @@
                 @endforeach
             </nav>
 
-            <a class="portal-logout" href="{{ url('/') }}">
-                <svg class="nav-icon" aria-hidden="true"><use href="#icon-logout"></use></svg>
-                <span>Logout</span>
-            </a>
+            <form method="POST" action="{{ route('logout') }}">
+                @csrf
+                <button class="portal-logout" type="submit"><svg class="nav-icon" aria-hidden="true"><use href="#icon-logout"></use></svg><span>Logout</span></button>
+            </form>
         </aside>
 
         <main class="portal-main">
+            @auth
+                @php($portalNotifications = auth()->user()->notifications()->latest()->limit(5)->get())
+                @if ($portalNotifications->isNotEmpty())
+                    <section class="portal-notifications" aria-label="Notifications">
+                        <div class="portal-notifications-heading"><strong>Notifications</strong><form method="POST" action="{{ route('notifications.read-all') }}">@csrf<button class="text-link" type="submit">Mark all read</button></form></div>
+                        @foreach ($portalNotifications as $notification)
+                            <div class="portal-notification {{ $notification->read_at ? 'is-read' : 'is-unread' }}">
+                                <div><span>{{ data_get($notification->data, 'message', 'New notification') }}</span><small>{{ $notification->created_at?->diffForHumans() }}</small></div>
+                                @if (!$notification->read_at)<form method="POST" action="{{ route('notifications.read', $notification->id) }}">@csrf<button class="text-link" type="submit">Read</button></form>@endif
+                            </div>
+                        @endforeach
+                    </section>
+                @endif
+            @endauth
             @yield('content')
         </main>
     </div>

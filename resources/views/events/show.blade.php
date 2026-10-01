@@ -1,0 +1,9 @@
+@extends('layouts.portal')
+
+@section('content')
+<div class="module-header"><div><h1>Event Details</h1><p class="page-subtitle">Review the complete event record</p></div><div class="event-header-actions"><a class="button button-secondary" href="{{ route('events.index') }}">Back</a><a class="button" href="{{ route('events.edit', $event) }}">Edit Event</a></div></div>
+<div class="card event-detail-card"><div class="event-card-heading"><div><h2>{{ $event->title }}</h2><span class="badge event-status-{{ strtolower(str_replace(' ', '-', $event->status)) }}">{{ $event->status }}</span></div><span class="event-type-label">{{ $event->event_type }}</span></div><div class="event-detail-grid"><div><strong>Sport</strong><span>{{ $event->sport?->name ?? 'All sports' }}</span></div><div><strong>Event type</strong><span>{{ $event->event_type }}</span></div><div><strong>Date</strong><span>{{ $event->starts_at->format('F j, Y') }}</span></div><div><strong>Time</strong><span>{{ $event->starts_at->format('g:i A') }} - {{ $event->ends_at->format('g:i A') }}</span></div><div><strong>Venue</strong><span>{{ $event->venue }}</span></div><div><strong>Coach</strong><span>{{ $event->coach?->name ?? 'Unassigned' }}</span></div><div><strong>Team</strong><span>{{ $event->team_name ?: 'Not assigned' }}</span></div><div><strong>Participants</strong><span>{{ $event->attendance_records_count }}{{ $event->max_participants ? ' / '.$event->max_participants : '' }}</span></div></div>
+@if ($event->description)<div class="event-detail-copy"><strong>Description</strong><p>{{ $event->description }}</p></div>@endif
+@if ($event->notes)<div class="event-detail-copy"><strong>Notes</strong><p>{{ $event->notes }}</p></div>@endif
+<div class="event-actions"><a class="button" href="{{ route('admin.attendance', ['event_id' => $event->id]) }}">View Attendance</a><a class="button button-secondary" href="{{ route('events.edit', $event) }}">Edit Event</a></div></div>
+@endsection

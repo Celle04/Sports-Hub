@@ -28,9 +28,12 @@
             <h1>Welcome Back</h1>
             <p class="subtitle">Sign in to access your dashboard</p>
             <label for="role">Login As</label>
-            <select id="role" name="role"><option>Administrator</option><option>Student</option></select>
-            <label for="username">Email Address</label>
-            <input id="username" name="username" type="email" placeholder="your.email@snhhs.edu.ph" autocomplete="username" value="{{ old('username') }}" required>
+            <select id="role" name="role" required>
+                <option value="Administrator" selected>Administrator</option>
+                <option value="Student">Student</option>
+            </select>
+            <label for="username">Email address or username</label>
+            <input id="username" name="username" type="text" placeholder="your email or assigned username" autocomplete="username" value="{{ old('username') }}" required>
             <label for="password">Password</label>
             <input id="password" name="password" type="password" placeholder="Enter your password" autocomplete="current-password" required>
             @error('username')<p class="form-error">{{ $message }}</p>@enderror
@@ -41,3 +44,4 @@
     <script src="{{ asset('js/offline.js') }}" defer></script>
 </body>
 </html>
+
