@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\ApplicationController;
+use App\Http\Controllers\AttendanceController;
 use App\Http\Controllers\EventController;
 use App\Http\Controllers\MedicalController;
 use App\Http\Controllers\SportController;
@@ -18,7 +19,7 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Pagination\LengthAwarePaginator;
-use App\Notifications\AttendanceNotification;
+use App\Services\AttendanceSessionService;
 
 Route::get('/', function () {
     return view('landing', [
@@ -142,7 +143,76 @@ $studentPage = function (string $page, array $data = []) use ($studentNav, $anno
     $athlete = auth()->user();
     $publishedAnnouncements = Announcement::with('sport')->where('status', 'Published')->where(fn ($query) => $query->whereNull('sport_id')->orWhere('sport_id', $athlete->sport_id))->where(fn ($query) => $query->whereNull('published_at')->orWhereDate('published_at', '<=', today()))->latest('published_at')->get();
     $studentApplication = $athlete->applications()->with('sportCategory')->latest()->first();
-    $upcomingStudentEvents = Event::with(['sport', 'coach'])->where('status', 'Scheduled')->where('starts_at', '>=', now())->where(fn ($query) => $query->whereNull('sport_id')->orWhere('sport_id', $athlete->sport_id))->orderBy('starts_at')->limit(5)->get();
+    $upcomingStudentEventsQuery = Event::with(['sport', 'coach'])
+        ->where('status', 'Scheduled')
+        ->where('starts_at', '>=', now())
+        ->where(fn ($query) => $query->whereNull('sport_id')->orWhere('sport_id', $athlete->sport_id))
+        ->orderBy('starts_at');
+    $upcomingStudentEvents = (clone $upcomingStudentEventsQuery)->limit(5)->get();
+    $dashboardData = [];
+
+    if ($page === 'dashboard') {
+        $attendanceService = app(AttendanceSessionService::class);
+        $attendanceCounts = $athlete->attendanceRecords()
+            ->counted()
+            ->selectRaw('status, COUNT(*) as total')
+            ->groupBy('status')
+            ->pluck('total', 'status');
+        $attendanceTotal = (int) $attendanceCounts->sum();
+        $eligibleSessions = $athlete->sport_id
+            ? AttendanceSession::query()
+                ->with(['event.sport', 'event.coach', 'sport', 'attendanceRecords' => fn ($query) => $query->where('user_id', $athlete->id)])
+                ->visibleToAthlete($athlete)
+                ->whereIn('status', ['Open', 'Closed'])
+                ->whereDate('session_date', '>=', today()->toDateString())
+                ->orderBy('session_date')
+                ->orderBy('start_time')
+                ->get()
+            : collect();
+        $eligibleOpenSessions = $eligibleSessions->filter(fn ($session) => $session->isOpen() && $session->session_date?->isToday())->values();
+        $nextEvent = (clone $upcomingStudentEventsQuery)->first();
+        $nextTraining = $athlete->sport_id
+            ? $eligibleSessions->first(fn ($session) => ! $session->session_date?->isToday() || ! $session->start_time || Carbon::parse($session->session_date->toDateString().' '.$session->start_time)->gte(now()))
+            : null;
+        $activityOptions = collect();
+
+        if ($nextEvent) {
+            $activityOptions->push([
+                'title' => $nextEvent->title,
+                'sport' => $nextEvent->sport?->name ?? 'All sports',
+                'startsAt' => $nextEvent->starts_at,
+                'endsAt' => $nextEvent->ends_at,
+                'venue' => $nextEvent->venue,
+                'coach' => $nextEvent->coach?->name,
+            ]);
+        }
+
+        if ($nextTraining) {
+            $activityOptions->push([
+                'title' => $nextTraining->title,
+                'sport' => $nextTraining->sport?->name ?? 'Unassigned sport',
+                'startsAt' => Carbon::parse($nextTraining->session_date->toDateString().' '.($nextTraining->start_time ?: '00:00')),
+                'endsAt' => $nextTraining->end_time ? Carbon::parse($nextTraining->session_date->toDateString().' '.$nextTraining->end_time) : null,
+                'venue' => $nextTraining->venue,
+                'coach' => null,
+            ]);
+        }
+
+        $dashboardData = [
+            'dashboardUpcomingCount' => (clone $upcomingStudentEventsQuery)->count(),
+            'dashboardAttendanceCounts' => [
+                'present' => (int) $attendanceCounts->get('Present', 0),
+                'late' => (int) $attendanceCounts->get('Late', 0),
+                'absent' => (int) $attendanceCounts->get('Absent', 0),
+                'excused' => (int) $attendanceCounts->get('Excused', 0),
+                'percentage' => $attendanceService->rateFor($athlete),
+            ],
+            'dashboardOpenSessions' => $eligibleOpenSessions,
+            'dashboardUpcomingAttendance' => $eligibleSessions->filter(fn ($session) => ! $session->session_date?->isToday())->values(),
+            'dashboardNextActivity' => $activityOptions->sortBy('startsAt')->first(),
+            'dashboardUnreadCount' => $athlete->unreadNotifications()->count(),
+        ];
+    }
     $content = [
         'dashboard' => ['Dashboard', "Here's what's happening with your sports activities", null],
         'sports' => ['Sports Programs', 'View sports programs managed by SNNHS', null],
@@ -154,7 +224,7 @@ $studentPage = function (string $page, array $data = []) use ($studentNav, $anno
         'coach' => ['Coach Information', 'Learn more about your coach', null],
         'profile' => ['My Profile', 'Manage your personal information', ['label' => 'Edit Profile', 'url' => '#']],
     ][$page];
-    return view('student.page', array_merge(['page' => $page, 'heading' => $content[0], 'subtitle' => $content[1], 'action' => $content[2], 'active' => $page, 'navItems' => $studentNav, 'announcements' => $publishedAnnouncements, 'studentApplication' => $studentApplication, 'upcomingStudentEvents' => $upcomingStudentEvents, 'athlete' => $athlete, 'roleLabel' => 'Athlete Portal', 'userName' => $athlete->name, 'userRole' => $athlete->sport?->name ?? 'Unassigned sport'], $data));
+    return view('student.page', array_merge(['page' => $page, 'heading' => $content[0], 'subtitle' => $content[1], 'action' => $content[2], 'active' => $page, 'navItems' => $studentNav, 'announcements' => $publishedAnnouncements, 'studentApplication' => $studentApplication, 'upcomingStudentEvents' => $upcomingStudentEvents, 'athlete' => $athlete, 'roleLabel' => 'Athlete Portal', 'userName' => $athlete->name, 'userRole' => $athlete->sport?->name ?? 'Unassigned sport'], $dashboardData, $data));
 };
 
 Route::get('/student', fn () => redirect()->route('student.dashboard'));
@@ -171,47 +241,65 @@ Route::get('/student/schedule', fn () => $studentPage('schedule', [
         ->get(),
 ]))->middleware('auth')->name('student.schedule');
 Route::get('/student/announcements', fn () => $studentPage('announcements'))->middleware('auth')->name('student.announcements');
-Route::get('/student/attendance', fn () => $studentPage('attendance', [
-    'attendanceRecords' => Attendance::with(['event.sport', 'session'])->where('user_id', auth()->id())->latest('attended_on')->latest()->get(),
-    'openAttendanceSessions' => AttendanceSession::with(['event.sport', 'sport'])->where('status', 'Open')->whereDate('session_date', today())->where(function ($query) {
-        $query->where('sport_id', auth()->user()->sport_id)
-            ->orWhereHas('event', fn ($eventQuery) => $eventQuery->where('sport_id', auth()->user()->sport_id));
-    })->latest('start_time')->get(),
-]))->middleware('auth')->name('student.attendance');
+Route::get('/student/attendance', function () use ($studentPage) {
+    $athlete = auth()->user();
+    abort_unless($athlete?->role === 'Student', 403);
+
+    $attendanceService = app(AttendanceSessionService::class);
+
+    $sessions = $athlete->sport_id
+        ? AttendanceSession::query()
+            ->with(['sport', 'event.sport', 'attendanceRecords' => fn ($query) => $query->where('user_id', $athlete->id)])
+            ->visibleToAthlete($athlete)
+            ->whereIn('status', ['Open', 'Closed'])
+            ->whereDate('session_date', '>=', today()->toDateString())
+            ->orderBy('session_date')
+            ->orderBy('start_time')
+            ->get()
+        : collect();
+
+    $records = Attendance::query()
+        ->with(['session.sport', 'session.event.sport', 'event.sport'])
+        ->where('user_id', $athlete->id)
+        ->orderByDesc('attended_on')
+        ->orderByDesc('id')
+        ->get();
+
+    $counted = $records->filter(fn ($record) => in_array($record->status, config('attendance.counted_statuses'), true)
+        && (! $record->session || $record->session->status !== 'Cancelled'));
+
+    $presentCount = $counted->whereIn('status', ['Present', 'Late'])->count();
+
+    return $studentPage('attendance', [
+        'attendanceRecords' => $records,
+        'openAttendanceSessions' => $sessions->filter(fn ($session) => $session->isOpen() && $session->session_date?->isToday()),
+        'upcomingAttendanceSessions' => $sessions->filter(fn ($session) => ! $session->session_date?->isToday()),
+        'attendanceStats' => [
+            'total' => $counted->count(),
+            'present' => $records->where('status', 'Present')->count(),
+            'late' => $records->where('status', 'Late')->count(),
+            'absent' => $records->where('status', 'Absent')->count(),
+            'excused' => $records->where('status', 'Excused')->count(),
+            'pending' => $records->where('status', 'Pending')->count(),
+            'rate' => $attendanceService->rateFor($athlete),
+        ],
+    ]);
+})->middleware('auth')->name('student.attendance');
 Route::post('/student/attendance/sessions/{session}/check-in', function (AttendanceSession $session) {
-    abort_unless(auth()->user()?->role === 'Student', 403);
+    $student = auth()->user();
 
-    $session->load(['event', 'sport']);
-    abort_unless($session->status === 'Open' && $session->session_date?->isToday(), 422, 'This attendance session is not currently open.');
+    $result = app(AttendanceSessionService::class)->checkIn($session, $student);
 
-    $sportId = $session->sport_id ?: $session->event?->sport_id;
-    abort_unless(!$sportId || (int) $sportId === (int) auth()->user()->sport_id, 403, 'You are not eligible for this attendance session.');
-
-    $attendance = Attendance::where('attendance_session_id', $session->id)->where('user_id', auth()->id())->first();
-
-    if ($attendance && in_array($attendance->status, ['Present', 'Late'], true)) {
+    if (! $result['checkedIn']) {
         return back()->withErrors(['attendance' => 'You have already checked in for this session.']);
     }
 
-    if ($attendance) {
-        $attendance->update(['status' => 'Present', 'check_in_time' => now()]);
-    } else {
-        Attendance::create([
-            'attendance_session_id' => $session->id,
-            'event_id' => $session->event_id,
-            'user_id' => auth()->id(),
-            'status' => 'Present',
-            'attended_on' => $session->session_date,
-            'check_in_time' => now(),
-        ]);
-    }
+    app(AttendanceSessionService::class)->notifyAdministrators(
+        $student->name.' checked in for '.$result['label'].'.',
+        route('admin.attendance', ['session_id' => $session->id])
+    );
 
-    $label = $session->title ?: $session->event?->title ?: 'attendance session';
-    foreach (User::where('role', 'Administrator')->get() as $admin) {
-        $admin->notify(new AttendanceNotification(auth()->user()->name.' checked in for '.$label.'.', route('admin.attendance', ['session_id' => $session->id])));
-    }
-
-    return back()->with('success', 'You are checked in for '.$label.'.');
+    return back()->with('success', 'You are checked in for '.$result['label'].' at '.($result['time'] ?? now())->format('g:i A').'.');
 })->middleware('auth')->name('student.attendance.check-in');
 Route::get('/student/application', fn () => $studentPage('application'))->middleware('auth')->name('student.application');
 Route::get('/student/coach', fn () => $studentPage('coach', ['coach' => Coach::where('sport_id', auth()->user()->sport_id)->first()]))->middleware('auth')->name('student.coach');
@@ -271,12 +359,25 @@ $adminPage = function (string $page, array $data = []) use ($adminNav, $announce
     return view('admin.page', array_merge(['page' => $page, 'heading' => $content[0], 'subtitle' => $content[1], 'action' => $content[2], 'active' => $page, 'navItems' => $adminNav, 'announcements' => $announcements, 'roleLabel' => 'Admin Portal', 'userName' => 'Admin User', 'userRole' => 'Administrator'], $data));
 };
 
-Route::get('/dashboard', fn () => $adminPage('dashboard', array_merge($calendarData(), [
+Route::get('/dashboard', function () use ($adminPage, $calendarData) {
+    $countedToday = Attendance::whereDate('attended_on', today())
+        ->whereNotNull('attendance_session_id')
+        ->whereIn('status', config('attendance.counted_statuses'))
+        ->get();
+    $attendanceRate = $countedToday->count() > 0
+        ? round($countedToday->whereIn('status', ['Present', 'Late'])->count() / $countedToday->count() * 100, 1)
+        : 0;
+
+    return $adminPage('dashboard', array_merge($calendarData(), [
     'stats' => [
         ['value' => Sport::count(), 'label' => 'Total Sports', 'action' => 'View details', 'route' => 'sports.index'],
         ['value' => User::where('role', 'Student')->count(), 'label' => 'Active Athletes', 'action' => 'View athletes', 'route' => 'athletes.index'],
         ['value' => Sport::whereHas('athletes', fn ($query) => $query->where('role', 'Student'))->count(), 'label' => 'Active Teams', 'action' => 'View sports', 'route' => 'sports.index'],
         ['value' => Event::where('status', 'Scheduled')->where('starts_at', '>=', now())->count(), 'label' => 'Upcoming Events', 'action' => 'View events', 'route' => 'events.index'],
+        ['value' => AttendanceSession::whereDate('session_date', today())->count(), 'label' => "Today's Sessions", 'action' => 'View attendance', 'route' => 'admin.attendance'],
+        ['value' => Attendance::whereDate('attended_on', today())->whereIn('status', ['Present', 'Late'])->whereNotNull('attendance_session_id')->count(), 'label' => 'Present Today', 'action' => 'View attendance', 'route' => 'admin.attendance'],
+        ['value' => Attendance::whereDate('attended_on', today())->where('status', 'Pending')->whereNotNull('attendance_session_id')->count(), 'label' => 'Pending Check-ins', 'action' => 'View attendance', 'route' => 'admin.attendance'],
+        ['value' => $attendanceRate.'%', 'label' => 'Attendance Rate', 'action' => 'Full report', 'route' => 'reports.index'],
         ['value' => Application::where('status', 'Pending')->count(), 'label' => 'Pending Applications', 'action' => 'Review applications', 'route' => 'admin.applications'],
         ['value' => MedicalRecord::where('medical_status', 'Cleared')->count().' / '.User::where('role', 'Student')->count(), 'label' => 'Medical Clearance', 'action' => 'View records', 'route' => 'admin.medical'],
     ],
@@ -299,8 +400,10 @@ Route::get('/dashboard', fn () => $adminPage('dashboard', array_merge($calendarD
         ...Event::with('sport')->latest('created_at')->limit(2)->get()->map(fn ($event) => ['label' => $event->title.' was created', 'date' => $event->created_at])->all(),
         ...Application::latest('created_at')->limit(2)->get()->map(fn ($application) => ['label' => $application->name.' submitted a sports application', 'date' => $application->created_at])->all(),
         ...MedicalRecord::with('athlete')->latest('updated_at')->limit(2)->get()->map(fn ($record) => ['label' => 'Medical record updated'.($record->athlete?->name ? ' for '.$record->athlete->name : ''), 'date' => $record->updated_at])->all(),
+        ...AttendanceSession::latest('created_at')->limit(2)->get()->map(fn ($session) => ['label' => 'Attendance session created for '.$session->effectiveSportName(), 'date' => $session->created_at])->all(),
     ])->sortByDesc('date')->take(5)->values(),
-])))->middleware('auth')->name('dashboard');
+    ]));
+})->middleware('auth')->name('dashboard');
 Route::get('/admin/calendar', fn () => $adminPage('calendar', $calendarData(request('month'))))->middleware('auth')->name('admin.calendar');
 Route::get('/applications', [ApplicationController::class, 'index'])->middleware('auth')->name('admin.applications');
 Route::get('/applications/{application}', [ApplicationController::class, 'show'])->middleware('auth')->name('applications.show');
@@ -356,254 +459,16 @@ Route::resource('coaches', \App\Http\Controllers\CoachController::class)->only([
 Route::resource('events', EventController::class)->only(['index', 'create', 'store', 'edit', 'update', 'destroy'])->middleware('auth');
 Route::get('/events/{event}', [EventController::class, 'show'])->middleware('auth')->name('events.show');
 Route::get('/admin/events', fn () => redirect()->route('events.index'))->middleware('auth')->name('admin.events.index');
-$attendanceEligibleStudents = function (AttendanceSession $session) {
-    $sportId = $session->sport_id ?: $session->event?->sport_id;
+Route::get('/admin/attendance', [AttendanceController::class, 'index'])->middleware('auth')->name('admin.attendance');
+Route::post('/admin/attendance/sessions', [AttendanceController::class, 'store'])->middleware('auth')->name('admin.attendance.sessions.store');
+Route::patch('/admin/attendance/sessions/{session}/open', [AttendanceController::class, 'open'])->middleware('auth')->name('admin.attendance.sessions.open');
+Route::patch('/admin/attendance/sessions/{session}/close', [AttendanceController::class, 'close'])->middleware('auth')->name('admin.attendance.sessions.close');
+Route::patch('/admin/attendance/sessions/{session}/cancel', [AttendanceController::class, 'cancel'])->middleware('auth')->name('admin.attendance.sessions.cancel');
+Route::patch('/admin/attendance/sessions/{session}/sync', [AttendanceController::class, 'sync'])->middleware('auth')->name('admin.attendance.sessions.sync');
+Route::delete('/admin/attendance/sessions/{session}', [AttendanceController::class, 'destroy'])->middleware('auth')->name('admin.attendance.sessions.destroy');
+Route::get('/admin/attendance/sessions/{session}/export', [AttendanceController::class, 'export'])->middleware('auth')->name('admin.attendance.sessions.export');
+Route::put('/admin/attendance/records/{attendance}', [AttendanceController::class, 'updateRecord'])->middleware('auth')->name('admin.attendance.records.update');
 
-    return User::where('role', 'Student')
-        ->where(fn ($query) => $query->whereNull('status')->orWhere('status', 'Active'))
-        ->when($sportId, fn ($query, $value) => $query->where('sport_id', $value))
-        ->get();
-};
-
-$syncAttendanceRoster = function (AttendanceSession $session) use ($attendanceEligibleStudents) {
-    foreach ($attendanceEligibleStudents($session) as $student) {
-        Attendance::firstOrCreate(
-            ['attendance_session_id' => $session->id, 'user_id' => $student->id],
-            [
-                'event_id' => $session->event_id,
-                'status' => 'Pending',
-                'attended_on' => $session->session_date,
-            ],
-        );
-    }
-};
-
-Route::post('/admin/attendance/sessions', function () use ($syncAttendanceRoster) {
-    abort_unless(auth()->user()?->role === 'Administrator', 403);
-
-    $validated = request()->validate([
-        'title' => ['required', 'string', 'max:255'],
-        'event_id' => ['nullable', 'exists:events,id'],
-        'sport_id' => ['nullable', 'exists:sports,id'],
-        'session_date' => ['required', 'date'],
-        'start_time' => ['nullable', 'date_format:H:i'],
-        'end_time' => ['nullable', 'date_format:H:i', 'after_or_equal:start_time'],
-        'venue' => ['nullable', 'string', 'max:255'],
-        'description' => ['nullable', 'string', 'max:2000'],
-    ]);
-
-    $event = !empty($validated['event_id']) ? Event::findOrFail($validated['event_id']) : null;
-    $validated['sport_id'] = $validated['sport_id'] ?? $event?->sport_id;
-    abort_unless($validated['sport_id'], 422, 'Select a sport or an event with an assigned sport.');
-    $validated['created_by'] = auth()->id();
-    $validated['status'] = 'Closed';
-
-    $session = AttendanceSession::create($validated);
-    $syncAttendanceRoster($session);
-
-    return back()->with('success', 'Attendance session created. Open it when students may check in.');
-})->middleware('auth')->name('admin.attendance.sessions.store');
-
-Route::patch('/admin/attendance/sessions/{session}/open', function (AttendanceSession $session) use ($attendanceEligibleStudents, $syncAttendanceRoster) {
-    abort_unless(auth()->user()?->role === 'Administrator', 403);
-
-    $session->load('event');
-    $syncAttendanceRoster($session);
-    $session->update(['status' => 'Open', 'opened_at' => now(), 'closed_at' => null]);
-    $label = $session->title ?: $session->event?->title ?: 'Attendance session';
-
-    foreach ($attendanceEligibleStudents($session) as $student) {
-        $student->notify(new AttendanceNotification('Attendance is now open for '.$label.'.', route('student.attendance')));
-    }
-
-    return back()->with('success', 'Attendance is now open for eligible students.');
-})->middleware('auth')->name('admin.attendance.sessions.open');
-
-Route::patch('/admin/attendance/sessions/{session}/close', function (AttendanceSession $session) use ($attendanceEligibleStudents) {
-    abort_unless(auth()->user()?->role === 'Administrator', 403);
-
-    $session->load('event');
-    $session->update(['status' => 'Closed', 'closed_at' => now()]);
-    $label = $session->title ?: $session->event?->title ?: 'Attendance session';
-
-    foreach ($attendanceEligibleStudents($session) as $student) {
-        $student->notify(new AttendanceNotification('Attendance is now closed for '.$label.'.', route('student.attendance')));
-    }
-
-    return back()->with('success', 'Attendance session closed.');
-})->middleware('auth')->name('admin.attendance.sessions.close');
-
-Route::get('/admin/attendance', function () use ($adminPage) {
-    abort_unless(auth()->user()?->role === 'Administrator', 403);
-
-    $selectedDate = request('date', today()->toDateString());
-    $selectedEventId = request('event_id');
-    $sportId = request('sport_id');
-    $statusFilter = request('status');
-    $search = trim((string) request('search', ''));
-    $editingAttendance = request('edit_id') ? Attendance::with(['athlete', 'event'])->find(request('edit_id')) : null;
-
-    $attendanceQuery = Attendance::with(['athlete.sport', 'event.sport'])
-        ->when($search !== '', function ($query) use ($search) {
-            $query->whereHas('athlete', function ($athleteQuery) use ($search) {
-                $athleteQuery->where('name', 'like', "%{$search}%")
-                    ->orWhere('student_id', 'like', "%{$search}%")
-                    ->orWhere('email', 'like', "%{$search}%");
-            });
-        })
-        ->when($sportId, fn ($query, $value) => $query->whereHas('event', fn ($eventQuery) => $eventQuery->where('sport_id', $value)))
-        ->when($selectedEventId, fn ($query, $value) => $query->where('event_id', $value))
-        ->when($statusFilter, fn ($query, $value) => $query->where('status', $value))
-        ->when(request('from_date'), fn ($query, $value) => $query->whereDate('attended_on', '>=', $value))
-        ->when(request('to_date'), fn ($query, $value) => $query->whereDate('attended_on', '<=', $value))
-        ->orderByDesc('attended_on')
-        ->orderByDesc('id');
-
-    $selectedEvent = $selectedEventId ? Event::with('sport')->find($selectedEventId) : null;
-    $athletesForEvent = $selectedEvent ? User::where('role', 'Student')->when($sportId, fn ($query, $value) => $query->where('sport_id', $value))->orderBy('name')->get() : collect();
-
-    $presentCount = Attendance::whereDate('attended_on', $selectedDate)->whereIn('status', ['Present', 'Late'])->select('user_id')->distinct()->count('user_id');
-    $absentCount = Attendance::whereDate('attended_on', $selectedDate)->where('status', 'Absent')->select('user_id')->distinct()->count('user_id');
-    $excusedCount = Attendance::whereDate('attended_on', $selectedDate)->where('status', 'Excused')->select('user_id')->distinct()->count('user_id');
-    $totalAthletes = User::where('role', 'Student')->count();
-    $attendanceRate = $totalAthletes > 0 ? round((($presentCount + $excusedCount) / $totalAthletes) * 100, 1) : 0;
-    $todaySessions = AttendanceSession::whereDate('session_date', $selectedDate)->count();
-    $openSessions = AttendanceSession::whereDate('session_date', $selectedDate)->where('status', 'Open')->count();
-    $presentToday = Attendance::whereDate('attended_on', $selectedDate)->whereIn('status', ['Present', 'Late'])->whereNotNull('attendance_session_id')->count();
-    $pendingToday = Attendance::whereDate('attended_on', $selectedDate)->where('status', 'Pending')->whereNotNull('attendance_session_id')->count();
-
-    return $adminPage('attendance', [
-        'attendance' => $attendanceQuery->get(),
-        'athletes' => User::where('role', 'Student')->with('sport')->orderBy('name')->get(),
-        'attendanceEvents' => Event::with('sport')->orderBy('starts_at')->get(),
-        'sports' => Sport::orderBy('name')->get(),
-        'selectedAttendanceEvent' => $selectedEvent,
-        'editingAttendance' => $editingAttendance,
-        'selectedDate' => $selectedDate,
-        'statusOptions' => ['Present', 'Late', 'Absent', 'Excused'],
-        'summary' => [
-            'todaySessions' => $todaySessions,
-            'openSessions' => $openSessions,
-            'presentToday' => $presentToday,
-            'pendingToday' => $pendingToday,
-            'totalAthletes' => $totalAthletes,
-            'presentToday' => $presentCount,
-            'absentToday' => $absentCount,
-            'excusedToday' => $excusedCount,
-            'attendanceRate' => $attendanceRate,
-        ],
-        'athletesForEvent' => $athletesForEvent,
-        'attendanceSessions' => AttendanceSession::with(['event.sport', 'sport'])->withCount([
-            'attendanceRecords as present_count' => fn ($query) => $query->where('status', 'Present'),
-            'attendanceRecords as pending_count' => fn ($query) => $query->where('status', 'Pending'),
-            'attendanceRecords as late_count' => fn ($query) => $query->where('status', 'Late'),
-            'attendanceRecords as absent_count' => fn ($query) => $query->where('status', 'Absent'),
-        ])->latest('session_date')->latest()->get(),
-        'attendanceSessionRecords' => request('session_id') ? Attendance::with(['athlete', 'session'])->where('attendance_session_id', request('session_id'))->latest('check_in_time')->get() : collect(),
-        'selectedAttendanceSession' => request('session_id') ? AttendanceSession::with(['event', 'sport'])->find(request('session_id')) : null,
-    ]);
-})->middleware('auth')->name('admin.attendance');
-
-Route::post('/admin/attendance', function () {
-    abort_unless(auth()->user()?->role === 'Administrator', 403);
-
-    $validated = request()->validate([
-        'event_id' => ['required', 'exists:events,id'],
-        'user_id' => ['required', 'exists:users,id'],
-        'status' => ['required', 'in:Present,Late,Absent,Excused'],
-        'attended_on' => ['required', 'date'],
-    ]);
-
-    $event = Event::findOrFail($validated['event_id']);
-    $athlete = User::where('role', 'Student')->findOrFail($validated['user_id']);
-
-    if ($event->sport_id && $athlete->sport_id && (int) $event->sport_id !== (int) $athlete->sport_id) {
-        return back()->withErrors(['user_id' => 'The selected athlete does not belong to this event sport.'])->withInput();
-    }
-
-    if (Attendance::where('event_id', $validated['event_id'])->where('user_id', $validated['user_id'])->exists()) {
-        return back()->withErrors(['user_id' => 'This athlete already has attendance recorded for this event.'])->withInput();
-    }
-
-    Attendance::create([
-        'event_id' => $validated['event_id'],
-        'user_id' => $validated['user_id'],
-        'status' => $validated['status'],
-        'attended_on' => $validated['attended_on'],
-    ]);
-
-    return back()->with('success', 'Attendance saved successfully.');
-})->middleware('auth')->name('admin.attendance.store');
-
-Route::post('/admin/attendance/bulk', function () {
-    abort_unless(auth()->user()?->role === 'Administrator', 403);
-
-    $validated = request()->validate([
-        'event_id' => ['required', 'exists:events,id'],
-        'attended_on' => ['required', 'date'],
-        'records' => ['required', 'array'],
-        'records.*.user_id' => ['required', 'exists:users,id'],
-        'records.*.status' => ['required', 'in:Present,Late,Absent,Excused'],
-    ]);
-
-    foreach ($validated['records'] as $record) {
-        $athlete = User::where('role', 'Student')->findOrFail($record['user_id']);
-        $event = Event::findOrFail($validated['event_id']);
-
-        if ($event->sport_id && $athlete->sport_id && (int) $event->sport_id !== (int) $athlete->sport_id) {
-            continue;
-        }
-
-        if (Attendance::where('event_id', $validated['event_id'])->where('user_id', $record['user_id'])->exists()) {
-            continue;
-        }
-
-        Attendance::create([
-            'event_id' => $validated['event_id'],
-            'user_id' => $record['user_id'],
-            'status' => $record['status'],
-            'attended_on' => $validated['attended_on'],
-        ]);
-    }
-
-    return back()->with('success', 'Bulk attendance saved successfully.');
-})->middleware('auth')->name('admin.attendance.bulk');
-
-Route::put('/admin/attendance/{attendance}', function (Attendance $attendance) {
-    abort_unless(auth()->user()?->role === 'Administrator', 403);
-
-    $validated = request()->validate([
-        'event_id' => ['required', 'exists:events,id'],
-        'user_id' => ['required', 'exists:users,id'],
-        'status' => ['required', 'in:Present,Late,Absent,Excused'],
-        'attended_on' => ['required', 'date'],
-    ]);
-
-    $duplicateExists = Attendance::where('event_id', $validated['event_id'])
-        ->where('user_id', $validated['user_id'])
-        ->whereKeyNot($attendance->getKey())
-        ->exists();
-
-    if ($duplicateExists) {
-        return back()->withErrors(['user_id' => 'This athlete already has attendance recorded for this event.'])->withInput();
-    }
-
-    $attendance->update([
-        'event_id' => $validated['event_id'],
-        'user_id' => $validated['user_id'],
-        'status' => $validated['status'],
-        'attended_on' => $validated['attended_on'],
-    ]);
-
-    return redirect()->route('admin.attendance')->with('success', 'Attendance updated successfully.');
-})->middleware('auth')->name('admin.attendance.update');
-
-Route::delete('/admin/attendance/{attendance}', function (Attendance $attendance) {
-    abort_unless(auth()->user()?->role === 'Administrator', 403);
-    $attendance->delete();
-
-    return redirect()->route('admin.attendance')->with('success', 'Attendance record deleted successfully.');
-})->middleware('auth')->name('admin.attendance.destroy');
 Route::get('/admin/announcements', function () use ($adminPage) {
     abort_unless(auth()->user()?->role === 'Administrator', 403);
 
@@ -702,25 +567,31 @@ Route::get('/reports', function () use ($adminPage) {
     $perPage = (int) ($validated['per_page'] ?? 25);
     $search = trim($validated['search'] ?? '');
 
-    $attendanceQuery = Attendance::with(['athlete.sport', 'event.sport'])
+    $attendanceQuery = Attendance::with(['athlete.sport', 'session.sport', 'event.sport'])
         ->when($validated['from'] ?? null, fn ($query, $value) => $query->whereDate('attended_on', '>=', $value))
         ->when($validated['to'] ?? null, fn ($query, $value) => $query->whereDate('attended_on', '<=', $value))
-        ->when($validated['sport_id'] ?? null, fn ($query, $value) => $query->whereHas('athlete', fn ($athletes) => $athletes->where('sport_id', $value)))
+        ->when($validated['sport_id'] ?? null, fn ($query, $value) => $query->where(function ($nested) use ($value) {
+            $nested->whereHas('athlete', fn ($athletes) => $athletes->where('sport_id', $value))
+                ->orWhereHas('session', fn ($sessionQuery) => $sessionQuery->forSport($value));
+        }))
         ->when($validated['event_id'] ?? null, fn ($query, $value) => $query->where('event_id', $value))
         ->when($validated['athlete_id'] ?? null, fn ($query, $value) => $query->where('user_id', $value))
         ->when($validated['status'] ?? null, fn ($query, $value) => $query->where('status', $value))
         ->when($search !== '', function ($query) use ($search) {
             $query->where(function ($nested) use ($search) {
                 $nested->whereHas('athlete', fn ($athlete) => $athlete->where('name', 'like', "%{$search}%")->orWhere('student_id', 'like', "%{$search}%"))
+                    ->orWhereHas('session', fn ($session) => $session->where('title', 'like', "%{$search}%"))
                     ->orWhereHas('event', fn ($event) => $event->where('title', 'like', "%{$search}%"));
             });
         })
         ->latest('attended_on')->latest('id');
 
     $filteredAttendance = (clone $attendanceQuery)->get();
-    $attendanceTotals = $filteredAttendance->groupBy('user_id')->map(fn ($records) => [
+    $rateRecords = $filteredAttendance->filter(fn ($record) => in_array($record->status, config('attendance.counted_statuses'), true)
+        && (! $record->session || $record->session->status !== 'Cancelled'));
+    $attendanceTotals = $rateRecords->groupBy('user_id')->map(fn ($records) => [
         'total' => $records->count(),
-        'present' => $records->where('status', 'Present')->count(),
+        'present' => $records->whereIn('status', ['Present', 'Late'])->count(),
     ]);
     $filteredAttendance->each(function ($record) use ($attendanceTotals) {
         $totals = $attendanceTotals->get($record->user_id, ['total' => 0, 'present' => 0]);
@@ -736,8 +607,8 @@ Route::get('/reports', function () use ($adminPage) {
     };
 
     $statusCounts = collect(['Present', 'Absent', 'Late', 'Excused'])->mapWithKeys(fn ($status) => [$status => $filteredAttendance->where('status', $status)->count()]);
-    $attendanceTotal = $filteredAttendance->count();
-    $attendanceRate = $attendanceTotal > 0 ? round(($statusCounts['Present'] / $attendanceTotal) * 100, 1) : 0;
+    $attendanceTotal = $rateRecords->count();
+    $attendanceRate = $attendanceTotal > 0 ? round(($rateRecords->whereIn('status', ['Present', 'Late'])->count() / $attendanceTotal) * 100, 1) : 0;
     $attendanceByMonth = $filteredAttendance->groupBy(fn ($record) => $record->attended_on->format('Y-m'))->sortKeys()->map(fn ($records) => [
         'label' => Carbon::createFromFormat('Y-m', $records->first()->attended_on->format('Y-m'))->format('M Y'),
         'Present' => $records->where('status', 'Present')->count(),
@@ -749,10 +620,10 @@ Route::get('/reports', function () use ($adminPage) {
         ->when($validated['sport_id'] ?? null, fn ($query, $value) => $query->where('sport_id', $value))
         ->when($validated['athlete_id'] ?? null, fn ($query, $value) => $query->whereKey($value))
         ->when($search !== '', fn ($query) => $query->where(fn ($nested) => $nested->where('name', 'like', "%{$search}%")->orWhere('student_id', 'like', "%{$search}%")))
-        ->orderBy('name')->get()->map(function ($athlete) use ($filteredAttendance) {
-            $records = $filteredAttendance->where('user_id', $athlete->id);
+        ->orderBy('name')->get()->map(function ($athlete) use ($rateRecords) {
+            $records = $rateRecords->where('user_id', $athlete->id);
             $total = $records->count();
-            $present = $records->where('status', 'Present')->count();
+            $present = $records->whereIn('status', ['Present', 'Late'])->count();
             $application = $athlete->applications->sortByDesc('created_at')->first();
             $athlete->report_total = $total;
             $athlete->report_present = $present;
@@ -765,9 +636,9 @@ Route::get('/reports', function () use ($adminPage) {
     $sports = Sport::withCount(['athletes as athlete_count' => fn ($query) => $query->where('role', 'Student'), 'coaches', 'events'])
         ->when($validated['sport_id'] ?? null, fn ($query, $value) => $query->whereKey($value))
         ->when($search !== '', fn ($query) => $query->where('name', 'like', "%{$search}%"))
-        ->orderBy('name')->get()->map(function ($sport) use ($filteredAttendance) {
-            $records = $filteredAttendance->filter(fn ($record) => $record->athlete?->sport_id === $sport->id);
-            $sport->report_rate = $records->count() ? round(($records->where('status', 'Present')->count() / $records->count()) * 100, 1) : 0;
+        ->orderBy('name')->get()->map(function ($sport) use ($rateRecords) {
+            $records = $rateRecords->filter(fn ($record) => $record->athlete?->sport_id === $sport->id);
+            $sport->report_rate = $records->count() ? round(($records->whereIn('status', ['Present', 'Late'])->count() / $records->count()) * 100, 1) : 0;
             return $sport;
         });
 
@@ -849,10 +720,13 @@ Route::get('/reports/export', function () {
         'status' => ['nullable', 'in:Present,Late,Absent,Excused'],
     ]);
 
-    $rows = Attendance::with(['athlete.sport', 'event'])
+    $rows = Attendance::with(['athlete.sport', 'session.sport', 'event.sport'])
         ->when(request('from'), fn ($query, $value) => $query->whereDate('attended_on', '>=', $value))
         ->when(request('to'), fn ($query, $value) => $query->whereDate('attended_on', '<=', $value))
-        ->when(request('sport_id'), fn ($query, $value) => $query->whereHas('athlete', fn ($athlete) => $athlete->where('sport_id', $value)))
+        ->when(request('sport_id'), fn ($query, $value) => $query->where(function ($nested) use ($value) {
+            $nested->whereHas('athlete', fn ($athlete) => $athlete->where('sport_id', $value))
+                ->orWhereHas('session', fn ($sessionQuery) => $sessionQuery->forSport($value));
+        }))
         ->when(request('event_id'), fn ($query, $value) => $query->where('event_id', $value))
         ->when(request('athlete_id'), fn ($query, $value) => $query->where('user_id', $value))
         ->when(request('status'), fn ($query, $value) => $query->where('status', $value))
@@ -863,9 +737,18 @@ Route::get('/reports/export', function () {
         fputcsv($handle, ['SNNHS Sports Hub - Attendance Report']);
         fputcsv($handle, ['Generated', now()->format('Y-m-d H:i')]);
         fputcsv($handle, []);
-        fputcsv($handle, ['Date', 'Athlete', 'Student ID', 'Sport', 'Event', 'Status']);
+        fputcsv($handle, ['Date', 'Athlete', 'Student ID', 'Sport', 'Session', 'Venue', 'Status', 'Check-in']);
         foreach ($rows as $row) {
-            fputcsv($handle, [$row->attended_on?->toDateString(), $row->athlete?->name, $row->athlete?->student_id, $row->athlete?->sport?->name, $row->event?->title, $row->status]);
+            fputcsv($handle, [
+                $row->attended_on?->toDateString(),
+                $row->athlete?->name,
+                $row->athlete?->student_id,
+                $row->sportName(),
+                $row->displayName(),
+                $row->venue(),
+                $row->status,
+                $row->check_in_time?->format('Y-m-d H:i:s'),
+            ]);
         }
         fclose($handle);
     }, 'sportshub-report-'.now()->format('Ymd-His').'.csv', ['Content-Type' => 'text/csv']);

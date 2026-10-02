@@ -19,13 +19,57 @@
 </section>
 
 <section class="card report-data-panel">
-	<h2>{{ ucfirst($reportType ?? 'attendance') }} Report</h2>
-	<div class="table-wrap"><table class="data-table report-table"><thead><tr><th>Date</th><th>Athlete</th><th>Sport</th><th>Event</th><th>Status</th></tr></thead><tbody>
-		@forelse ($reportData ?? [] as $row)
-			<tr><td>{{ $row->attended_on?->format('M j, Y') }}</td><td>{{ $row->athlete?->name }}</td><td>{{ $row->athlete?->sport?->name ?? 'Unassigned' }}</td><td>{{ $row->event?->title }}</td><td><span class="badge">{{ $row->status }}</span></td></tr>
-		@empty
-			<tr><td colspan="5" class="empty-cell">No report data available.</td></tr>
-		@endforelse
-	</tbody></table></div>
+	<div class="section-heading">
+		<div><h2>{{ ucfirst($reportType ?? 'attendance') }} Report</h2><p class="meta">Attendance rate counts Present and Late only. Pending and cancelled sessions are excluded.</p></div>
+		<a class="button button-secondary" href="{{ route('reports.export', array_merge(request()->query(), ['format' => 'csv'])) }}">Export CSV</a>
+	</div>
+	<div class="table-wrap"><table class="data-table report-table">
+		@if (($reportType ?? 'attendance') === 'attendance')
+			<thead><tr><th>Date</th><th>Athlete</th><th>Sport</th><th>Session</th><th>Status</th><th>Check-in</th><th>Rate</th></tr></thead>
+			<tbody>
+			@forelse ($reportData ?? [] as $row)
+				<tr><td>{{ $row->attended_on?->format('M j, Y') }}</td><td>{{ $row->athlete?->name }}</td><td>{{ $row->sportName() }}</td><td>{{ $row->displayName() }}</td><td><span class="badge">{{ $row->status }}</span></td><td>{{ $row->check_in_time?->format('g:i A') ?? '--' }}</td><td>{{ $row->report_rate }}%</td></tr>
+			@empty
+				<tr><td colspan="7" class="empty-cell">No report data available.</td></tr>
+			@endforelse
+			</tbody>
+		@elseif (($reportType ?? '') === 'athletes')
+			<thead><tr><th>Athlete</th><th>Student ID</th><th>Sessions</th><th>Present</th><th>Absent</th><th>Rate</th></tr></thead>
+			<tbody>
+			@forelse ($reportData ?? [] as $row)
+				<tr><td>{{ $row->name }}</td><td>{{ $row->student_id ?: 'No ID' }}</td><td>{{ $row->report_total }}</td><td>{{ $row->report_present }}</td><td>{{ $row->report_absent }}</td><td>{{ $row->report_rate }}%</td></tr>
+			@empty
+				<tr><td colspan="6" class="empty-cell">No athlete data available.</td></tr>
+			@endforelse
+			</tbody>
+		@elseif (($reportType ?? '') === 'sports')
+			<thead><tr><th>Sport</th><th>Athletes</th><th>Coaches</th><th>Events</th><th>Attendance Rate</th></tr></thead>
+			<tbody>
+			@forelse ($reportData ?? [] as $row)
+				<tr><td>{{ $row->name }}</td><td>{{ $row->athlete_count }}</td><td>{{ $row->coaches_count }}</td><td>{{ $row->events_count }}</td><td>{{ $row->report_rate }}%</td></tr>
+			@empty
+				<tr><td colspan="5" class="empty-cell">No sports data available.</td></tr>
+			@endforelse
+			</tbody>
+		@elseif (($reportType ?? '') === 'events')
+			<thead><tr><th>Event</th><th>Sport</th><th>Date</th><th>Athletes</th><th>Present</th><th>Absent</th></tr></thead>
+			<tbody>
+			@forelse ($reportData ?? [] as $row)
+				<tr><td>{{ $row->title }}</td><td>{{ $row->sport?->name ?? 'All Sports' }}</td><td>{{ $row->starts_at?->format('M j, Y') }}</td><td>{{ $row->report_athletes }}</td><td>{{ $row->report_present }}</td><td>{{ $row->report_absent }}</td></tr>
+			@empty
+				<tr><td colspan="6" class="empty-cell">No event data available.</td></tr>
+			@endforelse
+			</tbody>
+		@else
+			<thead><tr><th>Applicant</th><th>Student ID</th><th>Sport</th><th>Status</th><th>Submitted</th></tr></thead>
+			<tbody>
+			@forelse ($reportData ?? [] as $row)
+				<tr><td>{{ $row->name }}</td><td>{{ $row->student_id ?: 'No ID' }}</td><td>{{ $row->sportCategory?->name ?? $row->sport ?? 'Unassigned' }}</td><td><span class="badge">{{ $row->status }}</span></td><td>{{ $row->created_at?->format('M j, Y') }}</td></tr>
+			@empty
+				<tr><td colspan="5" class="empty-cell">No application data available.</td></tr>
+			@endforelse
+			</tbody>
+		@endif
+	</table></div>
 	@if (($reportData ?? null)?->hasPages()) {{ $reportData->links() }} @endif
 </section>

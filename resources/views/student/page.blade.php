@@ -3,9 +3,21 @@
 @section('content')
 <div class="module-header">
     <div>
-        <h1>{{ $heading }}</h1>
-        <p class="page-subtitle">{{ $subtitle }}</p>
+        @if ($page === 'dashboard')
+            <h1>Welcome back, {{ $athlete->name }}!</h1>
+            <p class="page-subtitle">Here's your sports activity overview.</p>
+        @else
+            <h1>{{ $heading }}</h1>
+            <p class="page-subtitle">{{ $subtitle }}</p>
+        @endif
     </div>
+    @if ($page === 'dashboard')
+        <a class="dashboard-notification-link" href="#portal-notifications" aria-label="Notifications: {{ $dashboardUnreadCount }} unread">
+            <svg class="dashboard-notification-icon" aria-hidden="true"><use href="#icon-bell"></use></svg>
+            <span>Notifications</span>
+            <strong>{{ $dashboardUnreadCount }}</strong>
+        </a>
+    @endif
 </div>
 
 @if (session('success'))

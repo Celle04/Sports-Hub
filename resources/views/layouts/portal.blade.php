@@ -20,6 +20,8 @@
         <symbol id="icon-medical" viewBox="0 0 24 24"><path d="M9 3h6v5h5v6h-5v5H9v-5H4V8h5V3Z" /></symbol>
         <symbol id="icon-chart" viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2" /></symbol>
         <symbol id="icon-logout" viewBox="0 0 24 24"><path d="M10 5H5v14h5M14 8l4 4-4 4M9 12h9" /></symbol>
+        <symbol id="icon-bell" viewBox="0 0 24 24"><path d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4" /></symbol>
+        <symbol id="icon-pin" viewBox="0 0 24 24"><path d="M20 10c0 5-8 12-8 12S4 15 4 10a8 8 0 1 1 16 0Z" /><circle cx="12" cy="10" r="2.5" /></symbol>
     </svg>
     <div class="portal">
         <aside class="portal-sidebar">
@@ -52,20 +54,7 @@
         </aside>
 
         <main class="portal-main">
-            @auth
-                @php($portalNotifications = auth()->user()->notifications()->latest()->limit(5)->get())
-                @if ($portalNotifications->isNotEmpty())
-                    <section class="portal-notifications" aria-label="Notifications">
-                        <div class="portal-notifications-heading"><strong>Notifications</strong><form method="POST" action="{{ route('notifications.read-all') }}">@csrf<button class="text-link" type="submit">Mark all read</button></form></div>
-                        @foreach ($portalNotifications as $notification)
-                            <div class="portal-notification {{ $notification->read_at ? 'is-read' : 'is-unread' }}">
-                                <div><span>{{ data_get($notification->data, 'message', 'New notification') }}</span><small>{{ $notification->created_at?->diffForHumans() }}</small></div>
-                                @if (!$notification->read_at)<form method="POST" action="{{ route('notifications.read', $notification->id) }}">@csrf<button class="text-link" type="submit">Read</button></form>@endif
-                            </div>
-                        @endforeach
-                    </section>
-                @endif
-            @endauth
+            
             @yield('content')
         </main>
     </div>

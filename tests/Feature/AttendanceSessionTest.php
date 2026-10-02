@@ -108,5 +108,30 @@ class AttendanceSessionTest extends TestCase
             ->assertForbidden();
 
         $this->assertDatabaseCount('attendances', 0);
+
+        $admin = User::factory()->create(['role' => 'Administrator']);
+        $studentSession = AttendanceSession::create([
+            'sport_id' => $otherSport->id,
+            'title' => 'Student Sport Session',
+            'session_date' => today(),
+            'status' => 'Open',
+            'created_by' => $admin->id,
+        ]);
+        Attendance::create([
+            'attendance_session_id' => $studentSession->id,
+            'user_id' => $student->id,
+            'status' => 'Absent',
+            'attended_on' => today(),
+        ]);
+
+        $this->post(route('student.attendance.check-in', $studentSession))
+            ->assertSessionHasErrors('attendance');
+        $this->assertDatabaseHas('attendances', [
+            'attendance_session_id' => $studentSession->id,
+            'user_id' => $student->id,
+            'status' => 'Absent',
+        ]);
+
+        $this->actingAs($student)->post(route('admin.attendance.sessions.store'))->assertForbidden();
     }
 }

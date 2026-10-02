@@ -24,6 +24,14 @@ class User extends Authenticatable
         return $this->hasMany(Attendance::class);
     }
 
+    /**
+     * Attendance sessions this athlete is eligible for, based on assigned sport.
+     */
+    public function attendanceSessions()
+    {
+        return AttendanceSession::query()->visibleToAthlete($this);
+    }
+
     public function medicalRecords()
     {
         return $this->hasMany(MedicalRecord::class, 'athlete_id');
