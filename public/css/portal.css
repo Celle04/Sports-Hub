@@ -189,6 +189,196 @@ body { margin: 0; background: linear-gradient(135deg, #eef1f5 0%, #f8f3f5 52%, #
 .calendar-card { max-width: 920px; }
 .dashboard-calendar { margin-top: 18px; }
 .dashboard-quick-actions { margin-top: 18px; }
+.student-dashboard { display: grid; gap: 16px; }
+.student-dashboard-links { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+.student-dashboard-link { display: flex; align-items: center; gap: 14px; min-width: 0; padding: 18px; color: var(--ink); text-decoration: none; transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease; }
+.student-dashboard-link:hover, .student-dashboard-link:focus-visible { transform: translateY(-3px); border-color: #e5c2ce; box-shadow: 0 12px 24px rgba(39, 34, 46, .12); }
+.student-dashboard-link:focus-visible { outline: 3px solid rgba(143, 18, 56, .25); outline-offset: 2px; }
+.student-dashboard-link > span:last-child { display: grid; gap: 4px; min-width: 0; }
+.student-dashboard-link small, .student-dashboard-kicker { color: var(--muted); font-size: 9px; font-weight: 700; letter-spacing: 0; }
+.student-dashboard-link strong { font-size: 16px; }
+.student-dashboard-link > span:last-child > span { color: var(--muted); font-size: 11px; line-height: 1.4; }
+.student-dashboard-icon { display: grid; place-items: center; width: 44px; height: 44px; flex: 0 0 44px; border-radius: 8px; }
+.student-dashboard-icon svg { width: 21px; height: 21px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.student-dashboard-icon-red { color: var(--red); background: #f9edf1; }
+.student-dashboard-icon-green { color: #147653; background: #e5f4ed; }
+.student-dashboard-icon-gold { color: #94610b; background: #fbf1dc; }
+.student-dashboard-announcements { padding: 20px; background: rgba(255, 255, 255, .82); }
+.student-dashboard-heading { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-bottom: 14px; }
+.student-dashboard-heading h2 { margin: 4px 0 0; font-size: 17px; }
+.student-announcement-list { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.student-announcement { min-width: 0; padding: 13px 14px; border-left: 3px solid #a92a4e; border-radius: 0 6px 6px 0; background: #f8f5f6; }
+.student-announcement h3 { margin: 6px 0; font-size: 13px; line-height: 1.4; }
+.student-announcement p { margin: 0; color: #5f6670; font-size: 11px; line-height: 1.55; overflow-wrap: anywhere; }
+.student-dashboard-panels { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(250px, .75fr); gap: 16px; }
+.student-dashboard-panels > .card { min-width: 0; padding: 20px; background: rgba(255, 255, 255, .82); }
+.student-dashboard-events .student-dashboard-heading { margin-bottom: 4px; }
+.student-event { display: grid; grid-template-columns: 52px minmax(0, 1fr); align-items: start; gap: 13px; padding: 14px 0; border-top: 1px solid var(--line); }
+.student-event-date { display: grid; place-items: center; min-height: 44px; padding: 5px; border-radius: 6px; color: var(--red); background: #f9edf1; font-size: 11px; font-weight: 700; text-align: center; }
+.student-event-details { min-width: 0; }
+.student-event-details strong { font-size: 13px; line-height: 1.4; }
+.student-event-details p { margin: 5px 0 0; color: #5f6670; font-size: 11px; line-height: 1.5; overflow-wrap: anywhere; }
+.student-event-details p.meta { color: var(--muted); }
+.student-application-status { display: grid; justify-items: start; gap: 11px; padding: 15px; border-radius: 6px; background: #f8f5f6; }
+.student-application-status > span:last-child { font-size: 13px; font-weight: 700; }
+.student-review-notes { margin: 12px 0; color: #5f6670; font-size: 12px; line-height: 1.55; }
+.student-dashboard-application > .text-link { display: inline-block; margin-top: 15px; }
+.student-sports { display: grid; gap: 18px; }
+.student-sports-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; padding: 2px 0 16px; border-bottom: 1px solid rgba(32, 35, 42, .12); }
+.student-sports-kicker { color: var(--red); font-size: 9px; font-weight: 700; }
+.student-sports-heading h2 { margin: 5px 0; font-size: 21px; }
+.student-sports-heading p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
+.student-sports-count { flex: 0 0 auto; padding: 7px 10px; border: 1px solid #dce9e3; border-radius: 6px; color: #176746; background: #edf6f1; font-size: 10px; font-weight: 700; }
+.student-sports-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 14px; }
+.student-sport-card { display: flex; flex-direction: column; min-width: 0; min-height: 226px; padding: 19px; border-color: rgba(255, 255, 255, .9); background: rgba(255, 255, 255, .86); transition: transform .18s ease, box-shadow .18s ease; }
+.student-sport-card:hover { transform: translateY(-3px); box-shadow: 0 13px 28px rgba(25, 32, 45, .12); }
+.student-sport-card-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.student-sport-icon { display: grid; place-items: center; width: 42px; height: 42px; flex: 0 0 42px; border-radius: 8px; color: var(--red); background: #f9edf1; }
+.student-sport-icon svg { width: 21px; height: 21px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.student-sport-card:nth-child(3n + 2) .student-sport-icon { color: #147653; background: #e5f4ed; }
+.student-sport-card:nth-child(3n) .student-sport-icon { color: #94610b; background: #fbf1dc; }
+.student-sport-classification { max-width: 70%; overflow: hidden; padding: 5px 8px; border-radius: 4px; color: #626975; background: #f1f2f3; font-size: 9px; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
+.student-sport-card h3 { margin: 15px 0 6px; font-size: 17px; line-height: 1.35; overflow-wrap: anywhere; }
+.student-sport-description { margin: 0 0 18px; color: #626975; font-size: 11px; line-height: 1.6; overflow-wrap: anywhere; }
+.student-sport-coach { display: flex; align-items: center; gap: 10px; margin-top: auto; padding-top: 13px; border-top: 1px solid var(--line); }
+.student-sport-coach > svg { width: 18px; height: 18px; flex: 0 0 18px; fill: none; stroke: var(--red); stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.student-sport-coach span { display: grid; gap: 3px; min-width: 0; }
+.student-sport-coach small { color: var(--muted); font-size: 8px; font-weight: 700; }
+.student-sport-coach strong { font-size: 11px; overflow-wrap: anywhere; }
+.student-sports-empty { grid-column: 1 / -1; margin: 0; padding: 28px 18px; border: 1px dashed #ccd1d8; border-radius: 8px; color: var(--muted); background: rgba(255, 255, 255, .45); font-size: 12px; text-align: center; }
+.student-schedule { display: grid; gap: 14px; }
+.student-schedule-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 14px; padding-bottom: 14px; border-bottom: 1px solid rgba(32, 35, 42, .12); }
+.student-schedule-heading > div > span { color: var(--red); font-size: 9px; font-weight: 700; }
+.student-schedule-heading h2 { margin: 5px 0 0; font-size: 20px; }
+.student-schedule-count { flex: 0 0 auto; padding: 7px 10px; border: 1px solid #dce9e3; border-radius: 6px; color: #176746; background: #edf6f1; font-size: 10px; font-weight: 700; }
+.student-schedule-list { display: grid; gap: 11px; }
+.student-schedule-item { display: grid; grid-template-columns: 72px minmax(0, 1fr); align-items: stretch; gap: 17px; padding: 16px; background: rgba(255, 255, 255, .86); transition: transform .16s ease, box-shadow .16s ease; }
+.student-schedule-item:hover { transform: translateY(-2px); box-shadow: 0 12px 26px rgba(25, 32, 45, .11); }
+.student-schedule-date { display: grid; align-content: center; justify-items: center; min-height: 86px; padding: 7px; border-radius: 6px; color: var(--red); background: #f9edf1; text-align: center; }
+.student-schedule-date span { font-size: 10px; font-weight: 700; text-transform: uppercase; }
+.student-schedule-date strong { font-size: 25px; line-height: 1.1; }
+.student-schedule-date small { margin-top: 3px; color: #737783; font-size: 9px; }
+.student-schedule-details { min-width: 0; align-self: center; }
+.student-schedule-details h3 { margin: 0; font-size: 15px; line-height: 1.4; overflow-wrap: anywhere; }
+.student-schedule-meta { display: flex; flex-wrap: wrap; gap: 8px 18px; margin-top: 9px; }
+.student-schedule-meta > span { display: inline-flex; align-items: center; gap: 6px; color: #5e6570; font-size: 10px; line-height: 1.45; overflow-wrap: anywhere; }
+.student-schedule-meta svg { width: 14px; height: 14px; flex: 0 0 14px; fill: none; stroke: var(--red); stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.student-schedule-details > p { margin: 9px 0 0; color: var(--muted); font-size: 11px; line-height: 1.55; overflow-wrap: anywhere; }
+.student-schedule-empty { display: grid; justify-items: center; gap: 8px; padding: 38px 20px; border: 1px dashed #ccd1d8; border-radius: 8px; color: var(--muted); background: rgba(255, 255, 255, .48); text-align: center; }
+.student-schedule-empty > span { display: grid; place-items: center; width: 42px; height: 42px; margin-bottom: 3px; border-radius: 8px; color: var(--red); background: #f9edf1; }
+.student-schedule-empty svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.student-schedule-empty strong { color: var(--ink); font-size: 13px; }
+.student-schedule-empty p { margin: 0; font-size: 11px; }
+.student-announcements { display: grid; gap: 15px; max-width: 980px; }
+.student-announcements-heading { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding-bottom: 14px; border-bottom: 1px solid rgba(32, 35, 42, .12); }
+.student-announcements-heading > div > span { color: var(--red); font-size: 9px; font-weight: 700; }
+.student-announcements-heading h2 { margin: 5px 0 0; font-size: 20px; }
+.student-announcements-heading > svg { width: 22px; height: 22px; flex: 0 0 22px; fill: none; stroke: var(--red); stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.student-announcements-list { display: grid; gap: 11px; }
+.student-announcement-item { display: grid; grid-template-columns: 66px minmax(0, 1fr); align-items: start; gap: 17px; padding: 17px; background: rgba(255, 255, 255, .86); }
+.student-announcement-date { display: grid; place-items: center; min-height: 70px; padding: 7px; border-radius: 6px; color: var(--red); background: #f9edf1; text-align: center; }
+.student-announcement-date time { display: grid; justify-items: center; }
+.student-announcement-date time span { font-size: 9px; font-weight: 700; text-transform: uppercase; }
+.student-announcement-date time strong { font-size: 23px; line-height: 1.15; }
+.student-announcement-date time small { margin-top: 2px; color: #737783; font-size: 8px; }
+.student-announcement-upcoming { font-size: 9px; font-weight: 700; }
+.student-announcement-copy { min-width: 0; }
+.student-announcement-tags { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; color: var(--muted); font-size: 8px; font-weight: 700; }
+.student-announcement-sport { padding: 4px 7px; border-radius: 4px; color: #176746; background: #edf6f1; font-size: 9px; }
+.student-announcement-copy h3 { margin: 7px 0; font-size: 15px; line-height: 1.4; overflow-wrap: anywhere; }
+.student-announcement-copy p { margin: 0; color: #5f6670; font-size: 11px; line-height: 1.65; overflow-wrap: anywhere; white-space: pre-line; }
+.student-announcements-empty { display: grid; justify-items: center; gap: 8px; padding: 38px 20px; border: 1px dashed #ccd1d8; border-radius: 8px; color: var(--muted); background: rgba(255, 255, 255, .48); text-align: center; }
+.student-announcements-empty > span { display: grid; place-items: center; width: 42px; height: 42px; margin-bottom: 3px; border-radius: 8px; color: var(--red); background: #f9edf1; }
+.student-announcements-empty svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.student-announcements-empty strong { color: var(--ink); font-size: 13px; }
+.student-announcements-empty p { margin: 0; font-size: 11px; }
+.student-application-page { display: grid; gap: 14px; max-width: 980px; }
+.student-application-heading { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding-bottom: 14px; border-bottom: 1px solid rgba(32, 35, 42, .12); }
+.student-application-heading > div > span { color: var(--red); font-size: 9px; font-weight: 700; }
+.student-application-heading h2 { margin: 5px 0; font-size: 20px; }
+.student-application-heading p { margin: 0; color: var(--muted); font-size: 11px; line-height: 1.5; }
+.student-application-heading > svg { width: 22px; height: 22px; flex: 0 0 22px; fill: none; stroke: var(--red); stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.student-application-overview { padding: 20px; background: rgba(255, 255, 255, .86); }
+.student-application-status-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-bottom: 17px; border-bottom: 1px solid var(--line); }
+.student-application-status-row > div:first-child { display: grid; justify-items: start; gap: 8px; }
+.student-application-label, .student-application-submitted > span { color: var(--muted); font-size: 8px; font-weight: 700; }
+.student-application-status-row .badge { padding: 6px 10px; border-radius: 5px; font-size: 10px; }
+.student-application-submitted { display: grid; justify-items: end; gap: 5px; text-align: right; }
+.student-application-submitted strong { color: var(--ink); font-size: 11px; }
+.student-application-details { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 15px; padding-top: 17px; }
+.student-application-details > div { display: grid; align-content: start; gap: 5px; min-width: 0; }
+.student-application-details span { color: var(--muted); font-size: 9px; }
+.student-application-details strong { color: var(--ink); font-size: 11px; line-height: 1.45; overflow-wrap: anywhere; }
+.student-application-feedback, .student-application-rejection { padding: 14px 16px; border-radius: 6px; }
+.student-application-feedback { border-left: 3px solid #168b5a; background: #edf6f1; }
+.student-application-feedback > span { color: #176746; font-size: 8px; font-weight: 700; }
+.student-application-feedback p, .student-application-rejection p { margin: 6px 0 0; font-size: 11px; line-height: 1.6; overflow-wrap: anywhere; white-space: pre-line; }
+.student-application-feedback p { color: #435b50; }
+.student-application-rejection { border: 1px solid #f1c5ca; background: #fff1f2; color: #a7283d; }
+.student-application-rejection strong { font-size: 11px; }
+.student-application-empty { display: grid; justify-items: center; gap: 8px; padding: 38px 20px; border: 1px dashed #ccd1d8; border-radius: 8px; color: var(--muted); background: rgba(255, 255, 255, .48); text-align: center; }
+.student-application-empty > span { display: grid; place-items: center; width: 42px; height: 42px; margin-bottom: 3px; border-radius: 8px; color: var(--red); background: #f9edf1; }
+.student-application-empty svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.student-application-empty strong { color: var(--ink); font-size: 13px; }
+.student-application-empty p { margin: 0; font-size: 11px; }
+.student-coach-page { display: grid; gap: 20px; max-width: 960px; }
+.student-coach-profile { display: flex; align-items: center; justify-content: space-between; gap: 20px; min-height: 176px; padding: 25px; border-radius: 8px; color: #fff; background: linear-gradient(110deg, #801336, #a52b4d); }
+.student-coach-identity { display: flex; align-items: center; gap: 18px; min-width: 0; }
+.student-coach-avatar { display: grid; place-items: center; width: 76px; height: 76px; flex: 0 0 76px; border: 3px solid rgba(255, 255, 255, .62); border-radius: 50%; color: #801336; background: #fff; font-size: 22px; font-weight: 700; }
+.student-coach-copy { min-width: 0; }
+.student-coach-eyebrow { color: rgba(255, 255, 255, .78); font-size: 9px; font-weight: 700; }
+.student-coach-copy h2 { margin: 7px 0 5px; font-size: 23px; line-height: 1.25; overflow-wrap: anywhere; }
+.student-coach-copy p { margin: 0; color: rgba(255, 255, 255, .84); font-size: 12px; line-height: 1.5; }
+.student-coach-assigned { display: inline-flex; align-items: center; gap: 8px; flex: 0 0 auto; padding: 8px 10px; border: 1px solid rgba(255, 255, 255, .26); border-radius: 5px; color: #fff; background: rgba(255, 255, 255, .1); font-size: 9px; }
+.student-coach-assigned i { width: 7px; height: 7px; border-radius: 50%; background: #89d6ae; }
+.student-coach-contact { display: grid; gap: 12px; }
+.student-coach-contact > header > span { color: var(--red); font-size: 9px; font-weight: 700; }
+.student-coach-contact > header h3 { margin: 5px 0 0; font-size: 17px; }
+.student-coach-contact-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.student-coach-contact-item { display: flex; align-items: center; gap: 13px; min-width: 0; padding: 16px; border: 1px solid rgba(255, 255, 255, .82); border-radius: 8px; background: rgba(255, 255, 255, .78); box-shadow: 0 7px 20px rgba(25, 32, 45, .06); }
+.student-coach-contact-mark { display: grid; place-items: center; width: 40px; height: 40px; flex: 0 0 40px; border-radius: 7px; color: var(--red); background: #f9edf1; }
+.student-coach-contact-mark svg { width: 19px; height: 19px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.student-coach-contact-mark-green { color: #147653; background: #e5f4ed; }
+.student-coach-contact-item > div { display: grid; gap: 5px; min-width: 0; }
+.student-coach-contact-item small { color: var(--muted); font-size: 8px; font-weight: 700; }
+.student-coach-contact-item a, .student-coach-contact-item strong { color: var(--ink); font-size: 11px; font-weight: 700; line-height: 1.4; text-decoration: none; overflow-wrap: anywhere; }
+.student-coach-contact-item a:hover, .student-coach-contact-item a:focus-visible { color: var(--red); text-decoration: underline; }
+.student-coach-unassigned { display: grid; justify-items: center; gap: 8px; max-width: 960px; padding: 42px 20px; border: 1px dashed #ccd1d8; border-radius: 8px; color: var(--muted); background: rgba(255, 255, 255, .48); text-align: center; }
+.student-coach-unassigned > span { display: grid; place-items: center; width: 44px; height: 44px; margin-bottom: 3px; border-radius: 8px; color: var(--red); background: #f9edf1; }
+.student-coach-unassigned svg { width: 21px; height: 21px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.student-coach-unassigned strong { color: var(--ink); font-size: 13px; }
+.student-coach-unassigned p { margin: 0; font-size: 11px; }
+.student-attendance-open, .student-attendance-history { display: grid; gap: 12px; }
+.student-attendance-open { margin-bottom: 18px; }
+.student-attendance-section-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 14px; padding-bottom: 12px; border-bottom: 1px solid rgba(32, 35, 42, .12); }
+.student-attendance-section-heading > div > span { color: var(--red); font-size: 9px; font-weight: 700; }
+.student-attendance-section-heading h2 { margin: 5px 0 0; font-size: 18px; }
+.student-attendance-open-count { flex: 0 0 auto; padding: 6px 9px; border: 1px solid #dce9e3; border-radius: 6px; color: #176746; background: #edf6f1; font-size: 9px; font-weight: 700; }
+.student-attendance-session { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 18px; background: rgba(255, 255, 255, .86); }
+.student-attendance-session-info { min-width: 0; }
+.student-attendance-session-label { color: #176746; font-size: 8px; font-weight: 700; }
+.student-attendance-session h3 { margin: 5px 0; font-size: 15px; overflow-wrap: anywhere; }
+.student-attendance-session p { margin: 4px 0 0; color: #5f6670; font-size: 10px; line-height: 1.5; overflow-wrap: anywhere; }
+.student-attendance-session p.meta { color: var(--muted); }
+.student-attendance-session form { flex: 0 0 auto; }
+.student-attendance-check-in { gap: 8px; min-height: 40px; }
+.student-attendance-check-in svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.student-attendance-checked-in { flex: 0 0 auto; padding: 7px 10px; }
+.student-attendance-summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin-bottom: 22px; }
+.student-attendance-stat { display: flex; align-items: center; gap: 13px; min-width: 0; min-height: 96px; padding: 17px; background: rgba(255, 255, 255, .86); }
+.student-attendance-stat-icon { display: grid; place-items: center; width: 38px; height: 38px; flex: 0 0 38px; border-radius: 7px; color: var(--red); background: #f9edf1; }
+.student-attendance-stat-icon svg { width: 19px; height: 19px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.student-attendance-stat > div { display: grid; gap: 4px; min-width: 0; }
+.student-attendance-stat strong { font-size: 23px; line-height: 1.1; overflow-wrap: anywhere; }
+.student-attendance-stat small { color: var(--muted); font-size: 10px; }
+.student-attendance-present .student-attendance-stat-icon { color: #147653; background: #e5f4ed; }
+.student-attendance-absent .student-attendance-stat-icon { color: #a23a40; background: #fbecee; }
+.student-attendance-table-wrap { background: rgba(255, 255, 255, .82); }
+.student-attendance-table th { white-space: nowrap; }
+.student-attendance-table td { vertical-align: middle; }
+.student-attendance-table tbody tr:hover { background: #fbf8f9; }
+.student-attendance-badge { white-space: nowrap; }
+.student-attendance-no-records { padding: 24px !important; color: var(--muted); text-align: center; }
 .dashboard-two-column { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(320px, .85fr); gap: 16px; margin-top: 18px; }
 .dashboard-two-column .card { min-width: 0; }
 .section-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; margin-bottom: 16px; }
@@ -299,6 +489,32 @@ body { margin: 0; background: linear-gradient(135deg, #eef1f5 0%, #f8f3f5 52%, #
 .calendar-toolbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; }
 .calendar-toolbar h2 { margin: 0; font-size: 18px; }
 .calendar-arrow { width: 34px; height: 34px; border: 1px solid var(--line); border-radius: 6px; color: var(--red); background: var(--surface); cursor: pointer; }
+.student-calendar { width: 100%; }
+.student-calendar-card { max-width: none; padding: 22px; background: rgba(255, 255, 255, .88); }
+.student-calendar-toolbar { margin-bottom: 20px; }
+.student-calendar-title { flex: 1; margin-left: 14px; }
+.student-calendar-title > span { color: var(--red); font-size: 9px; font-weight: 700; }
+.student-calendar-title h2 { margin-top: 4px; font-size: 21px; }
+.student-calendar-controls { display: flex; align-items: center; gap: 9px; }
+.student-calendar-today { padding: 8px 11px; border: 1px solid var(--line); border-radius: 6px; color: var(--ink); background: #fff; font-size: 11px; font-weight: 700; text-decoration: none; }
+.student-calendar-today:hover, .student-calendar-today:focus-visible { border-color: #dcaabd; color: var(--red); }
+.student-calendar .calendar-arrow { display: grid; place-items: center; color: var(--ink); text-decoration: none; transition: color .15s ease, background .15s ease, border-color .15s ease; }
+.student-calendar .calendar-arrow:hover, .student-calendar .calendar-arrow:focus-visible { border-color: var(--red); color: #fff; background: var(--red); }
+.student-calendar-scroll { min-width: 0; }
+.student-calendar-weekdays > * { padding: 10px; color: #626975; background: #f4f5f6; text-transform: uppercase; }
+.student-calendar-grid > * { min-height: 106px; padding: 9px; background: rgba(255, 255, 255, .72); }
+.student-calendar-day { color: var(--ink); }
+.student-calendar-day.outside-month { color: #a7abb2; background: #f8f8f8; }
+.student-calendar-day.has-event { color: var(--ink); background: #fff; }
+.student-calendar-day.today { background: #f0f8f4; }
+.student-calendar-day .day-number { display: grid; place-items: center; width: 27px; height: 27px; margin: -3px 0 5px -3px; border-radius: 50%; font-size: 11px; font-weight: 600; }
+.student-calendar-day.today .day-number { color: #fff; background: #168b5a; }
+.student-calendar-day .calendar-event { margin-top: 4px; padding: 4px 5px; border-left: 2px solid var(--red); border-radius: 2px; color: #63263a; background: #f9edf1; font-size: 9px; line-height: 1.3; }
+.student-calendar-day .calendar-more { display: block; margin: 4px 0 0 5px; color: var(--muted); font-size: 9px; font-weight: 700; }
+.student-calendar-legend { display: flex; flex-wrap: wrap; gap: 18px; margin-top: 15px; color: var(--muted); font-size: 10px; }
+.student-calendar-legend span { display: flex; align-items: center; gap: 6px; }
+.student-calendar-legend i { width: 8px; height: 8px; border-radius: 50%; background: var(--red); }
+.student-calendar-legend span:first-child i { background: #168b5a; }
 .calendar-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); border-top: 1px solid var(--line); border-left: 1px solid var(--line); }
 .calendar-grid > * { min-height: 68px; padding: 10px; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); }
 .calendar-weekdays > * { min-height: auto; padding: 9px 10px; color: var(--muted); background: #fff8fa; font-size: 11px; font-weight: 700; text-align: center; }
@@ -595,12 +811,43 @@ body { margin: 0; background: linear-gradient(135deg, #eef1f5 0%, #f8f3f5 52%, #
     .document-review-row { display: grid; }
     .document-actions { justify-content: flex-start; }
     .dashboard-two-column { grid-template-columns: 1fr; }
+    .student-dashboard-links { grid-template-columns: 1fr; }
+    .student-announcement-list { grid-template-columns: 1fr; }
+    .student-dashboard-panels { grid-template-columns: 1fr; }
+    .student-sports-heading { align-items: flex-start; }
+    .student-calendar-card { padding: 14px; }
+    .student-calendar-scroll { overflow-x: auto; padding-bottom: 4px; }
+    .student-calendar-weekdays, .student-calendar-grid { min-width: 560px; }
+    .student-calendar-grid > * { min-height: 88px; }
+    .student-calendar-title h2 { font-size: 17px; }
+    .student-schedule-item { grid-template-columns: 62px minmax(0, 1fr); gap: 12px; padding: 12px; }
+    .student-schedule-date { min-height: 78px; }
+    .student-schedule-date strong { font-size: 22px; }
+    .student-schedule-meta { gap: 7px 12px; }
+    .student-announcement-item { grid-template-columns: 54px minmax(0, 1fr); gap: 12px; padding: 12px; }
+    .student-announcement-date { min-height: 64px; }
+    .student-announcement-date time strong { font-size: 20px; }
+    .student-coach-profile { align-items: flex-start; flex-direction: column; padding: 21px; }
+    .student-coach-assigned { align-self: flex-start; }
+    .student-coach-avatar { width: 64px; height: 64px; flex-basis: 64px; font-size: 18px; }
+    .student-coach-copy h2 { font-size: 20px; }
+    .student-application-details { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .student-attendance-session { align-items: stretch; flex-direction: column; gap: 14px; }
+    .student-attendance-session form, .student-attendance-check-in { width: 100%; }
+    .student-attendance-summary { gap: 8px; }
+    .student-attendance-stat { align-items: flex-start; flex-direction: column; gap: 8px; min-height: 106px; padding: 12px; }
+    .student-attendance-stat strong { font-size: 20px; }
+    .student-attendance-stat small { font-size: 9px; }
+    .student-application-overview { padding: 15px; }
+    .student-application-status-row { align-items: flex-start; }
+    .student-application-submitted strong { font-size: 10px; }
     .module-header { flex-direction: column; }
     .calendar-grid > * { min-height: 52px; padding: 7px; }
 }
 
 @media (max-width: 430px) {
     .grid-3, .grid-4, .dashboard-stats, .event-summary-grid, .upcoming-event-grid, .event-filters, .event-detail-grid, .application-summary-grid, .application-filters, .application-detail-list, .sports-summary-grid, .sports-detail-stats, .sports-filters, .athlete-summary-grid, .athlete-profile-stats, .athlete-filters, .athlete-detail-list, .coach-summary-grid, .coach-filters, .coach-detail-list { grid-template-columns: 1fr; }
+    .student-coach-contact-grid { grid-template-columns: 1fr; }
     .filters { display: block; }
     .filters > * { max-width: none; margin-bottom: 8px; }
 }

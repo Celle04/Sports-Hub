@@ -1,24 +1,29 @@
-<section class="card">
-    <div class="section-heading">
+<section class="student-sports">
+    <header class="student-sports-heading">
         <div>
-            <h2>Sports Programs</h2>
-            <p class="meta">Programs and coaches currently managed by SNNHS.</p>
+            <span class="student-sports-kicker">SNNHS ATHLETICS</span>
+            <h2>Explore sports programs</h2>
+            <p>Meet the programs and coaches building our teams.</p>
         </div>
-    </div>
+        <span class="student-sports-count">{{ ($studentSports ?? collect())->count() }} {{ ($studentSports ?? collect())->count() === 1 ? 'program' : 'programs' }}</span>
+    </header>
 
-    <div class="grid grid-2">
+    <div class="student-sports-grid">
         @forelse ($studentSports ?? [] as $sport)
-            <article class="card soft-card">
+            <article class="card student-sport-card">
+                <div class="student-sport-card-top">
+                    <span class="student-sport-icon" aria-hidden="true"><svg><use href="#icon-trophy"></use></svg></span>
+                    <span class="student-sport-classification">{{ $sport->classification ?? 'Sports program' }}</span>
+                </div>
                 <h3>{{ $sport->name }}</h3>
-                <p class="meta">{{ $sport->classification ?? 'Sports program' }}</p>
-                <p>{{ $sport->description ?: 'No program description available.' }}</p>
-                <p class="meta">
-                    Coach:
-                    {{ $sport->coaches->first()?->name ?? 'Not assigned' }}
-                </p>
+                <p class="student-sport-description">{{ $sport->description ?: 'Program details will be available soon.' }}</p>
+                <div class="student-sport-coach">
+                    <svg aria-hidden="true"><use href="#icon-user"></use></svg>
+                    <span><small>PROGRAM COACH</small><strong>{{ $sport->coaches->first()?->name ?? 'Not assigned' }}</strong></span>
+                </div>
             </article>
         @empty
-            <p class="empty-state">No active sports programs are available.</p>
+            <p class="student-sports-empty">No active sports programs are available.</p>
         @endforelse
     </div>
 </section>
