@@ -1,9 +1,9 @@
 <section class="dashboard-athlete card" aria-label="Student-athlete profile summary">
 	<div class="dashboard-avatar">
 		@if ($athlete->profile_photo_path)
-			<img src="{{ \\Illuminate\\Support\\Facades\\Storage::url($athlete->profile_photo_path) }}" alt="{{ $athlete->name }} profile photo">
+			<img src="{{ \Illuminate\Support\Facades\Storage::url($athlete->profile_photo_path) }}" alt="{{ $athlete->name }} profile photo">
 		@else
-			<span>{{ \\Illuminate\\Support\\Str::upper(\\Illuminate\\Support\\Str::substr($athlete->name, 0, 2)) }}</span>
+			<span>{{ \Illuminate\Support\Str::upper(\Illuminate\Support\Str::substr($athlete->name, 0, 2)) }}</span>
 		@endif
 	</div>
 	<div class="dashboard-athlete-name"><strong>{{ $athlete->name }}</strong><span>{{ $athlete->sport?->name ?? 'Sport not assigned' }}</span></div>
@@ -24,7 +24,7 @@
 		<div class="student-dashboard-heading"><div><span class="student-dashboard-kicker">FROM THE SPORTS HUB</span><h2>Latest announcements</h2></div><a class="text-link" href="{{ route('student.announcements') }}">All announcements</a></div>
 		<div class="student-announcement-list">
 			@forelse ($announcements->take(3) as $announcement)
-				<article class="student-announcement"><div class="meta">{{ $announcement->published_at?->format('M j, Y') ?? 'Published' }}@if ($announcement->sport) &middot; {{ $announcement->sport->name }}@endif</div><h3>{{ $announcement->title }}</h3><p>{{ \\Illuminate\\Support\\Str::limit($announcement->body, 150) }}</p></article>
+				<article class="student-announcement"><div class="meta">{{ $announcement->published_at?->format('M j, Y') ?? 'Published' }}@if ($announcement->sport) &middot; {{ $announcement->sport->name }}@endif</div><h3>{{ $announcement->title }}</h3><p>{{ \Illuminate\Support\Str::limit($announcement->body, 150) }}</p></article>
 			@empty
 				<p class="empty-state">No current announcements.</p>
 			@endforelse

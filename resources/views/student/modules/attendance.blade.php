@@ -4,8 +4,8 @@
 	$openSessions = $openAttendanceSessions ?? collect();
 	$upcomingSessions = $upcomingAttendanceSessions ?? collect();
 	$recordFor = fn ($session) => $records->first(fn ($record) => (int) $record->attendance_session_id === (int) $session->id);
-	$timeRange = fn ($session) => ($session->start_time ? \\Illuminate\\Support\\Carbon::parse($session->start_time)->format('g:i A') : 'Time not set')
-		.($session->end_time ? ' - '.\\Illuminate\\Support\\Carbon::parse($session->end_time)->format('g:i A') : '');
+	$timeRange = fn ($session) => ($session->start_time ? \Illuminate\Support\Carbon::parse($session->start_time)->format('g:i A') : 'Time not set')
+		.($session->end_time ? ' - '.\Illuminate\Support\Carbon::parse($session->end_time)->format('g:i A') : '');
 @endphp
 
 <section class="student-attendance-summary" aria-label="Attendance summary">
@@ -26,7 +26,7 @@
 				@elseif ($record && ! $record->isPending())
 					<span class="badge">{{ $record->status }}</span>
 				@else
-					<form method="POST" action="{{ route('student.attendance.check-in', $session) }}">@csrf<button class="button student-attendance-check-in" type="submit"><svg aria-hidden="true"><use href="#icon-clipboard"></use></svg>Check in</button></form>
+					<form method="POST" action="{{ route('student.attendance.check-in', $session) }}">@csrf<button class="button student-attendance-check-in" type="submit"><svg aria-hidden="true"><use href="#icon-clipboard"></use></svg>Check In</button></form>
 				@endif
 			</article>
 		@endforeach
