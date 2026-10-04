@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Models\Application;
 use App\Models\Sport;
+use App\Models\User;
+use App\Services\StudentUpdateNotifier;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -87,6 +89,7 @@ class ApplicationController extends Controller
         $validated = $request->validate(['documents' => ['required', 'array', 'min:1'], 'documents.*' => ['in:medical,birth,consent'], 'message' => ['required', 'string', 'max:2000']]);
         $application->update(['status' => 'Documents Required', 'documents_requested' => $validated['documents'], 'review_notes' => $validated['message']]);
         $this->recordHistory($application, 'Additional documents requested.');
+        $this->notifyApplicant($application, 'Additional documents are required for your application.');
 
         return back()->with('success', 'Additional documents requested.');
     }
@@ -98,6 +101,7 @@ class ApplicationController extends Controller
         abort_unless($application->{$definition['path']}, 422, 'This document has not been submitted.');
         $application->update([$definition['status'] => 'Verified']);
         $this->recordHistory($application, $definition['label'].' verified.');
+        $this->notifyApplicant($application, 'Your '.$definition['label'].' has been verified.');
 
         return back()->with('success', 'Document verified successfully.');
     }
@@ -111,6 +115,7 @@ class ApplicationController extends Controller
         $notes[$document] = $validated['reason'];
         $application->update([$definition['status'] => 'Rejected', 'document_rejection_notes' => $notes, 'status' => 'Documents Required']);
         $this->recordHistory($application, $definition['label'].' rejected.');
+        $this->notifyApplicant($application, 'Your '.$definition['label'].' needs an update: '.$validated['reason']);
 
         return back()->with('success', 'Document rejected.');
     }
@@ -166,6 +171,22 @@ class ApplicationController extends Controller
             'reviewed_at' => now(),
         ]);
         $this->recordHistory($application, 'Application moved to '.$status.'.');
+        $this->notifyApplicant($application, 'Your application status is now '.$status.'.');
+    }
+
+    private function notifyApplicant(Application $application, string $message): void
+    {
+        $student = $application->athlete;
+        if (! $student && $application->student_id) {
+            $student = User::query()->where('role', 'Student')->where('student_id', $application->student_id)->first();
+        }
+
+        app(StudentUpdateNotifier::class)->notifyStudent(
+            $student,
+            'Application update',
+            $message,
+            route('student.application'),
+        );
     }
 
     private function documentsVerified(Application $application): bool

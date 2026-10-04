@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Event;
 use App\Models\Coach;
 use App\Models\Sport;
+use App\Services\StudentUpdateNotifier;
 use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -65,7 +66,16 @@ class EventController extends Controller
 
         $validated = $this->validated($request);
         $this->ensureVenueAvailable($validated['venue'], $validated['starts_at'], $validated['ends_at']);
-        Event::create($validated);
+        $event = Event::create($validated);
+
+        if ($event->status === 'Scheduled' && $event->starts_at?->isFuture()) {
+            app(StudentUpdateNotifier::class)->notifyStudents(
+                $event->sport_id ? [$event->sport_id] : null,
+                'New sports event',
+                $event->title.' has been scheduled for '.$event->starts_at->format('M j, Y g:i A').'.',
+                route('student.schedule'),
+            );
+        }
 
         return redirect()->route('events.index')->with('success', 'Event created successfully.');
     }
@@ -88,9 +98,33 @@ class EventController extends Controller
     {
         $this->ensureAdministrator();
 
+        $previousStatus = $event->status;
+        $previousSportId = $event->sport_id;
         $validated = $this->validated($request);
         $this->ensureVenueAvailable($validated['venue'], $validated['starts_at'], $validated['ends_at'], $event);
         $event->update($validated);
+
+        if (in_array($previousStatus, ['Scheduled', 'Ongoing'], true) || $event->status === 'Scheduled') {
+            $eventChanges = ['title', 'sport_id', 'venue', 'starts_at', 'ends_at', 'status', 'coach_id', 'description'];
+
+            if ($event->wasChanged($eventChanges)) {
+                $sportIds = $previousSportId === null || $event->sport_id === null
+                    ? null
+                    : [$previousSportId, $event->sport_id];
+                $updateMessage = match ($event->status) {
+                    'Cancelled' => $event->title.' has been cancelled.',
+                    'Postponed' => $event->title.' has been postponed.',
+                    default => $event->title.' has been updated. Check the schedule for details.',
+                };
+
+                app(StudentUpdateNotifier::class)->notifyStudents(
+                    $sportIds,
+                    'Sports event update',
+                    $updateMessage,
+                    route('student.schedule'),
+                );
+            }
+        }
 
         return redirect()->route('events.index')->with('success', 'Event updated successfully.');
     }
@@ -98,6 +132,15 @@ class EventController extends Controller
     public function destroy(Event $event): RedirectResponse
     {
         $this->ensureAdministrator();
+
+        if ($event->status === 'Scheduled' && $event->starts_at?->isFuture()) {
+            app(StudentUpdateNotifier::class)->notifyStudents(
+                $event->sport_id ? [$event->sport_id] : null,
+                'Sports event removed',
+                $event->title.' has been removed from the schedule.',
+                route('student.schedule'),
+            );
+        }
 
         $event->delete();
 

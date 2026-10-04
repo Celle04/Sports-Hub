@@ -8,6 +8,7 @@ use App\Models\Event;
 use App\Models\Sport;
 use App\Models\User;
 use App\Services\AttendanceSessionService;
+use App\Services\StudentUpdateNotifier;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -161,10 +162,21 @@ class AttendanceController extends Controller
             'attended_on' => ['nullable', 'date'],
         ]);
 
+        $previousStatus = $attendance->status;
         $attendance->update(array_filter([
             'status' => $validated['status'],
             'attended_on' => $validated['attended_on'] ?? $attendance->attended_on,
         ], fn ($value) => $value !== null));
+
+        if ($attendance->wasChanged('status')) {
+            $activityName = $attendance->session?->displayName() ?? $attendance->event?->title ?? 'your activity';
+            app(StudentUpdateNotifier::class)->notifyStudent(
+                $attendance->athlete,
+                'Attendance updated',
+                'Your attendance for '.$activityName.' was changed from '.$previousStatus.' to '.$attendance->status.'.',
+                route('student.attendance'),
+            );
+        }
 
         return redirect()
             ->route('admin.attendance', ['session_id' => $attendance->attendance_session_id])

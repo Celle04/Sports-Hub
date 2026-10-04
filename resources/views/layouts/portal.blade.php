@@ -54,7 +54,6 @@
         </aside>
 
         <main class="portal-main">
-            
             @yield('content')
         </main>
     </div>

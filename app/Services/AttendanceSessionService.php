@@ -82,7 +82,7 @@ class AttendanceSessionService
             'closed_at' => null,
         ]);
 
-        $this->notifyEligible($session, 'Attendance is now open for '.$session->displayName().'.');
+        $this->notifyEligible($session, 'Attendance is now open for '.$session->displayName().'.', route('student.attendance'));
 
         return $session;
     }
@@ -92,7 +92,7 @@ class AttendanceSessionService
         $session->loadMissing('event');
         $session->update(['status' => 'Closed', 'closed_at' => now()]);
 
-        $this->notifyEligible($session, 'Attendance is now closed for '.$session->displayName().'.');
+        $this->notifyEligible($session, 'Attendance is now closed for '.$session->displayName().'.', route('student.attendance'));
 
         return $session;
     }
@@ -102,7 +102,7 @@ class AttendanceSessionService
         $session->loadMissing('event');
         $session->update(['status' => 'Cancelled', 'closed_at' => now()]);
 
-        $this->notifyEligible($session, $session->displayName().' has been cancelled.');
+        $this->notifyEligible($session, $session->displayName().' has been cancelled.', route('student.attendance'));
 
         return $session;
     }

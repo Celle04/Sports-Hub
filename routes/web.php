@@ -20,6 +20,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Pagination\LengthAwarePaginator;
 use App\Services\AttendanceSessionService;
+use App\Services\StudentUpdateNotifier;
 
 Route::get('/', function () {
     return view('landing', [
@@ -211,6 +212,7 @@ $studentPage = function (string $page, array $data = []) use ($studentNav, $anno
             'dashboardUpcomingAttendance' => $eligibleSessions->filter(fn ($session) => ! $session->session_date?->isToday())->values(),
             'dashboardNextActivity' => $activityOptions->sortBy('startsAt')->first(),
             'dashboardUnreadCount' => $athlete->unreadNotifications()->count(),
+            'dashboardNotifications' => $athlete->notifications()->latest()->get(),
         ];
     }
     $content = [
@@ -225,6 +227,19 @@ $studentPage = function (string $page, array $data = []) use ($studentNav, $anno
         'profile' => ['My Profile', 'Manage your personal information', ['label' => 'Edit Profile', 'url' => '#']],
     ][$page];
     return view('student.page', array_merge(['page' => $page, 'heading' => $content[0], 'subtitle' => $content[1], 'action' => $content[2], 'active' => $page, 'navItems' => $studentNav, 'announcements' => $publishedAnnouncements, 'studentApplication' => $studentApplication, 'upcomingStudentEvents' => $upcomingStudentEvents, 'athlete' => $athlete, 'roleLabel' => 'Athlete Portal', 'userName' => $athlete->name, 'userRole' => $athlete->sport?->name ?? 'Unassigned sport'], $dashboardData, $data));
+};
+
+$announcementIsVisible = fn (Announcement $announcement): bool => $announcement->status === 'Published'
+    && (! $announcement->published_at || $announcement->published_at->lessThanOrEqualTo(today()));
+$notifyStudentsAboutAnnouncement = function (Announcement $announcement, string $title, string $message, ?array $sportIds = null) {
+    $sportIds ??= $announcement->sport_id ? [$announcement->sport_id] : null;
+
+    app(StudentUpdateNotifier::class)->notifyStudents(
+        $sportIds,
+        $title,
+        $message,
+        route('student.announcements'),
+    );
 };
 
 Route::get('/student', fn () => redirect()->route('student.dashboard'));
@@ -340,6 +355,22 @@ $adminNav = [
     ['key' => 'announcements', 'label' => 'Announcements', 'icon' => 'megaphone', 'route' => 'admin.announcements'],
     ['key' => 'reports', 'label' => 'Reports', 'icon' => 'chart', 'route' => 'reports.index'],
 ];
+
+Route::get('/notifications', function () use ($studentNav, $adminNav) {
+    $user = auth()->user();
+    $isStudent = $user->role === 'Student';
+
+    return view('notifications.index', [
+        'notifications' => $user->notifications()->latest()->simplePaginate(20),
+        'title' => 'Notifications',
+        'navItems' => $isStudent ? $studentNav : $adminNav,
+        'active' => 'notifications',
+        'roleLabel' => $isStudent ? 'Athlete Portal' : 'Admin Portal',
+        'userName' => $user->name,
+        'userRole' => $user->sport?->name ?? $user->role,
+        'homeUrl' => $isStudent ? route('student.dashboard') : route('dashboard'),
+    ]);
+})->middleware('auth')->name('notifications.index');
 
 $adminPage = function (string $page, array $data = []) use ($adminNav, $announcements) {
     abort_unless(auth()->user()?->role === 'Administrator', 403);
@@ -498,7 +529,7 @@ Route::get('/admin/announcements', function () use ($adminPage) {
     ]);
 })->middleware('auth')->name('admin.announcements');
 
-Route::post('/admin/announcements', function () {
+Route::post('/admin/announcements', function () use ($announcementIsVisible, $notifyStudentsAboutAnnouncement) {
     abort_unless(auth()->user()?->role === 'Administrator', 403);
     $validated = request()->validate([
         'title' => ['required', 'string', 'max:255'],
@@ -508,12 +539,15 @@ Route::post('/admin/announcements', function () {
         'status' => ['required', 'in:Draft,Published,Scheduled,Archived'],
     ]);
 
-    Announcement::create($validated);
+    $announcement = Announcement::create($validated);
+    if ($announcementIsVisible($announcement)) {
+        $notifyStudentsAboutAnnouncement($announcement, 'New announcement', $announcement->title.' was published.');
+    }
 
     return redirect()->route('admin.announcements')->with('success', 'Announcement created successfully.');
 })->middleware('auth')->name('admin.announcements.store');
 
-Route::put('/admin/announcements/{announcement}', function (Announcement $announcement) {
+Route::put('/admin/announcements/{announcement}', function (Announcement $announcement) use ($announcementIsVisible, $notifyStudentsAboutAnnouncement) {
     abort_unless(auth()->user()?->role === 'Administrator', 403);
     $validated = request()->validate([
         'title' => ['required', 'string', 'max:255'],
@@ -523,28 +557,65 @@ Route::put('/admin/announcements/{announcement}', function (Announcement $announ
         'status' => ['required', 'in:Draft,Published,Scheduled,Archived'],
     ]);
 
+    $wasVisible = $announcementIsVisible($announcement);
+    $previousSportId = $announcement->sport_id;
     $announcement->update($validated);
+    $isVisible = $announcementIsVisible($announcement);
+
+    if ($isVisible && ($announcement->wasChanged(['title', 'body', 'sport_id', 'published_at', 'status']))) {
+        $sportIds = $wasVisible && ($previousSportId === null || $announcement->sport_id === null)
+            ? null
+            : ($wasVisible ? [$previousSportId, $announcement->sport_id] : null);
+        $notifyStudentsAboutAnnouncement(
+            $announcement,
+            $wasVisible ? 'Announcement updated' : 'New announcement',
+            $announcement->title.($wasVisible ? ' was updated.' : ' was published.'),
+            $sportIds,
+        );
+    } elseif ($wasVisible && ! $isVisible) {
+        $notifyStudentsAboutAnnouncement(
+            $announcement,
+            'Announcement update',
+            $announcement->title.' is no longer available.',
+            $previousSportId ? [$previousSportId] : null,
+        );
+    }
 
     return redirect()->route('admin.announcements', ['announcement_id' => $announcement->id])->with('success', 'Announcement updated successfully.');
 })->middleware('auth')->name('admin.announcements.update');
 
-Route::delete('/admin/announcements/{announcement}', function (Announcement $announcement) {
+Route::delete('/admin/announcements/{announcement}', function (Announcement $announcement) use ($announcementIsVisible, $notifyStudentsAboutAnnouncement) {
     abort_unless(auth()->user()?->role === 'Administrator', 403);
+
+    if ($announcementIsVisible($announcement)) {
+        $notifyStudentsAboutAnnouncement($announcement, 'Announcement update', $announcement->title.' is no longer available.');
+    }
+
     $announcement->delete();
 
     return redirect()->route('admin.announcements')->with('success', 'Announcement deleted successfully.');
 })->middleware('auth')->name('admin.announcements.destroy');
 
-Route::post('/admin/announcements/{announcement}/publish', function (Announcement $announcement) {
+Route::post('/admin/announcements/{announcement}/publish', function (Announcement $announcement) use ($announcementIsVisible, $notifyStudentsAboutAnnouncement) {
     abort_unless(auth()->user()?->role === 'Administrator', 403);
+    $wasVisible = $announcementIsVisible($announcement);
     $announcement->update(['status' => 'Published']);
+
+    if (! $wasVisible && $announcementIsVisible($announcement)) {
+        $notifyStudentsAboutAnnouncement($announcement, 'New announcement', $announcement->title.' was published.');
+    }
 
     return back()->with('success', 'Announcement published successfully.');
 })->middleware('auth')->name('admin.announcements.publish');
 
-Route::post('/admin/announcements/{announcement}/archive', function (Announcement $announcement) {
+Route::post('/admin/announcements/{announcement}/archive', function (Announcement $announcement) use ($announcementIsVisible, $notifyStudentsAboutAnnouncement) {
     abort_unless(auth()->user()?->role === 'Administrator', 403);
+    $wasVisible = $announcementIsVisible($announcement);
     $announcement->update(['status' => 'Archived']);
+
+    if ($wasVisible) {
+        $notifyStudentsAboutAnnouncement($announcement, 'Announcement update', $announcement->title.' has been archived.');
+    }
 
     return back()->with('success', 'Announcement archived successfully.');
 })->middleware('auth')->name('admin.announcements.archive');
