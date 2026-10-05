@@ -286,6 +286,8 @@ $notifyStudentsAboutAnnouncement = function (Announcement $announcement, string 
 Route::get('/student', fn () => redirect()->route('student.dashboard'));
 Route::get('/student/dashboard', fn () => $studentPage('dashboard'))->middleware('auth')->name('student.dashboard');
 Route::get('/student/sports', fn () => $studentPage('sports', ['studentSports' => Sport::where('status', 'Active')->with('coaches')->orderBy('name')->get()]))->middleware('auth')->name('student.sports');
+Route::get('/student/sports/{sport}/members', [SportController::class, 'studentMembers'])->middleware('auth')->name('student.sports.members');
+Route::get('/student/sports/{sport}/members/{athlete}', [SportController::class, 'studentMemberProfile'])->middleware('auth')->name('student.sports.member-profile');
 Route::get('/student/calendar', fn () => $studentPage('calendar', $calendarData(request('month'))))->middleware('auth')->name('student.calendar');
 Route::get('/student/schedule', fn () => $studentPage('schedule', [
     'events' => Event::where('status', 'Scheduled')
@@ -848,8 +850,6 @@ Route::get('/reports/export', function () {
         fclose($handle);
     }, 'sportshub-report-'.now()->format('Ymd-His').'.csv', ['Content-Type' => 'text/csv']);
 })->middleware('auth')->name('reports.export');
-
-
 
 
 
