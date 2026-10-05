@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Application;
 use App\Models\Sport;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
@@ -48,6 +49,72 @@ class AthleteController extends Controller
                 'individual' => User::where('role', 'Student')->whereHas('sport', fn ($query) => $query->where('classification', 'Individual'))->count(),
             ],
         ]));
+    }
+
+    public function create(Application $application): View
+    {
+        $this->ensureAdministrator();
+
+        return view('athletes.create', $this->portalData([
+            'application' => $application->load(['sportCategory', 'athlete']),
+        ]));
+    }
+
+    public function store(Request $request): RedirectResponse
+    {
+        $this->ensureAdministrator();
+
+        $validated = $request->validate([
+            'application_id' => ['required', 'exists:applications,id'],
+            'email' => ['nullable', 'email', 'max:255'],
+            'username' => ['required', 'string', 'max:100', 'unique:users,username'],
+            'password' => ['required', 'string', 'min:8', 'confirmed'],
+        ]);
+
+        $application = Application::findOrFail($validated['application_id']);
+        abort_unless($application->status === 'Approved', 422, 'Approve the application before creating an athlete account.');
+
+        if ($application->athlete) {
+            return back()->withErrors(['email' => 'An athlete account has already been created for this application.'])->withInput();
+        }
+
+        $existingAthlete = $application->student_id
+            ? User::where('role', 'Student')->where('student_id', $application->student_id)->first()
+            : null;
+
+        if ($existingAthlete) {
+            $application->update(['athlete_id' => $existingAthlete->id]);
+
+            return redirect()->route('athletes.index')->with('success', 'Athlete profile already exists.');
+        }
+
+        $email = trim((string) ($validated['email'] ?? '')) ?: trim((string) $application->email);
+
+        if ($email === '') {
+            return back()->withErrors(['email' => 'This application does not have an email address. Please update the application before creating the athlete account.'])->withInput();
+        }
+
+        if (! filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            return back()->withErrors(['email' => 'The email address on this application is not valid. Please update the application before creating the athlete account.'])->withInput();
+        }
+
+        if (User::where('email', $email)->exists()) {
+            return back()->withErrors(['email' => 'An account with this email already exists.'])->withInput();
+        }
+
+        $athlete = User::create([
+            'name' => $application->name,
+            'email' => $email,
+            'username' => $validated['username'],
+            'student_id' => $application->student_id,
+            'sport_id' => $application->sport_id,
+            'role' => 'Student',
+            'password' => $validated['password'],
+        ]);
+
+        $application->update(['athlete_id' => $athlete->id]);
+
+        return redirect()->route('athletes.index')->with('success', 'Official athlete account created.');
     }
 
     public function show(User $athlete): View

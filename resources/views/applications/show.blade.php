@@ -5,8 +5,12 @@
     <div><h1>Application Review</h1><p class="page-subtitle">Review applicant information and eligibility documents</p></div>
     <div class="event-header-actions">
         <a class="button button-secondary" href="{{ route('admin.applications') }}">Back</a>
-        @if ($application->status === 'Approved' && !$application->athlete)
-            <a class="button" href="{{ route('athletes.create', $application) }}">Add to Athletes</a>
+        @if ($application->status === 'Approved')
+            @if ($application->athlete)
+                <a class="button button-secondary" href="{{ route('athletes.show', $application->athlete) }}">Account Created</a>
+            @else
+                <a class="button" href="{{ route('athletes.create', $application) }}">Create Athlete Account</a>
+            @endif
         @endif
     </div>
 </div>

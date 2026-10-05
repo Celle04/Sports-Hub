@@ -336,7 +336,7 @@
                                         class="text-link"
                                         href="{{ route('athletes.create', $application) }}"
                                     >
-                                        Add Athlete
+                                        Create Account
                                     </a>
                                 @endif
 

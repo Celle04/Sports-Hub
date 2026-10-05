@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\ApplicationController;
+use App\Http\Controllers\AthleteController;
 use App\Http\Controllers\AttendanceController;
 use App\Http\Controllers\EventController;
 use App\Http\Controllers\MedicalController;
@@ -494,26 +495,9 @@ Route::get('/applications/{application}/documents/{document}', function (Applica
 })->middleware('auth')->name('applications.documents.download');
 Route::resource('sports', SportController::class)->only(['index', 'create', 'store', 'edit', 'update', 'destroy'])->middleware('auth');
 Route::get('/sports/{sport}', [SportController::class, 'show'])->middleware('auth')->name('sports.show');
-Route::get('/athletes', [\App\Http\Controllers\AthleteController::class, 'index'])->middleware('auth')->name('athletes.index');
-Route::get('/athletes/create/{application}', function (Application $application) use ($adminPage) {
-    abort_unless(auth()->user()?->role === 'Administrator', 403);
-    abort_unless($application->status === 'Approved', 422, 'Only approved applications can receive an athlete account.');
-    return $adminPage('athletes', ['athletes' => User::where('role', 'Student')->with('sport')->latest()->get(), 'accountApplication' => $application]);
-})->middleware('auth')->name('athletes.create');
-Route::post('/athletes', function () {
-    abort_unless(auth()->user()?->role === 'Administrator', 403);
-    $validated = request()->validate(['application_id' => ['required', 'exists:applications,id'], 'username' => ['required', 'string', 'max:100', 'unique:users,username'], 'password' => ['required', 'string', 'min:8', 'confirmed']]);
-    $application = Application::findOrFail($validated['application_id']);
-    abort_unless($application->status === 'Approved', 422, 'Approve the application before creating an athlete account.');
-    $existingAthlete = User::where('role', 'Student')->where('student_id', $application->student_id)->first();
-    if ($existingAthlete) {
-        $application->update(['athlete_id' => $existingAthlete->id]);
-        return redirect()->route('athletes.index')->with('success', 'Athlete profile already exists.');
-    }
-    $athlete = User::create(['name' => $application->name, 'email' => $application->email, 'username' => $validated['username'], 'student_id' => $application->student_id, 'sport_id' => $application->sport_id, 'role' => 'Student', 'password' => $validated['password']]);
-    $application->update(['athlete_id' => $athlete->id]);
-    return redirect()->route('athletes.index')->with('success', 'Official athlete account created.');
-})->middleware('auth')->name('athletes.store');
+Route::get('/athletes', [AthleteController::class, 'index'])->middleware('auth')->name('athletes.index');
+Route::get('/athletes/create/{application}', [AthleteController::class, 'create'])->middleware('auth')->name('athletes.create');
+Route::post('/athletes', [AthleteController::class, 'store'])->middleware('auth')->name('athletes.store');
 Route::get('/athletes/{athlete}', [\App\Http\Controllers\AthleteController::class, 'show'])->middleware('auth')->name('athletes.show');
 Route::get('/athletes/{athlete}/edit', [\App\Http\Controllers\AthleteController::class, 'edit'])->middleware('auth')->name('athletes.edit');
 Route::put('/athletes/{athlete}', [\App\Http\Controllers\AthleteController::class, 'update'])->middleware('auth')->name('athletes.update');
