@@ -42,6 +42,51 @@ class User extends Authenticatable
         return $this->hasMany(Application::class, 'athlete_id');
     }
 
+    /**
+     * Sports this athlete belongs to: the sport assigned on the account plus
+     * every sport coming from an approved application.
+     *
+     * @return array<int, int>
+     */
+    public function sportIds(): array
+    {
+        return collect([$this->sport_id])
+            ->merge($this->applications()
+                ->where('status', 'Approved')
+                ->whereNotNull('sport_id')
+                ->pluck('sport_id'))
+            ->filter()
+            ->unique()
+            ->map(fn ($sportId) => (int) $sportId)
+            ->values()
+            ->all();
+    }
+
+    /**
+     * Coaches assigned to the sports this athlete belongs to.
+     */
+    public function coaches()
+    {
+        return Coach::query()
+            ->with('sport')
+            ->whereIn('sport_id', $this->sportIds())
+            ->where('status', 'Active')
+            ->orderBy('name');
+    }
+
+    /**
+     * The athlete's own sports, each carrying only its active coaches so the
+     * coach module can flag the sports that have no coach yet.
+     */
+    public function sportsWithCoaches()
+    {
+        return Sport::query()
+            ->whereIn('id', $this->sportIds())
+            ->with(['coaches' => fn ($query) => $query->where('status', 'Active')->orderBy('name')])
+            ->orderBy('name')
+            ->get();
+    }
+
     protected function casts(): array
     {
         return ['email_verified_at' => 'datetime', 'password' => 'hashed'];

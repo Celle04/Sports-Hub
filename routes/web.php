@@ -9,7 +9,6 @@ use App\Models\Application;
 use App\Models\Announcement;
 use App\Models\Attendance;
 use App\Models\AttendanceSession;
-use App\Models\Coach;
 use App\Models\Event;
 use App\Models\MedicalRecord;
 use App\Models\Sport;
@@ -317,7 +316,7 @@ Route::post('/student/attendance/sessions/{session}/check-in', function (Attenda
     return back()->with('success', 'You are checked in for '.$result['label'].' at '.($result['time'] ?? now())->format('g:i A').'.');
 })->middleware('auth')->name('student.attendance.check-in');
 Route::get('/student/application', fn () => $studentPage('application'))->middleware('auth')->name('student.application');
-Route::get('/student/coach', fn () => $studentPage('coach', ['coach' => Coach::where('sport_id', auth()->user()->sport_id)->first()]))->middleware('auth')->name('student.coach');
+Route::get('/student/coach', fn () => $studentPage('coach', ['coachSports' => auth()->user()->sportsWithCoaches()]))->middleware('auth')->name('student.coach');
 Route::get('/student/profile', fn () => $studentPage('profile', ['athlete' => auth()->user()]))->middleware('auth')->name('student.profile');
 Route::patch('/student/profile', function () {
     abort_unless(auth()->user()?->role === 'Student', 403);
