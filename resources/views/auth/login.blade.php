@@ -1,47 +1,56 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SNNHS Sports Hub Login</title>
-    <link rel="manifest" href="{{ asset('manifest.webmanifest') }}">
-    <link rel="stylesheet" href="{{ asset('css/portal.css') }}">
-    <style>
-        .login-page { min-height: 100vh; display: grid; place-items: center; padding: 24px; background: #fff; }
-        .login-card { width: min(100%, 390px); padding: 30px; border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 4px 16px rgba(0,0,0,.08); }
-        .login-logo { display: block; width: 58px; height: 58px; margin: 0 auto 16px; object-fit: contain; }
-        .login-card h1 { text-align: center; font-size: 24px; }
-        .login-card .subtitle { margin: 7px 0 24px; text-align: center; }
-        .login-card label { display: block; margin: 0 0 6px; font-size: 11px; font-weight: 700; }
-        .login-card input, .login-card select { width: 100%; margin-bottom: 14px; padding: 11px; border: 1px solid var(--line); border-radius: 6px; background: #f7f7f8; font: inherit; font-size: 11px; }
-        .login-card .button { width: 100%; }
-        .form-error { margin: -6px 0 12px; color: #a32424; font-size: 11px; }
-        .login-back { display: block; margin-top: 18px; text-align: center; color: var(--red); font-size: 11px; text-decoration: none; }
-    </style>
-</head>
-<body>
-    
-    <main class="login-page">
-        <form class="login-card" method="POST" action="{{ route('login.submit') }}" aria-label="Sports Activity Hub sign in form">
-            @csrf
-            <img class="login-logo" src="{{ asset('images/snnhs logo.png') }}" alt="SNNHS logo">
-            <h1>Welcome Back</h1>
-            <p class="subtitle">Sign in to access your dashboard</p>
-            <label for="role">Login As</label>
-            <select id="role" name="role" required>
-                <option value="Administrator" selected>Administrator</option>
-                <option value="Student">Student</option>
-            </select>
-            <label for="username">Email address or username</label>
-            <input id="username" name="username" type="text" placeholder="your email or assigned username" autocomplete="username" value="{{ old('username') }}" required>
-            <label for="password">Password</label>
-            <input id="password" name="password" type="password" placeholder="Enter your password" autocomplete="current-password" required>
-            @error('username')<p class="form-error">{{ $message }}</p>@enderror
-            <button class="button" type="submit">Sign In</button>
-            <a class="login-back" href="{{ url('/') }}"> Back to Home</a>
-        </form>
-    </main>
-    <script src="{{ asset('js/offline.js') }}" defer></script>
-</body>
-</html>
+@extends('layouts.auth')
 
+@section('title', 'Login | SNNHS SportsHub')
+
+@section('content')
+    <div class="auth-heading">
+        <h2>Welcome!</h2>
+        <p>Sign in to access your SportsHub dashboard.</p>
+    </div>
+
+    <form class="auth-form" method="POST" action="{{ route('login.submit') }}" aria-label="Sports Activity Hub sign in form" data-loading-label="Logging in...">
+        @csrf
+
+        <div class="auth-field">
+            <label for="role">Login as</label>
+            <select id="role" name="role" required>
+                <option value="Administrator" @selected(old('role', 'Administrator') === 'Administrator')>Administrator / Sports Coordinator</option>
+                <option value="Student" @selected(old('role') === 'Student')>Athlete / Student</option>
+            </select>
+            @error('role')<p class="auth-error">{{ $message }}</p>@enderror
+        </div>
+
+        <div class="auth-field">
+            <label for="username">Email or school email</label>
+            <span class="auth-control">
+                <svg class="auth-control-icon" aria-hidden="true"><use href="#icon-mail"></use></svg>
+                <input id="username" name="username" type="text" placeholder="Enter your email" autocomplete="username" value="{{ old('username') }}" required autofocus>
+            </span>
+            @error('username')<p class="auth-error">{{ $message }}</p>@enderror
+        </div>
+
+        <div class="auth-field">
+            <label for="password">Password</label>
+            <span class="auth-control">
+                <svg class="auth-control-icon" aria-hidden="true"><use href="#icon-lock"></use></svg>
+                <input id="password" class="auth-input-toggle" name="password" type="password" placeholder="Enter your password" autocomplete="current-password" required>
+                <button class="auth-toggle" type="button" data-password-toggle="password" aria-label="Show password" aria-pressed="false">
+                    <svg aria-hidden="true"><use href="#icon-eye"></use></svg>
+                </button>
+            </span>
+            @error('password')<p class="auth-error">{{ $message }}</p>@enderror
+        </div>
+
+        <div class="auth-row">
+            <label class="auth-check">
+                <input type="checkbox" name="remember" value="1" @checked(old('remember'))>
+                <span>Remember me</span>
+            </label>
+            <a class="auth-link" href="{{ route('password.request') }}">Forgot Password?</a>
+        </div>
+
+        <button class="button auth-submit" type="submit">Login</button>
+
+        <a class="auth-back" href="{{ url('/') }}">Back to Home</a>
+    </form>
+@endsection

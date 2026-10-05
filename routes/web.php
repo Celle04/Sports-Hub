@@ -16,7 +16,9 @@ use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Pagination\LengthAwarePaginator;
 use App\Services\AttendanceSessionService;
 use App\Services\StudentUpdateNotifier;
@@ -48,16 +50,55 @@ Route::post('/login', function () {
         })
         ->first();
 
-    $passwordMatches = $user && (Hash::check($credentials['password'], $user->password) || $user->password === $credentials['password']);
-
-    if ($passwordMatches) {
-        auth()->login($user);
+    if ($user && Hash::check($credentials['password'], $user->password)) {
+        auth()->login($user, request()->boolean('remember'));
         request()->session()->regenerate();
         return redirect()->intended($credentials['role'] === 'Student' ? route('student.dashboard') : route('dashboard'));
     }
 
-    return redirect()->route('login')->withErrors(['username' => 'The provided credentials do not match our records.'])->withInput(request()->only('username'));
+    return redirect()->route('login')->withErrors(['username' => 'Invalid email or password.'])->withInput(request()->only('username', 'role'));
 })->name('login.submit');
+
+Route::get('/forgot-password', function () {
+    return view('auth.forgot-password');
+})->name('password.request');
+
+Route::post('/forgot-password', function () {
+    $validated = request()->validate([
+        'email' => ['required', 'email'],
+    ]);
+
+    Password::sendResetLink(['email' => $validated['email']]);
+
+    return back()->with('success', 'If an account exists with that email, a password reset link has been sent.')->withInput(request()->only('email'));
+})->name('password.email');
+
+Route::get('/reset-password/{token}', function (string $token) {
+    return view('auth.reset-password', ['token' => $token, 'email' => request('email')]);
+})->name('password.reset');
+
+Route::post('/reset-password', function () {
+    $validated = request()->validate([
+        'token' => ['required', 'string'],
+        'email' => ['required', 'email'],
+        'password' => ['required', 'string', 'min:8', 'confirmed'],
+    ]);
+
+    $status = Password::reset($validated, function (User $user, string $password) {
+        $user->forceFill(['password' => $password])->setRememberToken(Str::random(60));
+        $user->save();
+    });
+
+    if ($status === Password::PASSWORD_RESET) {
+        return redirect()->route('login')->with('success', 'Your password has been reset successfully. You can now log in with your new password.');
+    }
+
+    return back()->withInput(request()->only('email'))->withErrors(['email' => match ($status) {
+        Password::INVALID_TOKEN => 'This password reset link is invalid or has expired. Please request a new one.',
+        Password::RESET_THROTTLED => 'Please wait a minute before requesting another reset link.',
+        default => 'We could not reset your password. Please request a new reset link.',
+    }]);
+})->name('password.update');
 
 Route::post('/logout', function () {
     auth()->logout();
