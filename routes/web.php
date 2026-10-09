@@ -454,6 +454,8 @@ Route::post('/student/achievements/{achievement}/certificate-request', function 
 Route::get('/student', fn () => redirect()->route('student.dashboard'));
 Route::get('/student/dashboard', fn () => $studentPage('dashboard'))->middleware('auth')->name('student.dashboard');
 Route::get('/student/sports', fn () => $studentPage('sports', ['studentSports' => Sport::where('status', 'Active')->with('coaches')->orderBy('name')->get()]))->middleware('auth')->name('student.sports');
+Route::get('/student/sports/{sport}/members', [SportController::class, 'studentMembers'])->middleware('auth')->name('student.sports.members');
+Route::get('/student/sports/{sport}/members/{athlete}', [SportController::class, 'studentMemberProfile'])->middleware('auth')->name('student.sports.member-profile');
 Route::get('/student/calendar', fn () => $studentPage('calendar', $calendarData(request('month'))))->middleware('auth')->name('student.calendar');
 Route::get('/student/schedule', fn () => $studentPage('schedule', [
     'events' => Event::where('status', 'Scheduled')

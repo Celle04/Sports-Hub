@@ -2,9 +2,13 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Application;
 use App\Models\Sport;
+use App\Models\User;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
 
 class SportController extends Controller
@@ -88,6 +92,144 @@ class SportController extends Controller
         return view('sports.show', $this->portalData(['sport' => $sport]));
     }
 
+    public function studentMembers(Request $request, Sport $sport): JsonResponse
+    {
+        abort_unless(auth()->user()?->role === 'Student', 403);
+        abort_unless($sport->status === 'Active', 404);
+
+        $validated = $request->validate([
+            'search' => ['nullable', 'string', 'max:100'],
+            'grade' => ['nullable', 'string', 'max:50'],
+            'status' => ['nullable', 'in:Approved,Active'],
+            'page' => ['nullable', 'integer', 'min:1'],
+        ]);
+        $forSportApplications = static fn ($query) => $query->where(fn ($sportApplications) => $sportApplications
+            ->where('sport_id', $sport->id)
+            ->orWhere(fn ($legacyApplications) => $legacyApplications
+                ->whereNull('sport_id')
+                ->where('sport', $sport->name)));
+
+        $members = User::query()
+            ->where('role', 'Student')
+            ->where('status', 'Active')
+            ->where('sport_id', $sport->id)
+            ->whereDoesntHave('applications', fn ($query) => $forSportApplications($query)->where('status', '!=', 'Approved'))
+            ->with(['applications' => fn ($query) => $forSportApplications($query)
+                ->where('status', 'Approved')
+                ->latest('id')
+                ->limit(1)])
+            ->orderBy('name')
+            ->orderBy('id');
+
+        $totalMembers = (clone $members)->count();
+
+        $members
+            ->when(! empty($validated['search']), function ($query) use ($validated) {
+                $search = trim($validated['search']);
+                $query->where(function ($studentQuery) use ($search) {
+                    $studentQuery->where('name', 'like', "%{$search}%")
+                        ->orWhere('student_id', 'like', "%{$search}%");
+                });
+            })
+            ->when(! empty($validated['grade']), fn ($query) => $query->whereHas('applications', fn ($applications) => $forSportApplications($applications)
+                ->where('status', 'Approved')
+                ->where('grade', $validated['grade'])))
+            ->when(($validated['status'] ?? null) === 'Approved', fn ($query) => $query->whereHas('applications', fn ($applications) => $forSportApplications($applications)
+                ->where('status', 'Approved')))
+            ->when(($validated['status'] ?? null) === 'Active', fn ($query) => $query->whereDoesntHave('applications', fn ($applications) => $forSportApplications($applications)
+                ->where('status', 'Approved')));
+
+        $page = $members->paginate(10)->withQueryString();
+        $roster = $page->getCollection()->map(fn (User $student) => [
+            'id' => $student->id,
+            'name' => $student->name,
+            'student_id' => $student->student_id,
+            'grade' => $student->applications->first()?->grade,
+            'photo_url' => $student->profile_photo_path
+                ? Storage::disk('public')->url($student->profile_photo_path)
+                : null,
+            'enrollment_status' => $student->applications->isNotEmpty() ? 'Approved' : 'Active',
+            'profile_url' => route('student.sports.member-profile', [$sport, $student]),
+        ]);
+
+        return response()->json([
+            'program' => [
+                'name' => $sport->name,
+                'description' => $sport->description,
+                'classification' => $sport->classification,
+                'coaches' => $sport->coaches()->orderBy('name')->pluck('name')->values(),
+            ],
+            'total_members' => $totalMembers,
+            'pending_applications' => Application::query()
+                ->where($forSportApplications)
+                ->whereIn('status', ['Pending', 'Under Review', 'Documents Required', 'Waitlisted'])
+                ->count(),
+            'grades' => Application::query()
+                ->where($forSportApplications)
+                ->where('status', 'Approved')
+                ->whereNotNull('grade')
+                ->whereHas('athlete', fn ($athlete) => $athlete
+                    ->where('role', 'Student')
+                    ->where('status', 'Active')
+                    ->where('sport_id', $sport->id))
+                ->distinct()
+                ->orderBy('grade')
+                ->pluck('grade')
+                ->values(),
+            'members' => [
+                'data' => $roster->values(),
+                'current_page' => $page->currentPage(),
+                'last_page' => $page->lastPage(),
+                'per_page' => $page->perPage(),
+                'total' => $page->total(),
+            ],
+        ]);
+    }
+
+    public function studentMemberProfile(Sport $sport, User $athlete): JsonResponse
+    {
+        abort_unless(auth()->user()?->role === 'Student', 403);
+        abort_unless($sport->status === 'Active', 404);
+
+        $forSportApplications = static fn ($query) => $query->where(fn ($sportApplications) => $sportApplications
+            ->where('sport_id', $sport->id)
+            ->orWhere(fn ($legacyApplications) => $legacyApplications
+                ->whereNull('sport_id')
+                ->where('sport', $sport->name)));
+
+        abort_unless(
+            $athlete->role === 'Student'
+                && $athlete->status === 'Active'
+                && (int) $athlete->sport_id === (int) $sport->id
+                && ! $athlete->applications()
+                    ->where($forSportApplications)
+                    ->where('status', '!=', 'Approved')
+                    ->exists(),
+            404,
+        );
+
+        $approvedApplication = $athlete->applications()
+            ->where($forSportApplications)
+            ->where('status', 'Approved')
+            ->latest('id')
+            ->first();
+
+        return response()->json([
+            'profile' => [
+                'name' => $athlete->name,
+                'student_id' => $athlete->student_id,
+                'grade' => $approvedApplication?->grade,
+                'photo_url' => $athlete->profile_photo_path
+                    ? Storage::disk('public')->url($athlete->profile_photo_path)
+                    : null,
+                'status' => $athlete->status,
+                'sport' => $sport->name,
+                'coaches' => $sport->coaches()->orderBy('name')->pluck('name')->values(),
+                'date_joined' => $approvedApplication?->reviewed_at?->format('F j, Y'),
+            ],
+        ]);
+    }
+
     public function update(Request $request, Sport $sport): RedirectResponse
     {
         $this->ensureAdministrator();
@@ -105,6 +247,7 @@ class SportController extends Controller
 
         if ($hasRelatedRecords) {
             $sport->update(['status' => 'Inactive']);
+
             return redirect()->route('sports.index')->with('success', 'This sport is in use and was set to inactive instead of deleted.');
         }
 
@@ -115,7 +258,7 @@ class SportController extends Controller
 
     private function validated(Request $request, ?Sport $sport = null): array
     {
-        $uniqueName = 'unique:sports,name' . ($sport ? ',' . $sport->id : '');
+        $uniqueName = 'unique:sports,name'.($sport ? ','.$sport->id : '');
 
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:100', $uniqueName],
