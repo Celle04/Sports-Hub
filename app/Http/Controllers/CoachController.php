@@ -16,19 +16,10 @@ class CoachController extends Controller
 
         $coaches = Coach::with(['sport' => fn ($query) => $query->withCount(['athletes' => fn ($athletes) => $athletes->where('role', 'Student')])])
             ->withCount(['events' => fn ($query) => $query->whereIn('status', ['Scheduled', 'Ongoing'])->where('starts_at', '>=', now())])
-            ->when($request->filled('search'), function ($query) use ($request) {
-                $search = trim($request->string('search')->toString());
-                $query->where(function ($coachQuery) use ($search) {
-                    $coachQuery->where('name', 'like', "%{$search}%")
-                        ->orWhere('email', 'like', "%{$search}%")
-                        ->orWhere('specialty', 'like', "%{$search}%");
-                });
-            })
-            ->when($request->filled('sport_id'), fn ($query) => $query->where('sport_id', $request->integer('sport_id')))
-            ->when($request->filled('coach_type'), fn ($query) => $query->where('coach_type', $request->string('coach_type')->toString()))
-            ->when($request->filled('status'), fn ($query) => $query->where('status', $request->string('status')->toString()))
+            ->coachFilters($request->only(['search', 'sport_id', 'coach_type', 'status']))
             ->orderBy('name')
-            ->get();
+            ->paginate(10)
+            ->withQueryString();
 
         return view('coaches.index', $this->portalData([
             'coaches' => $coaches,
@@ -121,6 +112,7 @@ class CoachController extends Controller
                 ['key' => 'coaches', 'label' => 'Coaches', 'icon' => 'users', 'route' => 'coaches.index'],
                 ['key' => 'attendance', 'label' => 'Attendance', 'icon' => 'clipboard', 'route' => 'admin.attendance'],
                 ['key' => 'announcements', 'label' => 'Announcements', 'icon' => 'megaphone', 'route' => 'admin.announcements'],
+                ['key' => 'achievements', 'label' => 'Achievements', 'icon' => 'trophy', 'route' => 'admin.achievements'],
                 ['key' => 'reports', 'label' => 'Reports', 'icon' => 'chart', 'route' => 'reports.index'],
             ],
             'active' => 'coaches',

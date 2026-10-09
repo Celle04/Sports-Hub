@@ -140,6 +140,8 @@ a {
    ========================================================= */
 
 .main-nav {
+    position: relative;
+
     display: flex;
     align-items: center;
 
@@ -172,20 +174,30 @@ a {
     font-weight: 700;
 }
 
-.nav-link.active::after {
-    content: "";
-
+.nav-indicator {
     position: absolute;
 
     left: 0;
-    right: 0;
     bottom: 14px;
 
     height: 2px;
+    width: 0;
 
     border-radius: 10px;
 
     background: var(--maroon);
+
+    pointer-events: none;
+
+    transition:
+        transform 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+        width 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .nav-indicator {
+        transition: none;
+    }
 }
 
 
@@ -1066,7 +1078,7 @@ a {
         padding: 12px 0;
     }
 
-    .nav-link.active::after {
+    .nav-indicator {
         bottom: 5px;
     }
 

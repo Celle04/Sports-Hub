@@ -19,6 +19,19 @@
     </source>
     <php>
         <env name="APP_ENV" value="testing"/>
+        <!-- The app is served from a subfolder, so APP_URL in .env carries that
+             prefix. Tests generate their own URLs, so pin a bare base here to
+             keep route() output matching the registered route paths. -->
+        <env name="APP_URL" value="http://localhost"/>
+        <!-- A cached config/route file bakes in the browser APP_URL and then
+             overrides the APP_URL above, 404-ing every route() in the suite.
+             Point the caches at throwaway paths that are never written, so
+             tests pass whether or not `artisan optimize` was run. -->
+        <env name="APP_CONFIG_CACHE" value="bootstrap/cache/config.testing.php"/>
+        <env name="APP_EVENTS_CACHE" value="bootstrap/cache/events.testing.php"/>
+        <env name="APP_ROUTES_CACHE" value="bootstrap/cache/routes.testing.php"/>
+        <env name="APP_PACKAGES_CACHE" value="bootstrap/cache/packages.testing.php"/>
+        <env name="APP_SERVICES_CACHE" value="bootstrap/cache/services.testing.php"/>
         <env name="APP_MAINTENANCE_DRIVER" value="file"/>
         <env name="BCRYPT_ROUNDS" value="4"/>
         <env name="BROADCAST_CONNECTION" value="null"/>

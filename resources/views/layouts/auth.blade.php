@@ -3,9 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>@yield('title', 'SNNHS Sports Hub')</title>
+    <title>@yield('title', 'SNNHS SportsHub')</title>
     <link rel="manifest" href="{{ asset('manifest.webmanifest') }}">
     <link rel="stylesheet" href="{{ asset('css/portal.css') }}">
+    <script>
+        (function () {
+            try {
+                if (localStorage.getItem('sports_hub_theme') === 'dark') {
+                    document.documentElement.setAttribute('data-theme', 'dark');
+                }
+            } catch (e) {}
+        })();
+    </script>
 </head>
 <body class="auth-body">
     <svg class="icon-sprite" aria-hidden="true">
@@ -21,7 +30,7 @@
         <section class="auth-card" aria-labelledby="auth-title">
             <header class="auth-brand">
                 <img class="auth-logo" src="{{ asset('images/snnhs logo.png') }}" alt="SNNHS logo">
-                <h1 id="auth-title">SNNHS SPORTS ACTIVITY HUB</h1>
+                <h1 id="auth-title">SNNHS SPORTSHUB</h1>
                 <p>Sports Management System</p>
             </header>
 
@@ -36,7 +45,7 @@
             @yield('content')
         </section>
 
-        <footer class="auth-footer">SNNHS Sports Activity Hub</footer>
+        <footer class="auth-footer">SNNHS SportsHub</footer>
     </main>
 
     <script src="{{ asset('js/offline.js') }}" defer></script>

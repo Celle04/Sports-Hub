@@ -1,14 +1,8 @@
 <section class="dashboard-athlete card" aria-label="Student-athlete profile summary">
-	<div class="dashboard-avatar">
-		@if ($athlete->profile_photo_path)
-			<img src="{{ \Illuminate\Support\Facades\Storage::url($athlete->profile_photo_path) }}" alt="{{ $athlete->name }} profile photo">
-		@else
-			<span>{{ \Illuminate\Support\Str::upper(\Illuminate\Support\Str::substr($athlete->name, 0, 2)) }}</span>
-		@endif
-	</div>
+	<x-avatar :user="$athlete" size="md" class="dashboard-avatar" />
 	<div class="dashboard-athlete-name"><strong>{{ $athlete->name }}</strong><span>{{ $athlete->sport?->name ?? 'Sport not assigned' }}</span></div>
 	<div class="dashboard-athlete-detail"><small>Student ID</small><strong>{{ $athlete->student_id ?: 'Not recorded' }}</strong></div>
-	<div class="dashboard-athlete-detail"><small>Grade level</small><strong>{{ $studentApplication?->grade ?: 'Not recorded' }}</strong></div>
+	<div class="dashboard-athlete-detail"><small>Grade level</small><strong>{{ $athlete->gradeLevel() ?: 'Not recorded' }}</strong></div>
 	<div class="dashboard-athlete-detail"><small>Athlete status</small><strong><span class="badge {{ $athlete->status === 'Active' ? 'status-present' : '' }}">{{ $athlete->status ?: 'Not recorded' }}</span></strong></div>
 	<a class="button button-secondary dashboard-profile-link" href="{{ route('student.profile') }}">View My Profile</a>
 </section>
@@ -18,15 +12,21 @@
 		<a class="card student-dashboard-link" href="{{ route('student.schedule') }}"><span class="student-dashboard-icon student-dashboard-icon-red"><svg aria-hidden="true"><use href="#icon-calendar"></use></svg></span><span><small>STAY ON TRACK</small><strong>My Schedule</strong><span>{{ $dashboardUpcomingCount }} upcoming events</span></span></a>
 		<a class="card student-dashboard-link" href="{{ route('student.attendance') }}"><span class="student-dashboard-icon student-dashboard-icon-green"><svg aria-hidden="true"><use href="#icon-chart"></use></svg></span><span><small>YOUR PROGRESS</small><strong>Attendance</strong><span>{{ $dashboardAttendanceCounts['percentage'] }}% attendance rate</span></span></a>
 		<a class="card student-dashboard-link" href="{{ route('student.coach') }}"><span class="student-dashboard-icon student-dashboard-icon-gold"><svg aria-hidden="true"><use href="#icon-user"></use></svg></span><span><small>YOUR TEAM</small><strong>Coach Info</strong><span>Connect with your coach</span></span></a>
+		<a class="card student-dashboard-link" href="{{ route('student.achievements') }}"><span class="student-dashboard-icon student-dashboard-icon-green"><svg aria-hidden="true"><use href="#icon-trophy"></use></svg></span><span><small>YOUR WINS</small><strong>Achievements</strong><span>{{ $dashboardAchievementCount }} earned{{ $dashboardMedalCount ? ', '.$dashboardMedalCount.' medal'.($dashboardMedalCount === 1 ? '' : 's') : '' }}</span></span></a>
 	</nav>
 
 	<section class="card student-dashboard-announcements">
-		<div class="student-dashboard-heading"><div><span class="student-dashboard-kicker">FROM THE SPORTS HUB</span><h2>Latest announcements</h2></div><a class="text-link" href="{{ route('student.announcements') }}">All announcements</a></div>
+		<div class="student-dashboard-heading"><div><span class="student-dashboard-kicker">FROM THE SPORTSHUB</span><h2>Latest announcements</h2></div><a class="text-link" href="{{ route('student.announcements') }}">All announcements</a></div>
 		<div class="student-announcement-list">
 			@forelse ($announcements->take(3) as $announcement)
-				<article class="student-announcement"><div class="meta">{{ $announcement->published_at?->format('M j, Y') ?? 'Published' }}@if ($announcement->sport) &middot; {{ $announcement->sport->name }}@endif</div><h3>{{ $announcement->title }}</h3><p>{{ \Illuminate\Support\Str::limit($announcement->body, 150) }}</p></article>
+				<a class="student-announcement" href="{{ route('student.announcements', ['announcement' => $announcement->id]) }}">
+					<div class="meta">{{ $announcement->published_at?->format('M j, Y') ?? 'Published' }}@if ($announcement->sport) &middot; {{ $announcement->sport->name }}@endif</div>
+					<h3>{{ $announcement->title }}</h3>
+					<p>{{ \Illuminate\Support\Str::limit($announcement->body, 150) }}</p>
+					<small class="meta relative-time" data-posted-at="{{ \App\Support\RelativeTime::machine($announcement->postedAt()) }}" data-posted-prefix="Posted ">Posted {{ $announcement->postedForHumans() }}</small>
+				</a>
 			@empty
-				<p class="empty-state">No current announcements.</p>
+				<p class="empty-state">No announcements yet.</p>
 			@endforelse
 		</div>
 	</section>
@@ -85,6 +85,22 @@
 			@else
 				<p class="empty-state">No sports application is linked to your account.</p>
 			@endif
+		</section>
+
+		<section class="card student-dashboard-events">
+			<div class="student-dashboard-heading"><div><span class="student-dashboard-kicker">YOUR WINS</span><h2>Recent Achievements</h2></div>@if (($dashboardRecentAchievements ?? collect())->isNotEmpty())<a class="text-link" href="{{ route('student.achievements') }}">View All Achievements</a>@endif</div>
+			@forelse ($dashboardRecentAchievements ?? [] as $achievement)
+				<a class="student-achievement-row" href="{{ route('student.achievements.show', $achievement) }}">
+					<span class="achievement-medal achievement-medal-{{ strtolower(str_replace(' ', '-', $achievement->achievement_type)) }} {{ $achievement->isMedal() ? '' : 'achievement-medal-plain' }}"><svg aria-hidden="true"><use href="#icon-trophy"></use></svg></span>
+					<span class="student-achievement-row-body">
+						<span class="badge">{{ $achievement->achievement_type }}</span>
+						<strong>{{ $achievement->title }}</strong>
+						<small class="meta">{{ $achievement->competitionLabel() ?: 'No competition recorded' }} &middot; {{ $achievement->dateAchievedLabel() }}</small>
+					</span>
+				</a>
+			@empty
+				<p class="empty-state">No achievements yet. Your awards will appear here once the Sports Coordinator records them.</p>
+			@endforelse
 		</section>
 	</div>
 </div>

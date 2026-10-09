@@ -46,9 +46,13 @@ class StudentNotificationsTest extends TestCase
             ->assertOk()
             ->assertSee('Extra update 6');
 
+        // The bell now lives in the shared portal layout, so the student's own
+        // notification follows them onto every page - but never another
+        // athlete's notification.
         $this->get(route('student.sports'))
             ->assertOk()
-            ->assertDontSee('Schedule update');
+            ->assertSee('Schedule update')
+            ->assertDontSee('Only for another student.');
 
         $this->get(route('notifications.index'))
             ->assertOk()

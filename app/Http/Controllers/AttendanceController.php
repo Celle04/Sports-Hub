@@ -199,7 +199,7 @@ class AttendanceController extends Controller
 
         return response()->streamDownload(function () use ($records, $session) {
             $handle = fopen('php://output', 'w');
-            fputcsv($handle, ['SNNHS Sports Hub - Attendance Session Report']);
+            fputcsv($handle, ['SNNHS SportsHub - Attendance Session Report']);
             fputcsv($handle, ['Session', $session->displayName()]);
             fputcsv($handle, ['Sport', $session->effectiveSportName()]);
             fputcsv($handle, ['Date', $session->session_date?->toDateString()]);
@@ -350,6 +350,7 @@ class AttendanceController extends Controller
                 ['key' => 'coaches', 'label' => 'Coaches', 'icon' => 'users', 'route' => 'coaches.index'],
                 ['key' => 'attendance', 'label' => 'Attendance', 'icon' => 'clipboard', 'route' => 'admin.attendance'],
                 ['key' => 'announcements', 'label' => 'Announcements', 'icon' => 'megaphone', 'route' => 'admin.announcements'],
+                ['key' => 'achievements', 'label' => 'Achievements', 'icon' => 'trophy', 'route' => 'admin.achievements'],
                 ['key' => 'reports', 'label' => 'Reports', 'icon' => 'chart', 'route' => 'reports.index'],
             ],
             'active' => 'attendance',

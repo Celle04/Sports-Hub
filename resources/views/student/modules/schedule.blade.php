@@ -2,7 +2,7 @@
 
 <section class="student-schedule" aria-label="Upcoming schedule">
 	<div class="student-schedule-heading">
-		<div><span>YOUR SPORTS HUB</span><h2>Upcoming events</h2></div>
+		<div><span>YOUR SPORTSHUB</span><h2>Upcoming events</h2></div>
 		<span class="student-schedule-count">{{ $scheduleEvents->count() }} {{ $scheduleEvents->count() === 1 ? 'event' : 'events' }}</span>
 	</div>
 

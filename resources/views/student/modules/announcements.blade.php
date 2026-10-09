@@ -6,7 +6,7 @@
 
 	<div class="student-announcements-list">
 		@forelse ($announcements ?? [] as $announcement)
-			<article class="card student-announcement-item">
+			<article id="announcement-{{ $announcement->id }}" @class(['card', 'student-announcement-item', 'is-highlighted' => (int) request('announcement') === $announcement->id])>
 				<div class="student-announcement-date">
 					@if ($announcement->published_at)
 						<time datetime="{{ $announcement->published_at->toDateString() }}">
@@ -20,18 +20,19 @@
 				</div>
 				<div class="student-announcement-copy">
 					<div class="student-announcement-tags">
-						<span>SPORTS HUB UPDATE</span>
+						<span>SPORTSHUB UPDATE</span>
 						@if ($announcement->sport)<span class="student-announcement-sport">{{ $announcement->sport->name }}</span>@endif
 					</div>
 					<h3>{{ $announcement->title }}</h3>
 					<p>{{ $announcement->body }}</p>
+					<small class="meta relative-time" data-posted-at="{{ \App\Support\RelativeTime::machine($announcement->postedAt()) }}" data-posted-prefix="Posted ">Posted {{ $announcement->postedForHumans() }}</small>
 				</div>
 			</article>
 		@empty
 			<div class="student-announcements-empty">
 				<span aria-hidden="true"><svg><use href="#icon-megaphone"></use></svg></span>
-				<strong>You're all caught up</strong>
-				<p>No announcements have been published.</p>
+				<strong>No announcements yet.</strong>
+				<p>New updates from the Sports Office will appear here.</p>
 			</div>
 		@endforelse
 	</div>

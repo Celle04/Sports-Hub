@@ -56,6 +56,8 @@
                 About
             </a>
 
+            <span class="nav-indicator" aria-hidden="true"></span>
+
         </nav>
 
 
@@ -407,6 +409,110 @@
         </div>
 
     </footer>
+
+    <script>
+        (function () {
+            var nav = document.querySelector('.main-nav');
+
+            if (!nav) {
+                return;
+            }
+
+            var indicator = nav.querySelector('.nav-indicator');
+            var links = Array.prototype.slice.call(nav.querySelectorAll('.nav-link'));
+
+            // Map each link to its in-page section (Home links to the top of the page).
+            var sections = links.map(function (link) {
+                var href = link.getAttribute('href') || '';
+                var hashIndex = href.indexOf('#');
+
+                return hashIndex > -1 && href.slice(hashIndex + 1)
+                    ? document.getElementById(href.slice(hashIndex + 1))
+                    : null;
+            });
+
+            function move(link) {
+                if (!indicator || !link) {
+                    return;
+                }
+
+                indicator.style.width = link.offsetWidth + 'px';
+                indicator.style.transform = 'translateX(' + link.offsetLeft + 'px)';
+            }
+
+            function setActive(link) {
+                if (!link) {
+                    return;
+                }
+
+                links.forEach(function (item) {
+                    var isActive = item === link;
+
+                    item.classList.toggle('active', isActive);
+
+                    if (isActive) {
+                        item.setAttribute('aria-current', 'true');
+                    } else {
+                        item.removeAttribute('aria-current');
+                    }
+                });
+
+                move(link);
+            }
+
+            function activeLink() {
+                var active = links[0];
+                var threshold = nav.getBoundingClientRect().bottom + 24;
+
+                links.forEach(function (link, index) {
+                    var section = sections[index];
+
+                    if (section && section.getBoundingClientRect().top <= threshold) {
+                        active = link;
+                    }
+                });
+
+                // Pinned to the bottom of the page: highlight the last section.
+                if (window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 4
+                    && sections[sections.length - 1]) {
+                    active = links[links.length - 1];
+                }
+
+                return active;
+            }
+
+            links.forEach(function (link) {
+                link.addEventListener('click', function () {
+                    setActive(link);
+                });
+            });
+
+            var ticking = false;
+
+            window.addEventListener('scroll', function () {
+                if (ticking) {
+                    return;
+                }
+
+                ticking = true;
+
+                window.requestAnimationFrame(function () {
+                    setActive(activeLink());
+                    ticking = false;
+                });
+            }, { passive: true });
+
+            window.addEventListener('resize', function () {
+                move(nav.querySelector('.nav-link.active') || links[0]);
+            });
+
+            window.addEventListener('load', function () {
+                setActive(activeLink());
+            });
+
+            setActive(nav.querySelector('.nav-link.active') || links[0]);
+        })();
+    </script>
 
 </body>
 

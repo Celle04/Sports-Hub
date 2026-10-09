@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\HandlesProfilePhotos;
 use App\Models\Application;
 use App\Models\Sport;
 use App\Models\User;
@@ -11,6 +12,8 @@ use Illuminate\View\View;
 
 class AthleteController extends Controller
 {
+    use HandlesProfilePhotos;
+
     public function index(Request $request): View
     {
         $this->ensureAdministrator();
@@ -18,20 +21,7 @@ class AthleteController extends Controller
         $athletes = User::where('role', 'Student')
             ->with(['sport.coaches', 'applications', 'medicalRecords'])
             ->withCount(['attendanceRecords', 'applications', 'medicalRecords'])
-            ->when($request->filled('search'), function ($query) use ($request) {
-                $search = trim($request->string('search')->toString());
-                $query->where(function ($athleteQuery) use ($search) {
-                    $athleteQuery->where('name', 'like', "%{$search}%")
-                        ->orWhere('student_id', 'like', "%{$search}%")
-                        ->orWhere('username', 'like', "%{$search}%")
-                        ->orWhere('email', 'like', "%{$search}%");
-                });
-            })
-            ->when($request->filled('sport_id'), fn ($query) => $query->where('sport_id', $request->integer('sport_id')))
-            ->when($request->filled('grade'), fn ($query) => $query->whereHas('applications', fn ($applications) => $applications->where('grade', $request->string('grade')->toString())))
-            ->when($request->filled('gender'), fn ($query) => $query->whereHas('applications', fn ($applications) => $applications->where('gender', $request->string('gender')->toString())))
-            ->when($request->filled('status'), fn ($query) => $query->where('status', $request->string('status')->toString()))
-            ->when($request->filled('eligibility'), fn ($query) => $this->applyEligibilityFilter($query, $request->string('eligibility')->toString()))
+            ->athleteFilters($request->only(['search', 'sport_id', 'grade', 'gender', 'status', 'eligibility']))
             ->orderBy('name')
             ->get();
 
@@ -135,15 +125,29 @@ class AthleteController extends Controller
     public function update(Request $request, User $athlete): RedirectResponse
     {
         $this->ensureAthlete($athlete);
-        $validated = $request->validate([
+
+        $hasEmergencyContact = collect(ProfileController::EMERGENCY_CONTACT_FIELDS)
+            ->contains(fn (string $field) => $request->filled($field));
+
+        $validated = $request->validate(array_merge([
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'max:255', 'unique:users,email,'.$athlete->id],
             'username' => ['nullable', 'string', 'max:100', 'unique:users,username,'.$athlete->id],
             'student_id' => ['nullable', 'string', 'max:100', 'unique:users,student_id,'.$athlete->id],
             'sport_id' => ['nullable', 'exists:sports,id'],
             'status' => ['required', 'in:Active,Inactive'],
-        ]);
-        $athlete->update($validated);
+            'grade_level' => ['nullable', 'string', 'max:100'],
+            'emergency_contact_name' => [$hasEmergencyContact ? 'required' : 'nullable', 'string', 'max:255'],
+            'emergency_contact_relationship' => ['nullable', 'string', 'max:100'],
+            'emergency_contact_phone' => [$hasEmergencyContact ? 'required' : 'nullable', 'string', 'max:50'],
+        ], $this->photoRules()), array_merge([
+            'emergency_contact_name.required' => 'Enter the name of the person to contact in an emergency.',
+            'emergency_contact_phone.required' => 'Enter a contact number for the emergency contact.',
+        ], $this->photoMessages()));
+
+        $athlete->fill($validated);
+
+        $this->syncProfilePhoto($request, $athlete);
 
         return redirect()->route('athletes.show', $athlete)->with('success', 'Athlete updated successfully.');
     }
@@ -160,21 +164,6 @@ class AthleteController extends Controller
 
         $athlete->delete();
         return redirect()->route('athletes.index')->with('success', 'Athlete deleted successfully.');
-    }
-
-    private function applyEligibilityFilter($query, string $eligibility)
-    {
-        return match ($eligibility) {
-            'Eligible' => $query->whereHas('medicalRecords', fn ($medical) => $medical->where('medical_status', 'Cleared')),
-            'Not Eligible' => $query->where(function ($notEligible) {
-                $notEligible->whereHas('medicalRecords', fn ($medical) => $medical->whereIn('medical_status', ['Not Cleared', 'Restricted']))
-                    ->orWhereHas('applications', fn ($applications) => $applications->where('status', 'Rejected'));
-            }),
-            default => $query->where(function ($pending) {
-                $pending->whereDoesntHave('medicalRecords', fn ($medical) => $medical->where('medical_status', 'Cleared'))
-                    ->whereDoesntHave('applications', fn ($applications) => $applications->where('status', 'Rejected'));
-            }),
-        };
     }
 
     private function eligibility(User $athlete): string
@@ -203,6 +192,7 @@ class AthleteController extends Controller
                 ['key' => 'coaches', 'label' => 'Coaches', 'icon' => 'users', 'route' => 'coaches.index'],
                 ['key' => 'attendance', 'label' => 'Attendance', 'icon' => 'clipboard', 'route' => 'admin.attendance'],
                 ['key' => 'announcements', 'label' => 'Announcements', 'icon' => 'megaphone', 'route' => 'admin.announcements'],
+                ['key' => 'achievements', 'label' => 'Achievements', 'icon' => 'trophy', 'route' => 'admin.achievements'],
                 ['key' => 'reports', 'label' => 'Reports', 'icon' => 'chart', 'route' => 'reports.index'],
             ],
             'active' => 'athletes',

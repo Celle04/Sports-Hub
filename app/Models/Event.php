@@ -28,6 +28,15 @@ class Event extends Model
         return $this->hasMany(AttendanceSession::class);
     }
 
+    /**
+     * Achievements earned in this event. The competition name is never copied
+     * onto the achievement, so linking the event is the only thing needed.
+     */
+    public function achievements()
+    {
+        return $this->hasMany(Achievement::class);
+    }
+
     protected $casts = [
         'starts_at' => 'datetime',
         'ends_at' => 'datetime',

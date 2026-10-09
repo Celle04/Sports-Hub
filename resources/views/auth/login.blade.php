@@ -8,7 +8,7 @@
         <p>Sign in to access your SportsHub dashboard.</p>
     </div>
 
-    <form class="auth-form" method="POST" action="{{ route('login.submit') }}" aria-label="Sports Activity Hub sign in form" data-loading-label="Logging in...">
+    <form class="auth-form" method="POST" action="{{ route('login.submit') }}" aria-label="SportsHub sign in form" data-loading-label="Logging in...">
         @csrf
 
         <div class="auth-field">

@@ -1,6 +1,6 @@
 <section class="student-application-page">
     <header class="student-application-heading">
-        <div><span>SPORTS HUB MEMBERSHIP</span><h2>My application</h2><p>Application details and the latest administrator review.</p></div>
+        <div><span>SPORTSHUB MEMBERSHIP</span><h2>My application</h2><p>Application details and the latest administrator review.</p></div>
         <svg aria-hidden="true"><use href="#icon-clipboard"></use></svg>
     </header>
 

@@ -162,7 +162,7 @@
 				<form method="POST" action="{{ route('admin.attendance.sessions.cancel', $selected) }}">@csrf @method('PATCH')<button class="button button-muted" type="submit">Cancel Session</button></form>
 			@endif
 			<a class="button button-secondary" href="{{ route('admin.attendance.sessions.export', $selected) }}">Export Report</a>
-			<form method="POST" action="{{ route('admin.attendance.sessions.destroy', $selected) }}" onsubmit="return confirm('Delete this attendance session and all of its records?');">@csrf @method('DELETE')<button class="button button-danger" type="submit">Delete Session</button></form>
+			<button class="button button-danger" type="button" data-confirm-dialog data-confirm-title="Delete Attendance Session?" data-confirm-message="Delete this attendance session and all of its records?" data-confirm-label="Delete Session" data-confirm-method="DELETE" data-confirm-url="{{ route('admin.attendance.sessions.destroy', $selected) }}">Delete Session</button>
 		</div>
 
 		<div class="table-wrap" style="margin-top:16px">

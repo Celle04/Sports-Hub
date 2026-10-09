@@ -2,14 +2,14 @@
 
 namespace Tests\Feature;
 
+use App\Mail\PasswordResetOtp;
 use App\Models\User;
-use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Routing\Middleware\ThrottleRequests;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Notification;
-use Illuminate\Support\Facades\Password;
+use Illuminate\Support\Facades\Mail;
 use Tests\TestCase;
 
 class PasswordResetTest extends TestCase
@@ -19,14 +19,48 @@ class PasswordResetTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->withoutMiddleware(ValidateCsrfToken::class);
+        $this->withoutMiddleware([ValidateCsrfToken::class, ThrottleRequests::class]);
+    }
+
+    private function createUser(string $email = 'student@example.com', string $password = 'password'): User
+    {
+        return User::factory()->create([
+            'email' => $email,
+            'username' => 'student',
+            'password' => $password,
+            'role' => 'Student',
+        ]);
+    }
+
+    /**
+     * Request an OTP and return the plain code captured from the sent mail.
+     */
+    private function requestOtpFor(User $user): string
+    {
+        $sent = [];
+
+        $this->post(route('password.email'), ['email' => $user->email])->assertRedirect(route('password.otp.verify'));
+
+        Mail::assertSent(PasswordResetOtp::class, function (PasswordResetOtp $mail) use (&$sent) {
+            $sent['otp'] = $mail->otp;
+            $this->assertMatchesRegularExpression('/^\d{6}$/', $mail->otp);
+
+            return true;
+        });
+
+        return $sent['otp'];
+    }
+
+    private function wrongOtpFor(string $otp): string
+    {
+        return $otp === '000000' ? '111111' : '000000';
     }
 
     public function test_login_page_renders_the_redesigned_form(): void
     {
         $this->get(route('login'))
             ->assertOk()
-            ->assertSee('SNNHS SPORTS ACTIVITY HUB')
+            ->assertSee('SNNHS SPORTSHUB')
             ->assertSee('Sports Management System')
             ->assertSee('Enter your email')
             ->assertSee('Enter your password')
@@ -88,68 +122,115 @@ class PasswordResetTest extends TestCase
         $this->get(route('password.request'))
             ->assertOk()
             ->assertSee('Forgot your password?')
-            ->assertSee("Enter your email address and we'll send you a link to reset your password.", false)
+            ->assertSee("we'll send you a 6-digit verification code to reset your password.", false)
             ->assertSee('Enter your email')
-            ->assertSee('Send Password Reset Link')
+            ->assertSee('Send OTP')
             ->assertSee('Back to Login');
     }
 
-    public function test_reset_link_is_emailed_and_reveals_nothing_for_unknown_accounts(): void
+    public function test_sending_the_otp_emails_a_code_and_goes_to_the_verification_page(): void
     {
-        Notification::fake();
-        $user = User::factory()->create(['email' => 'coach@example.com', 'password' => 'password', 'role' => 'Student']);
+        Mail::fake();
+        $user = $this->createUser();
 
-        $this->post(route('password.email'), ['email' => 'coach@example.com'])
+        $this->post(route('password.email'), ['email' => $user->email])
+            ->assertRedirect(route('password.otp.verify'))
+            ->assertSessionHas('password_reset_email', $user->email);
+
+        Mail::assertSent(PasswordResetOtp::class, function (PasswordResetOtp $mail) {
+            $this->assertMatchesRegularExpression('/^\d{6}$/', $mail->otp);
+
+            return true;
+        });
+
+        $this->assertDatabaseHas('password_reset_otps', ['email' => $user->email]);
+    }
+
+    public function test_a_mailer_failure_shows_a_friendly_error_and_cleans_up_the_otp_record(): void
+    {
+        $user = $this->createUser();
+
+        Mail::shouldReceive('to')
+            ->once()
+            ->andReturnUsing(fn () => throw new \RuntimeException('smtp connection failed'));
+
+        $this->post(route('password.email'), ['email' => $user->email])
             ->assertRedirect()
-            ->assertSessionHas('success', 'If an account exists with that email, a password reset link has been sent.');
+            ->assertSessionHasErrors('email')
+            ->assertSessionMissing('password_reset_email');
 
-        Notification::assertSentTo($user, ResetPassword::class);
+        $this->assertDatabaseMissing('password_reset_otps', ['email' => $user->email]);
+    }
+
+    public function test_unknown_email_keeps_the_generic_reply_and_reveals_nothing(): void
+    {
+        Mail::fake();
 
         $this->post(route('password.email'), ['email' => 'nobody@example.com'])
             ->assertRedirect()
-            ->assertSessionHas('success', 'If an account exists with that email, a password reset link has been sent.');
+            ->assertSessionHas('success', 'If an account exists with that email, a password reset link has been sent.')
+            ->assertSessionMissing('password_reset_email');
 
-        Notification::assertSentToTimes($user, ResetPassword::class, 1);
-        $this->assertDatabaseCount('password_reset_tokens', 1);
+        Mail::assertNothingSent();
+        $this->assertDatabaseCount('password_reset_otps', 0);
+
+        $this->get(route('password.otp.verify'))->assertRedirect(route('password.request'));
     }
 
-    public function test_reset_link_request_requires_a_valid_email(): void
+    public function test_otp_request_requires_a_valid_email(): void
     {
         $this->post(route('password.email'), ['email' => 'not-an-email'])
             ->assertSessionHasErrors('email');
     }
 
-    public function test_password_can_be_reset_with_the_emailed_link(): void
+    public function test_verification_page_is_only_reachable_with_an_active_request(): void
     {
-        Notification::fake();
-        $user = User::factory()->create(['email' => 'student@example.com', 'password' => 'password', 'role' => 'Student']);
+        $this->get(route('password.otp.verify'))->assertRedirect(route('password.request'));
+    }
 
-        $this->post(route('password.email'), ['email' => 'student@example.com']);
+    public function test_the_verification_page_masks_the_email_and_never_reveals_the_code(): void
+    {
+        Mail::fake();
+        $user = $this->createUser();
+        $otp = $this->requestOtpFor($user);
 
-        $resetUrl = null;
-        Notification::assertSentTo($user, ResetPassword::class, function (ResetPassword $notification) use ($user, &$resetUrl) {
-            $resetUrl = $notification->toMail($user)->actionUrl;
+        $this->get(route('password.otp.verify'))
+            ->assertOk()
+            ->assertSee('Verify your email')
+            ->assertSee('s***@example.com')
+            ->assertDontSee($otp)
+            ->assertSee('data-otp-boxes', false)
+            ->assertSee('Resend OTP');
 
-            return true;
-        });
+        $stored = DB::table('password_reset_otps')->where('email', $user->email)->value('otp_hash');
 
-        $this->get($resetUrl)
+        $this->assertNotSame($otp, $stored);
+        $this->assertTrue(Hash::check($otp, $stored));
+    }
+
+    public function test_the_full_flow_verifies_the_otp_resets_the_password_and_logs_in(): void
+    {
+        Mail::fake();
+        $user = $this->createUser();
+        $otp = $this->requestOtpFor($user);
+
+        $this->post(route('password.otp.check'), ['otp' => $otp])
+            ->assertRedirect(route('password.reset'));
+
+        $this->get(route('password.reset'))
             ->assertOk()
             ->assertSee('Reset your password')
-            ->assertSee('Confirm new password');
-
-        $token = basename(parse_url($resetUrl, PHP_URL_PATH));
+            ->assertSee('Choose a new password')
+            ->assertSee('s***@example.com');
 
         $this->post(route('password.update'), [
-            'token' => $token,
-            'email' => 'student@example.com',
             'password' => 'new-strong-password',
             'password_confirmation' => 'new-strong-password',
         ])->assertRedirect(route('login'))
-            ->assertSessionHas('success', 'Your password has been reset successfully. You can now log in with your new password.');
+            ->assertSessionHas('success', 'Your password has been successfully reset. You can now log in with your new password.');
 
         $this->assertTrue(Hash::check('new-strong-password', $user->fresh()->password));
-        $this->assertDatabaseMissing('password_reset_tokens', ['email' => 'student@example.com']);
+        $this->assertDatabaseMissing('password_reset_otps', ['email' => $user->email]);
 
         $this->post(route('login.submit'), [
             'username' => 'student@example.com',
@@ -166,15 +247,106 @@ class PasswordResetTest extends TestCase
         ])->assertRedirect(route('login'))->assertSessionHasErrors('username');
     }
 
+    public function test_wrong_otp_is_rejected_and_five_failures_invalidate_the_code(): void
+    {
+        Mail::fake();
+        $user = $this->createUser();
+        $otp = $this->requestOtpFor($user);
+        $wrong = $this->wrongOtpFor($otp);
+
+        for ($attempt = 1; $attempt <= 4; $attempt++) {
+            $this->post(route('password.otp.check'), ['otp' => $wrong])
+                ->assertRedirect()
+                ->assertSessionHasErrors('otp', 'Invalid verification code.');
+        }
+
+        $this->assertDatabaseHas('password_reset_otps', ['email' => $user->email, 'attempts' => 4]);
+
+        $this->post(route('password.otp.check'), ['otp' => $wrong])
+            ->assertRedirect()
+            ->assertSessionHasErrors('otp', 'Too many incorrect attempts. Please request a new OTP.');
+
+        $this->assertDatabaseMissing('password_reset_otps', ['email' => $user->email]);
+
+        $this->post(route('password.otp.check'), ['otp' => $otp])
+            ->assertRedirect()
+            ->assertSessionHasErrors('otp', 'Invalid verification code.');
+    }
+
+    public function test_an_expired_otp_is_declined_and_deleted(): void
+    {
+        Mail::fake();
+        $user = $this->createUser();
+        $otp = $this->requestOtpFor($user);
+
+        $this->travel(6)->minutes();
+
+        $this->post(route('password.otp.check'), ['otp' => $otp])
+            ->assertRedirect()
+            ->assertSessionHasErrors('otp', 'Your verification code has expired. Please request a new code.');
+
+        $this->assertDatabaseMissing('password_reset_otps', ['email' => $user->email]);
+    }
+
+    public function test_resend_is_cooldown_limited_and_invalidates_the_previous_code(): void
+    {
+        Mail::fake();
+        $user = $this->createUser();
+        $firstOtp = $this->requestOtpFor($user);
+
+        $this->post(route('password.otp.resend'))
+            ->assertRedirect()
+            ->assertSessionHasErrors('otp');
+
+        $this->travel(61)->seconds();
+
+        $this->post(route('password.otp.resend'))
+            ->assertRedirect()
+            ->assertSessionHas('success', 'A new verification code has been sent to your email.');
+
+        Mail::assertSent(PasswordResetOtp::class, 2);
+
+        $mails = collect(Mail::sent(PasswordResetOtp::class));
+        $secondOtp = $mails->last()->otp;
+        $this->assertNotNull($secondOtp);
+        $this->assertNotSame($firstOtp, $secondOtp);
+
+        $this->post(route('password.otp.check'), ['otp' => $firstOtp])
+            ->assertRedirect()
+            ->assertSessionHasErrors('otp', 'Invalid verification code.');
+    }
+
+    public function test_the_reset_page_is_gated_behind_a_verified_otp(): void
+    {
+        $this->get(route('password.reset'))->assertRedirect(route('password.request'));
+        $this->post(route('password.update'), ['password' => 'new-strong-password', 'password_confirmation' => 'new-strong-password'])
+            ->assertRedirect(route('password.request'));
+    }
+
+    public function test_verifying_then_requesting_a_new_otp_revokes_the_gate(): void
+    {
+        Mail::fake();
+        $user = $this->createUser();
+        $otp = $this->requestOtpFor($user);
+
+        $this->post(route('password.otp.check'), ['otp' => $otp])->assertRedirect(route('password.reset'));
+
+        $this->post(route('password.otp.resend'))->assertRedirect();
+        $this->travel(61)->seconds();
+        $this->post(route('password.otp.resend'))->assertRedirect();
+
+        $this->get(route('password.reset'))->assertRedirect(route('password.request'));
+    }
+
     public function test_reset_requires_a_matching_confirmation(): void
     {
-        Notification::fake();
-        $user = User::factory()->create(['email' => 'student@example.com', 'password' => 'password', 'role' => 'Student']);
-        $token = Password::broker()->createToken($user);
+        Mail::fake();
+        $user = $this->createUser();
+        $otp = $this->requestOtpFor($user);
+
+        $this->post(route('password.otp.check'), ['otp' => $otp])->assertRedirect(route('password.reset'));
 
         $this->post(route('password.update'), [
-            'token' => $token,
-            'email' => 'student@example.com',
             'password' => 'new-strong-password',
             'password_confirmation' => 'different-password',
         ])->assertSessionHasErrors('password');
@@ -182,42 +354,19 @@ class PasswordResetTest extends TestCase
         $this->assertTrue(Hash::check('password', $user->fresh()->password));
     }
 
-    public function test_reset_rejects_invalid_and_expired_tokens(): void
+    public function test_reset_rejects_a_weak_password(): void
     {
-        Notification::fake();
-        $user = User::factory()->create(['email' => 'student@example.com', 'password' => 'password', 'role' => 'Student']);
+        Mail::fake();
+        $user = $this->createUser();
+        $otp = $this->requestOtpFor($user);
+
+        $this->post(route('password.otp.check'), ['otp' => $otp])->assertRedirect(route('password.reset'));
 
         $this->post(route('password.update'), [
-            'token' => 'not-a-real-token',
-            'email' => 'student@example.com',
-            'password' => 'new-strong-password',
-            'password_confirmation' => 'new-strong-password',
-        ])->assertSessionHasErrors('email');
+            'password' => 'short',
+            'password_confirmation' => 'short',
+        ])->assertSessionHasErrors('password');
 
         $this->assertTrue(Hash::check('password', $user->fresh()->password));
-
-        $token = Password::broker()->createToken($user);
-        $this->travel(config('auth.passwords.users.expire') + 1)->minutes();
-
-        $this->post(route('password.update'), [
-            'token' => $token,
-            'email' => 'student@example.com',
-            'password' => 'new-strong-password',
-            'password_confirmation' => 'new-strong-password',
-        ])->assertSessionHasErrors('email');
-
-        $this->assertTrue(Hash::check('password', $user->fresh()->password));
-    }
-
-    public function test_reset_token_is_hashed_in_storage(): void
-    {
-        Notification::fake();
-        $user = User::factory()->create(['email' => 'student@example.com', 'password' => 'password', 'role' => 'Student']);
-        $token = Password::broker()->createToken($user);
-
-        $storedToken = DB::table('password_reset_tokens')->where('email', 'student@example.com')->value('token');
-
-        $this->assertNotSame($token, $storedToken);
-        $this->assertTrue(Hash::check($token, $storedToken));
     }
 }

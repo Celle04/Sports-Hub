@@ -14,4 +14,5 @@ class Sport extends Model
     public function applications() { return $this->hasMany(Application::class); }
     public function events() { return $this->hasMany(Event::class); }
     public function announcements() { return $this->hasMany(Announcement::class); }
+    public function achievements() { return $this->hasMany(Achievement::class); }
 }

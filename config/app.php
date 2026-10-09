@@ -59,13 +59,17 @@ return [
     | Application Timezone
     |--------------------------------------------------------------------------
     |
-    | Here you may specify the default timezone for your application, which
-    | will be used by the PHP date and date-time functions. The timezone
-    | is set to "UTC" by default as it is suitable for most use cases.
+    | The timezone used by the application and by every date/relative time
+    | rendered to users. SportsHub is operated by a Philippine school, so
+    | authored times such as "training at 4:00 PM" are meant as Philippine
+    | Standard Time and must display as such.
+    |
+    | Timestamps are stored exactly as this timezone reports them, so
+    | changing this value also reinterprets existing rows.
     |
     */
 
-    'timezone' => 'UTC',
+    'timezone' => env('APP_TIMEZONE', 'Asia/Manila'),
 
     /*
     |--------------------------------------------------------------------------

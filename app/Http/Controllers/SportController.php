@@ -13,7 +13,12 @@ class SportController extends Controller
     {
         $this->ensureAdministrator();
 
-        $sports = Sport::withCount(['athletes', 'coaches', 'events', 'applications'])
+        $sports = Sport::withCount([
+            'athletes' => fn ($query) => $query->where('role', 'Student'),
+            'coaches',
+            'events',
+            'applications',
+        ])
             ->when($request->filled('search'), function ($query) use ($request) {
                 $search = trim($request->string('search')->toString());
                 $query->where(function ($sportQuery) use ($search) {
@@ -67,7 +72,12 @@ class SportController extends Controller
     {
         $this->ensureAdministrator();
 
-        $sport->loadCount(['athletes', 'coaches', 'events', 'applications']);
+        $sport->loadCount([
+            'athletes' => fn ($query) => $query->where('role', 'Student'),
+            'coaches',
+            'events',
+            'applications',
+        ]);
         $sport->load([
             'athletes' => fn ($query) => $query->where('role', 'Student')->orderBy('name'),
             'coaches' => fn ($query) => $query->orderBy('name'),
@@ -144,6 +154,7 @@ class SportController extends Controller
                 ['key' => 'coaches', 'label' => 'Coaches', 'icon' => 'users', 'route' => 'coaches.index'],
                 ['key' => 'attendance', 'label' => 'Attendance', 'icon' => 'clipboard', 'route' => 'admin.attendance'],
                 ['key' => 'announcements', 'label' => 'Announcements', 'icon' => 'megaphone', 'route' => 'admin.announcements'],
+                ['key' => 'achievements', 'label' => 'Achievements', 'icon' => 'trophy', 'route' => 'admin.achievements'],
                 ['key' => 'reports', 'label' => 'Reports', 'icon' => 'chart', 'route' => 'reports.index'],
             ],
             'active' => 'sports',

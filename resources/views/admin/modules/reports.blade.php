@@ -1,75 +1,248 @@
-<div class="grid report-summary-grid">
-	<div class="card stat"><small>Total Athletes</small><strong>{{ $reportStats['athletes'] ?? 0 }}</strong></div>
-	<div class="card stat"><small>Total Sports</small><strong>{{ $reportStats['sports'] ?? 0 }}</strong></div>
-	<div class="card stat"><small>Total Events</small><strong>{{ $reportStats['events'] ?? 0 }}</strong></div>
-	<div class="card stat"><small>Attendance Records</small><strong>{{ $reportStats['attendance'] ?? 0 }}</strong></div>
-	<div class="card stat"><small>Attendance Rate</small><strong>{{ $reportStats['rate'] ?? 0 }}%</strong></div>
-</div>
+@php
+	$choices = [
+		['key' => 'athletes', 'label' => 'Athlete List', 'hint' => 'Complete roster with sport, coach and profile details'],
+		['key' => 'attendance', 'label' => 'Attendance Records', 'hint' => 'Every matching record with status breakdown and rate'],
+		['key' => 'athlete-summary', 'label' => 'Athlete Attendance Summary', 'hint' => 'Per-athlete totals and attendance rate'],
+		['key' => 'coaches', 'label' => 'Coach List', 'hint' => 'All coaches with sport, type and specialization'],
+	];
+	$payload = $reportPayload ?? null;
+	$columns = $payload['columns'] ?? [];
+	$rows = $payload['rows'] ?? collect();
+	$options = $filterOptions ?? [];
+	$badgeClass = function ($status) {
+		return match ($status) {
+			'Present', 'Active' => 'status-present',
+			'Absent', 'Inactive' => 'status-absent',
+			'Late', 'Pending', 'Open' => 'status-pending',
+			'Excused', 'Closed' => 'status-cleared',
+			default => '',
+		};
+	};
+@endphp
 
-<section class="card report-filter-panel">
-	<h2>Report Filters</h2>
-	<form method="GET" action="{{ route('reports.index') }}" class="report-filters">
-		<select class="form-control" name="report_type"><option value="attendance">Attendance Report</option><option value="athletes">Athlete Report</option><option value="sports">Sports Report</option><option value="events">Event Report</option><option value="applications">Application Report</option></select>
-		<input class="form-control" type="date" name="from" value="{{ request('from') }}">
-		<input class="form-control" type="date" name="to" value="{{ request('to') }}">
-		<select class="form-control" name="sport_id"><option value="">All Sports</option>@foreach ($sports ?? [] as $sport)<option value="{{ $sport->id }}">{{ $sport->name }}</option>@endforeach</select>
-		<button class="button" type="submit">Apply Filters</button>
-		<a class="button button-secondary" href="{{ route('reports.index') }}">Reset</a>
-	</form>
-</section>
-
-<section class="card report-data-panel">
-	<div class="section-heading">
-		<div><h2>{{ ucfirst($reportType ?? 'attendance') }} Report</h2><p class="meta">Attendance rate counts Present and Late only. Pending and cancelled sessions are excluded.</p></div>
-		<a class="button button-secondary" href="{{ route('reports.export', array_merge(request()->query(), ['format' => 'csv'])) }}">Export CSV</a>
+@if (! $report)
+	<div class="grid report-summary-grid">
+		@foreach ($overview ?? [] as $stat)
+			<div class="card stat"><small>{{ $stat['label'] }}</small><strong>{{ $stat['value'] }}</strong></div>
+		@endforeach
 	</div>
-	<div class="table-wrap"><table class="data-table report-table">
-		@if (($reportType ?? 'attendance') === 'attendance')
-			<thead><tr><th>Date</th><th>Athlete</th><th>Sport</th><th>Session</th><th>Status</th><th>Check-in</th><th>Rate</th></tr></thead>
-			<tbody>
-			@forelse ($reportData ?? [] as $row)
-				<tr><td>{{ $row->attended_on?->format('M j, Y') }}</td><td>{{ $row->athlete?->name }}</td><td>{{ $row->sportName() }}</td><td>{{ $row->displayName() }}</td><td><span class="badge">{{ $row->status }}</span></td><td>{{ $row->check_in_time?->format('g:i A') ?? '--' }}</td><td>{{ $row->report_rate }}%</td></tr>
-			@empty
-				<tr><td colspan="7" class="empty-cell">No report data available.</td></tr>
-			@endforelse
-			</tbody>
-		@elseif (($reportType ?? '') === 'athletes')
-			<thead><tr><th>Athlete</th><th>Student ID</th><th>Sessions</th><th>Present</th><th>Absent</th><th>Rate</th></tr></thead>
-			<tbody>
-			@forelse ($reportData ?? [] as $row)
-				<tr><td>{{ $row->name }}</td><td>{{ $row->student_id ?: 'No ID' }}</td><td>{{ $row->report_total }}</td><td>{{ $row->report_present }}</td><td>{{ $row->report_absent }}</td><td>{{ $row->report_rate }}%</td></tr>
-			@empty
-				<tr><td colspan="6" class="empty-cell">No athlete data available.</td></tr>
-			@endforelse
-			</tbody>
-		@elseif (($reportType ?? '') === 'sports')
-			<thead><tr><th>Sport</th><th>Athletes</th><th>Coaches</th><th>Events</th><th>Attendance Rate</th></tr></thead>
-			<tbody>
-			@forelse ($reportData ?? [] as $row)
-				<tr><td>{{ $row->name }}</td><td>{{ $row->athlete_count }}</td><td>{{ $row->coaches_count }}</td><td>{{ $row->events_count }}</td><td>{{ $row->report_rate }}%</td></tr>
-			@empty
-				<tr><td colspan="5" class="empty-cell">No sports data available.</td></tr>
-			@endforelse
-			</tbody>
-		@elseif (($reportType ?? '') === 'events')
-			<thead><tr><th>Event</th><th>Sport</th><th>Date</th><th>Athletes</th><th>Present</th><th>Absent</th></tr></thead>
-			<tbody>
-			@forelse ($reportData ?? [] as $row)
-				<tr><td>{{ $row->title }}</td><td>{{ $row->sport?->name ?? 'All Sports' }}</td><td>{{ $row->starts_at?->format('M j, Y') }}</td><td>{{ $row->report_athletes }}</td><td>{{ $row->report_present }}</td><td>{{ $row->report_absent }}</td></tr>
-			@empty
-				<tr><td colspan="6" class="empty-cell">No event data available.</td></tr>
-			@endforelse
-			</tbody>
-		@else
-			<thead><tr><th>Applicant</th><th>Student ID</th><th>Sport</th><th>Status</th><th>Submitted</th></tr></thead>
-			<tbody>
-			@forelse ($reportData ?? [] as $row)
-				<tr><td>{{ $row->name }}</td><td>{{ $row->student_id ?: 'No ID' }}</td><td>{{ $row->sportCategory?->name ?? $row->sport ?? 'Unassigned' }}</td><td><span class="badge">{{ $row->status }}</span></td><td>{{ $row->created_at?->format('M j, Y') }}</td></tr>
-			@empty
-				<tr><td colspan="5" class="empty-cell">No application data available.</td></tr>
-			@endforelse
-			</tbody>
-		@endif
-	</table></div>
-	@if (($reportData ?? null)?->hasPages()) {{ $reportData->links() }} @endif
-</section>
+
+	<section class="card report-filter-panel">
+		<div class="section-heading">
+			<div>
+				<h2>Reporting Center</h2>
+				<p class="meta">Every report is generated directly from the SportsHub database, complete and unpaginated. Choose a report to preview it, then print it or export it as PDF or CSV.</p>
+			</div>
+		</div>
+		<div class="report-chooser">
+			@foreach ($choices as $choice)
+				<a class="report-chooser-item" href="{{ route('reports.index', ['report' => $choice['key']]) }}">
+					<strong>{{ $choice['label'] }}</strong>
+					<small>{{ $choice['hint'] }}</small>
+				</a>
+			@endforeach
+		</div>
+	</section>
+@else
+	<section class="card report-filter-panel">
+		<div class="section-heading">
+			<div>
+				<h2>{{ $payload['title'] }}</h2>
+				<p class="meta">Generated {{ $generatedAt->format('F j, Y \a\t g:i A') }} by {{ $generatedBy }}</p>
+			</div>
+		</div>
+
+		<form method="GET" action="{{ route('reports.index') }}" class="report-filters">
+			<div class="form-group">
+				<label for="report-picker">Report</label>
+				<select class="form-control" id="report-picker" name="report">
+					@foreach ($choices as $choice)
+						<option value="{{ $choice['key'] }}" @selected($report === $choice['key'])>{{ $choice['label'] }}</option>
+					@endforeach
+				</select>
+			</div>
+
+			@if (in_array($report, ['athletes', 'coaches'], true))
+				<div class="form-group">
+					<label for="report-search">Search</label>
+					<input class="form-control" id="report-search" type="search" name="search" value="{{ $filters['search'] ?? '' }}" placeholder="Name, student ID, email...">
+				</div>
+			@endif
+
+			<div class="form-group">
+				<label for="report-sport">Sport</label>
+				<select class="form-control" id="report-sport" name="sport_id">
+					<option value="">All Sports</option>
+					@foreach (($options['sports'] ?? collect()) as $sport)
+						<option value="{{ $sport->id }}" @selected(($filters['sport_id'] ?? null) == $sport->id)>{{ $sport->name }}</option>
+					@endforeach
+				</select>
+			</div>
+
+			@if ($report === 'athletes')
+				<div class="form-group">
+					<label for="report-status">Status</label>
+					<select class="form-control" id="report-status" name="status">
+						<option value="">All Status</option>
+						@foreach (($options['statuses'] ?? ['Active', 'Inactive']) as $status)
+							<option value="{{ $status }}" @selected(($filters['status'] ?? null) === $status)>{{ $status }}</option>
+						@endforeach
+					</select>
+				</div>
+				<div class="form-group">
+					<label for="report-grade">Year Level</label>
+					<select class="form-control" id="report-grade" name="grade">
+						<option value="">All Year Levels</option>
+						@foreach (($options['grades'] ?? collect()) as $grade)
+							<option value="{{ $grade }}" @selected(($filters['grade'] ?? null) === (string) $grade)>{{ $grade }}</option>
+						@endforeach
+					</select>
+				</div>
+				<div class="form-group">
+					<label for="report-gender">Sex</label>
+					<select class="form-control" id="report-gender" name="gender">
+						<option value="">All</option>
+						@foreach (($options['genders'] ?? collect()) as $gender)
+							<option value="{{ $gender }}" @selected(($filters['gender'] ?? null) === (string) $gender)>{{ $gender }}</option>
+						@endforeach
+					</select>
+				</div>
+				<div class="form-group">
+					<label for="report-eligibility">Eligibility</label>
+					<select class="form-control" id="report-eligibility" name="eligibility">
+						<option value="">All</option>
+						@foreach (['Eligible', 'Not Eligible', 'Pending'] as $state)
+							<option value="{{ $state }}" @selected(($filters['eligibility'] ?? null) === $state)>{{ $state }}</option>
+						@endforeach
+					</select>
+				</div>
+			@endif
+
+			@if ($report === 'coaches')
+				<div class="form-group">
+					<label for="report-coach-type">Coach Type</label>
+					<select class="form-control" id="report-coach-type" name="coach_type">
+						<option value="">All Coach Types</option>
+						@foreach (($options['coachTypes'] ?? []) as $type)
+							<option value="{{ $type }}" @selected(($filters['coach_type'] ?? null) === $type)>{{ $type }}</option>
+						@endforeach
+					</select>
+				</div>
+				<div class="form-group">
+					<label for="report-status">Status</label>
+					<select class="form-control" id="report-status" name="status">
+						<option value="">All Status</option>
+						@foreach (($options['statuses'] ?? []) as $status)
+							<option value="{{ $status }}" @selected(($filters['status'] ?? null) === $status)>{{ $status }}</option>
+						@endforeach
+					</select>
+				</div>
+			@endif
+
+			@if (in_array($report, ['attendance', 'athlete-summary'], true))
+				<div class="form-group">
+					<label for="report-session">Attendance Session</label>
+					<select class="form-control" id="report-session" name="session_id">
+						<option value="">All Sessions</option>
+						@foreach (($options['sessions'] ?? []) as $session)
+							<option value="{{ $session['id'] }}" @selected(($filters['session_id'] ?? null) == $session['id'])>{{ $session['label'] }}</option>
+						@endforeach
+					</select>
+				</div>
+				<div class="form-group">
+					<label for="report-athlete">Athlete</label>
+					<select class="form-control" id="report-athlete" name="athlete_id">
+						<option value="">All Athletes</option>
+						@foreach (($options['athletes'] ?? []) as $athlete)
+							<option value="{{ $athlete['id'] }}" @selected(($filters['athlete_id'] ?? null) == $athlete['id'])>{{ $athlete['label'] }}</option>
+						@endforeach
+					</select>
+				</div>
+				<div class="form-group">
+					<label for="report-from">Date From</label>
+					<input class="form-control" id="report-from" type="date" name="from" value="{{ $filters['from'] ?? '' }}">
+				</div>
+				<div class="form-group">
+					<label for="report-to">Date To</label>
+					<input class="form-control" id="report-to" type="date" name="to" value="{{ $filters['to'] ?? '' }}">
+				</div>
+			@endif
+
+			@if ($report === 'attendance')
+				<div class="form-group">
+					<label for="report-status">Status</label>
+					<select class="form-control" id="report-status" name="status">
+						<option value="">All Statuses</option>
+						@foreach (($options['recordStatuses'] ?? []) as $status)
+							<option value="{{ $status }}" @selected(($filters['status'] ?? null) === $status)>{{ $status }}</option>
+						@endforeach
+					</select>
+				</div>
+			@endif
+
+			<div class="report-filter-actions">
+				<button class="button" type="submit">Apply Filters</button>
+				<a class="button button-secondary" href="{{ route('reports.index') }}">Reset</a>
+			</div>
+		</form>
+	</section>
+
+	<div class="report-actions">
+		<button class="button button-secondary" type="button" onclick="window.print()">Print</button>
+		<a class="button button-secondary" href="{{ route('reports.export', array_merge(['report' => $report], $filters, ['format' => 'csv'])) }}">Export CSV</a>
+		<a class="button" href="{{ route('reports.export', array_merge(['report' => $report], $filters, ['format' => 'pdf'])) }}">Export PDF</a>
+		<a class="button button-muted" href="{{ route('reports.index') }}">All Reports</a>
+	</div>
+
+	<div class="report-print-header">
+		<p>SURIGAO DEL NORTE NATIONAL HIGH SCHOOL</p>
+		<h1>SPORTSHUB</h1>
+		<h2>{{ $payload['title'] }}</h2>
+		<p>Generated {{ $generatedAt->format('F j, Y') }} by {{ $generatedBy }} &middot; Filters: {{ $payload['filtersLabel'] }}</p>
+	</div>
+
+	<div class="grid report-summary-grid">
+		@foreach ($payload['summary'] as $item)
+			<div class="card stat"><small>{{ $item['label'] }}</small><strong>{{ $item['value'] }}</strong></div>
+		@endforeach
+	</div>
+
+	<section class="card report-data-panel">
+		<div class="section-heading">
+			<div>
+				<h2>{{ $payload['title'] }}</h2>
+				<p class="meta">{{ $rows->count() }} record(s) &middot; Filters: {{ $payload['filtersLabel'] }} &middot; Attendance rate counts Present and Late over counted records only. Pending rows and cancelled sessions are excluded.</p>
+			</div>
+		</div>
+		<div class="table-wrap">
+			<table class="data-table report-table">
+				<thead>
+					<tr>
+						@foreach ($columns as $column)
+							<th>{{ $column['label'] }}</th>
+						@endforeach
+					</tr>
+				</thead>
+				<tbody>
+					@forelse ($rows as $row)
+						<tr>
+							@foreach ($columns as $column)
+								<td>
+									@if ($column['key'] === 'status')
+										<span class="badge {{ $badgeClass($row[$column['key']] ?? '') }}">{{ $row[$column['key']] ?? '—' }}</span>
+									@elseif ($column['key'] === 'rate')
+										{{ $row[$column['key']] ?? 0 }}%
+									@else
+										{{ $row[$column['key']] ?? '—' }}
+									@endif
+								</td>
+							@endforeach
+						</tr>
+					@empty
+						<tr><td colspan="{{ count($columns) }}" class="empty-cell">{{ $payload['emptyMessage'] }}</td></tr>
+					@endforelse
+				</tbody>
+			</table>
+		</div>
+	</section>
+@endif
