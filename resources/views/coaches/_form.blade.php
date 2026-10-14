@@ -60,6 +60,24 @@
     </div>
 </div>
 
+<div class="form-group">
+    <label for="profile_picture">Coach Profile Picture</label>
+    @if (isset($coach) && $coach->profile_picture_path)
+        <div style="margin-bottom: 10px;">
+            <img src="{{ Storage::disk('public')->url($coach->profile_picture_path) }}" alt="{{ $coach->name }} picture" style="width: 100px; height: 100px; border-radius: 50%; object-fit: cover;">
+            <div style="margin-top: 6px;">
+                <label style="display: inline-flex; align-items: center; gap: 6px; cursor: pointer;">
+                    <input type="checkbox" name="remove_profile_picture" value="1" {{ old('remove_profile_picture') ? 'checked' : '' }}>
+                    <span>Remove current picture</span>
+                </label>
+            </div>
+        </div>
+    @endif
+    <input class="form-control" id="profile_picture" name="profile_picture" type="file" accept="image/jpeg,image/jpg,image/png,image/webp">
+    <small class="form-hint">JPG, JPEG, PNG, or WebP. Max 2 MB. Portrait photos; will be displayed as circular avatar.</small>
+    @error('profile_picture')<small class="form-error">{{ $message }}</small>@enderror
+</div>
+
 <div class="medical-form-actions">
     <button class="button" type="submit">{{ isset($coach) ? 'Update Coach' : 'Save Coach' }}</button>
     <a class="button button-muted" href="{{ route('coaches.index') }}">Cancel</a>

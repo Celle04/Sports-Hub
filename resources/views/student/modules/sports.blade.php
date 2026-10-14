@@ -25,11 +25,17 @@
                 </div>
                 <h3>{{ $sport->name }}</h3>
                 <p class="student-sport-description">{{ $sport->description ?: 'Program details will be available soon.' }}</p>
+                <div class="student-sport-details">
+                    <span class="student-sport-detail">
+                        <svg aria-hidden="true"><use href="#icon-users"></use></svg>
+                        <strong>{{ $sport->members_count }}</strong>
+                        <span>{{ \Illuminate\Support\Str::plural('Member', $sport->members_count) }}</span>
+                    </span>
+                </div>
                 <div class="student-sport-coach">
                     <svg aria-hidden="true"><use href="#icon-user"></use></svg>
                     <span><small>PROGRAM COACH</small><strong>{{ $sport->coaches->first()?->name ?? 'Not assigned' }}</strong></span>
                 </div>
-                <span class="student-sport-view-hint">View Members <span aria-hidden="true">&rarr;</span></span>
             </article>
         @empty
             <p class="student-sports-empty">No active sports programs are available.</p>
@@ -52,8 +58,14 @@
                 <div class="student-sport-summary" aria-live="polite">
                     <div><small>ENROLLED MEMBERS</small><strong class="student-sport-total">0</strong></div>
                     <div><small>PROGRAM COACH</small><strong class="student-sport-coach-name">Not assigned</strong></div>
-                    <div><small>PENDING APPLICATIONS</small><strong class="student-sport-pending">0</strong></div>
                 </div>
+
+                <section class="student-sport-coaches" aria-labelledby="student-sport-coaches-title">
+                    <div class="student-sport-coaches-heading">
+                        <div><h3 id="student-sport-coaches-title">Program coach</h3><p>Contact the coach leading this program.</p></div>
+                    </div>
+                    <div class="student-sport-coach-list"></div>
+                </section>
 
                 <section class="student-sport-roster" aria-labelledby="student-sport-roster-title">
                     <div class="student-sport-roster-heading">
@@ -149,15 +161,6 @@
         outline: none;
     }
 
-    .student-sport-view-hint {
-        display: inline-flex;
-        gap: 0.35rem;
-        margin-top: 1rem;
-        color: #7f1d2d;
-        font-size: 0.82rem;
-        font-weight: 700;
-    }
-
     .student-sport-modal[hidden],
     .student-sport-table-wrap[hidden],
     .student-sport-pagination[hidden] {
@@ -240,7 +243,7 @@
 
     .student-sport-summary {
         display: grid;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
+        grid-template-columns: repeat(2, minmax(0, 1fr));
         gap: 0.75rem;
         padding: 1rem 1.5rem;
         background: #fcf9fa;
@@ -261,6 +264,100 @@
     .student-sport-summary strong {
         overflow-wrap: anywhere;
         color: #302528;
+    }
+
+    .student-sport-coaches {
+        padding: 1.25rem 1.5rem 0;
+    }
+
+    .student-sport-coaches-heading h3 {
+        margin: 0;
+        color: #302528;
+    }
+
+    .student-sport-coaches-heading p {
+        margin: 0.3rem 0 0;
+        color: #6b6264;
+    }
+
+    .student-sport-coach-list {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 0.75rem;
+        margin-top: 1rem;
+    }
+
+    .student-sport-coach-card {
+        display: flex;
+        align-items: center;
+        gap: 0.85rem;
+        padding: 0.85rem;
+        border: 1px solid #eee7e8;
+        border-radius: 0.75rem;
+        background: #fcf9fa;
+    }
+
+    .student-sport-coach-photo {
+        display: inline-grid;
+        width: 3.4rem;
+        height: 3.4rem;
+        flex: 0 0 auto;
+        place-items: center;
+        overflow: hidden;
+        border-radius: 50%;
+        background: #f2e6e8;
+        color: #7f1d2d;
+        font-size: 1.15rem;
+        font-weight: 800;
+        object-fit: cover;
+    }
+
+    .student-sport-coach-copy {
+        display: grid;
+        gap: 0.15rem;
+        min-width: 0;
+    }
+
+    .student-sport-coach-eyebrow {
+        color: #8b1e2d;
+        font-size: 0.62rem;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+    }
+
+    .student-sport-coach-person {
+        color: #302528;
+        overflow-wrap: anywhere;
+    }
+
+    .student-sport-coach-role {
+        color: #6b6264;
+        font-size: 0.82rem;
+    }
+
+    .student-sport-coach-contact {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.3rem 0.75rem;
+        margin-top: 0.35rem;
+        font-size: 0.82rem;
+    }
+
+    .student-sport-coach-contact a {
+        color: #7f1d2d;
+        font-weight: 700;
+        text-decoration: none;
+        overflow-wrap: anywhere;
+    }
+
+    .student-sport-coach-contact a:hover,
+    .student-sport-coach-contact a:focus-visible {
+        text-decoration: underline;
+    }
+
+    .student-sport-coach-empty {
+        margin: 0;
+        color: #6b6264;
     }
 
     .student-sport-roster {
@@ -585,7 +682,7 @@
         const classification = modal.querySelector('.student-sport-modal-classification');
         const total = modal.querySelector('.student-sport-total');
         const coach = modal.querySelector('.student-sport-coach-name');
-        const pending = modal.querySelector('.student-sport-pending');
+        const coachList = modal.querySelector('.student-sport-coach-list');
         const searchInput = modal.querySelector('.student-sport-search');
         const gradeSelect = modal.querySelector('.student-sport-grade');
         const statusSelect = modal.querySelector('.student-sport-status');
@@ -676,6 +773,85 @@
             });
         };
 
+        const initials = (name) => (name || '?').trim().split(/\s+/).slice(0, 2).map((part) => part.charAt(0)).join('').toUpperCase() || '?';
+
+        const renderCoaches = (coaches) => {
+            coachList.replaceChildren();
+            if (!coaches.length) {
+                const empty = document.createElement('p');
+                empty.className = 'student-sport-coach-empty';
+                empty.textContent = 'No coach has been assigned to this program yet.';
+                coachList.appendChild(empty);
+                return;
+            }
+
+            coaches.forEach((item) => {
+                const card = document.createElement('div');
+                card.className = 'student-sport-coach-card';
+
+                if (item.photo_url) {
+                    const image = document.createElement('img');
+                    image.className = 'student-sport-coach-photo';
+                    image.src = item.photo_url;
+                    image.alt = '';
+                    image.loading = 'lazy';
+                    image.onerror = () => {
+                        const fallback = document.createElement('span');
+                        fallback.className = 'student-sport-coach-photo';
+                        fallback.textContent = initials(item.name);
+                        image.replaceWith(fallback);
+                    };
+                    card.appendChild(image);
+                } else {
+                    const fallback = document.createElement('span');
+                    fallback.className = 'student-sport-coach-photo';
+                    fallback.textContent = initials(item.name);
+                    card.appendChild(fallback);
+                }
+
+                const copy = document.createElement('div');
+                copy.className = 'student-sport-coach-copy';
+
+                const eyebrow = document.createElement('span');
+                eyebrow.className = 'student-sport-coach-eyebrow';
+                eyebrow.textContent = 'PROGRAM COACH';
+
+                const person = document.createElement('strong');
+                person.className = 'student-sport-coach-person';
+                person.textContent = item.name;
+
+                const role = document.createElement('span');
+                role.className = 'student-sport-coach-role';
+                const roleParts = [item.specialty, item.coach_type].filter(Boolean);
+                role.textContent = roleParts.length ? roleParts.join(' · ') : 'Sports coach';
+
+                copy.append(eyebrow, person, role);
+
+                const contactItems = [];
+                if (item.email) {
+                    const email = document.createElement('a');
+                    email.href = `mailto:${item.email}`;
+                    email.textContent = item.email;
+                    contactItems.push(email);
+                }
+                if (item.phone) {
+                    const phone = document.createElement('a');
+                    phone.href = `tel:${item.phone.replace(/[^0-9+]/g, '')}`;
+                    phone.textContent = item.phone;
+                    contactItems.push(phone);
+                }
+                if (contactItems.length) {
+                    const contact = document.createElement('div');
+                    contact.className = 'student-sport-coach-contact';
+                    contact.append(...contactItems);
+                    copy.appendChild(contact);
+                }
+
+                card.appendChild(copy);
+                coachList.appendChild(card);
+            });
+        };
+
         const loadMembers = async (page = 1) => {
             if (!activeUrl) return;
             if (requestController) requestController.abort();
@@ -703,8 +879,8 @@
                 description.textContent = data.program.description || 'Program details will be available soon.';
                 classification.textContent = data.program.classification || 'Sports program';
                 total.textContent = String(data.total_members);
-                coach.textContent = data.program.coaches.length ? data.program.coaches.join(', ') : 'Not assigned';
-                pending.textContent = String(data.pending_applications);
+                coach.textContent = data.program.coaches.length ? data.program.coaches.map((item) => item.name).join(', ') : 'Not assigned';
+                renderCoaches(data.program.coaches);
 
                 const selectedGrade = gradeSelect.value;
                 gradeSelect.replaceChildren(new Option('All grades', ''));

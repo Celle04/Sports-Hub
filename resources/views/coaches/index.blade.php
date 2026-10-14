@@ -86,16 +86,26 @@
         </div>
 
         <table class="data-table coach-table">
+            <colgroup>
+                <col class="coach-col">
+                <col class="coach-specialty-col">
+                <col class="coach-sport-col">
+                <col class="coach-type-col">
+                <col class="coach-count-col">
+                <col class="coach-count-col">
+                <col class="coach-status-col">
+                <col class="coach-actions-col">
+            </colgroup>
             <thead>
                 <tr>
-                    <th scope="col">Coach</th>
-                    <th scope="col">Specialty</th>
-                    <th scope="col">Sport</th>
-                    <th scope="col">Coach Type</th>
-                    <th scope="col" class="num">Assigned Athletes</th>
-                    <th scope="col" class="num">Upcoming Events</th>
-                    <th scope="col">Status</th>
-                    <th scope="col">Actions</th>
+                    <th scope="col" class="coach-col">Coach</th>
+                    <th scope="col" class="coach-specialty-col">Specialty</th>
+                    <th scope="col" class="coach-sport-col">Sport</th>
+                    <th scope="col" class="coach-type-col">Coach Type</th>
+                    <th scope="col" class="coach-count-col num">Assigned Athletes</th>
+                    <th scope="col" class="coach-count-col num">Upcoming Events</th>
+                    <th scope="col" class="coach-status-col">Status</th>
+                    <th scope="col" class="coach-actions-col">Actions</th>
                 </tr>
             </thead>
             <tbody>
@@ -105,14 +115,18 @@
                     @endphp
                     <tr>
                         <td>
-                            <span class="coach-cell">
-                                <span class="avatar avatar--sm avatar-initials coach-avatar-sm" aria-hidden="true">{{ $coachInitials }}</span>
-                                <span class="coach-cell-text">
-                                    <strong>{{ $coach->name }}</strong>
-                                    <small>{{ $coach->email }}</small>
-                                    <small>{{ $coach->phone ?: 'No phone number' }}</small>
-                                </span>
-                            </span>
+                            <div class="coach-cell">
+                                @if ($coach->profile_picture_path)
+                                    <img class="coach-avatar-sm" src="{{ Storage::disk('public')->url($coach->profile_picture_path) }}" alt="{{ $coach->name }}">
+                                @else
+                                    <span class="coach-avatar-sm coach-avatar-initials" aria-hidden="true">{{ $coachInitials }}</span>
+                                @endif
+                                <div class="coach-cell-text">
+                                    <strong>{{ $coach->name ?: 'Unnamed Coach' }}</strong>
+                                    <small class="{{ $coach->email ? '' : 'coach-missing' }}">{{ $coach->email ?: 'No email provided' }}</small>
+                                    <small class="coach-phone {{ $coach->phone ? '' : 'coach-missing' }}">{{ $coach->phone ?: 'No phone provided' }}</small>
+                                </div>
+                            </div>
                         </td>
                         <td>{{ $coach->specialty }}</td>
                         <td>{{ $coach->sport?->name ?? 'Unassigned' }}</td>

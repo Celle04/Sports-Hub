@@ -11,7 +11,7 @@
     @elseif ($page === 'sports')
         <a class="button" href="{{ route('sports.create') }}">Add New Sport</a>
     @elseif ($page === 'medical')
-        <a class="button" href="{{ route('admin.medical') }}#medical-record-form">Add Medical Record</a>
+        <a class="button" href="{{ route('admin.medical.create') }}">Add Medical Record</a>
     @endif
 </div>
 

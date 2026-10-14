@@ -34,7 +34,9 @@ class MedicalController extends Controller
 
     public function create(): View
     {
-        return $this->index();
+        $this->ensureAdministrator();
+
+        return view('admin.page', $this->viewData(['medicalShowForm' => true]));
     }
 
     public function store(Request $request): RedirectResponse
@@ -74,6 +76,7 @@ class MedicalController extends Controller
         return view('admin.page', $this->viewData([
             'medicalFormMode' => 'edit',
             'medicalFormRecord' => $medical,
+            'medicalShowForm' => true,
         ]));
     }
 
@@ -226,6 +229,7 @@ class MedicalController extends Controller
             'medicalIncidentFormRecord' => $incidentRecord,
             'medicalFormMode' => 'create',
             'medicalFormRecord' => null,
+            'medicalShowForm' => false,
             'selectedMedicalRecord' => null,
             'medicalProfileDocuments' => collect(),
             'medicalViewMode' => 'index',

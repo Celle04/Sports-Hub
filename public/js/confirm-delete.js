@@ -11,6 +11,8 @@
  * Attribute API (all optional except data-confirm-url):
  *   data-confirm-dialog      marks the trigger
  *   data-confirm-title       dialog heading            (default "Confirm action")
+ *   data-confirm-subtitle    small header warning      (default hidden when a
+ *                                                       message is provided)
  *   data-confirm-message     body copy                 (default "Are you sure you want to continue?")
  *   data-confirm-label       confirm button text       (default "Confirm")
  *   data-confirm-busy-label  text while submitting     (default "Deleting...")
@@ -63,12 +65,34 @@
         });
     }
 
+    function setSubtitle(dialog, opener) {
+        var target = dialog.querySelector('[data-confirm-desc-target]');
+        var subtitle = opener.getAttribute('data-confirm-subtitle');
+
+        if (subtitle) {
+            target.hidden = false;
+            setText(target, subtitle, '');
+            return;
+        }
+
+        if (opener.getAttribute('data-confirm-message')) {
+            // The body already carries the message; hide the subtitle instead
+            // of repeating the same sentence twice.
+            target.hidden = true;
+            setText(target, '', '');
+            return;
+        }
+
+        target.hidden = false;
+        setText(target, 'Please confirm this action before continuing.', '');
+    }
+
     function openDialog(dialog, opener) {
         var form = dialog.querySelector('form');
         var methodField = dialog.querySelector('[data-confirm-method]');
 
         setText(dialog.querySelector('[data-confirm-title-target]'), opener.getAttribute('data-confirm-title'), 'Confirm action');
-        setText(dialog.querySelector('[data-confirm-desc-target]'), opener.getAttribute('data-confirm-message'), '');
+        setSubtitle(dialog, opener);
         setText(dialog.querySelector('[data-confirm-message-target]'), opener.getAttribute('data-confirm-message'), 'Are you sure you want to continue?');
 
         var confirmButton = dialog.querySelector('[data-app-modal-confirm]');
@@ -88,8 +112,10 @@
             iconHolder.className = 'app-modal-icon app-modal-icon--' + (opener.getAttribute('data-confirm-variant') || 'danger');
         }
 
+        var confirmUrl = opener.getAttribute('data-confirm-url');
         if (form) {
-            form.action = opener.getAttribute('data-confirm-url') || form.action;
+            form.action = confirmUrl || '';
+            form._confirmTargetOk = !!confirmUrl;
         }
         if (methodField) {
             methodField.value = opener.getAttribute('data-confirm-method') || 'DELETE';
@@ -101,6 +127,23 @@
         var error = dialog.querySelector('[data-app-modal-error]');
         if (error) {
             error.hidden = true;
+        }
+        if (!confirmUrl && form) {
+            // Never fall back to the current page's URL: a bare
+            // POST/_method=DELETE against the collection route (e.g. /sports)
+            // is a 405, not a delete. Explain in the dialog instead and leave
+            // the confirm button disabled until there is a real destination.
+            var missingText = error && error.querySelector('[data-app-modal-error-message]');
+            if (missingText) {
+                missingText.textContent = 'This action is missing a destination URL. Please refresh the page and try again.';
+            }
+            if (error) {
+                error.hidden = false;
+                error.setAttribute('role', 'alert');
+            }
+            if (confirmButton) {
+                confirmButton.disabled = true;
+            }
         }
 
         dialog._opener = opener;
@@ -139,4 +182,37 @@
             openDialog(dialog, opener);
         }
     });
+
+    // Last line of defence: the shared confirm form must never reach the server
+    // unless openDialog has armed it with a real destination. While the dialog
+    // is closed (or its trigger lacked data-confirm-url) the empty action
+    // resolves to the current page, so a stray submit becomes a destructive
+    // `_method=DELETE` POST to the collection route (e.g. /sports, /dashboard)
+    // and yields a 405 MethodNotAllowed instead of a delete.
+    function isConfirmForm(form) {
+        return form instanceof HTMLFormElement
+            && !!form.querySelector('[data-confirm-method]')
+            && !!form.closest('dialog#' + DIALOG_ID);
+    }
+
+    document.addEventListener('submit', function (event) {
+        var form = event.target;
+        if (isConfirmForm(form) && form._confirmTargetOk !== true) {
+            event.preventDefault();
+            event.stopPropagation();
+        }
+    }, true);
+
+    // Native form.submit() bypasses the submit event entirely, so disable it on
+    // the shared dialog form until openDialog arms a real target.
+    var confirmDialog = document.getElementById(DIALOG_ID);
+    var confirmForm = confirmDialog && confirmDialog.querySelector('form');
+    if (confirmForm && !confirmForm._confirmSubmitPatched) {
+        confirmForm._confirmSubmitPatched = true;
+        confirmForm.submit = function () {
+            if (confirmForm._confirmTargetOk === true) {
+                HTMLFormElement.prototype.submit.call(confirmForm);
+            }
+        };
+    }
 })();

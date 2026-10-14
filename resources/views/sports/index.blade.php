@@ -7,7 +7,6 @@
             <p class="page-subtitle">Manage sports categories and classifications</p>
         </div>
         <a class="button" href="{{ route('sports.create') }}">
-            <svg class="button-icon" aria-hidden="true"><use href="#icon-plus"></use></svg>
             Add Sport
         </a>
     </div>
@@ -90,7 +89,16 @@
             <tbody>
                 @forelse ($sports as $sport)
                     <tr>
-                        <td class="cell-sport"><strong>{{ $sport->name }}</strong></td>
+                        <td class="cell-sport">
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                @if ($sport->logo_path)
+                                    <img src="{{ Storage::disk('public')->url($sport->logo_path) }}" alt="{{ $sport->name }} logo" style="width: 36px; height: 36px; object-fit: contain; border-radius: 4px;">
+                                @else
+                                    <span class="avatar avatar--sm avatar-initials" aria-hidden="true" style="width: 36px; height: 36px;">{{ strtoupper(substr($sport->name, 0, 2)) }}</span>
+                                @endif
+                                <strong>{{ $sport->name }}</strong>
+                            </div>
+                        </td>
                         <td>{{ $sport->classification }}</td>
                         <td class="cell-description"><span title="{{ $sport->description }}">{{ $sport->description }}</span></td>
                         <td class="num">{{ $sport->athletes_count }}</td>
@@ -102,7 +110,7 @@
                             <div class="sports-actions">
                                 <a class="text-link" href="{{ route('sports.show', $sport) }}">View</a>
                                 <a class="text-link" href="{{ route('sports.edit', $sport) }}">Edit</a>
-                                <button class="row-action row-action-danger" type="button" data-confirm-dialog data-confirm-title="Delete Sport?" data-confirm-message="Are you sure you want to delete this sport?" data-confirm-label="Delete Sport" data-confirm-method="DELETE" data-confirm-url="{{ route('sports.destroy', $sport) }}">Delete</button>
+                                <button class="row-action row-action-danger" type="button" data-confirm-dialog data-confirm-title="Delete Sport?" data-confirm-subtitle="This action cannot be undone." data-confirm-message="Are you sure you want to delete this sport?" data-confirm-label="Delete Sport" data-confirm-method="DELETE" data-confirm-url="{{ route('sports.destroy', $sport) }}">Delete</button>
                             </div>
                         </td>
                     </tr>
@@ -121,7 +129,6 @@
                                 <small>Add your first sport to get started.</small>
                                 <br>
                                 <a class="button" href="{{ route('sports.create') }}">
-                                    <svg class="button-icon" aria-hidden="true"><use href="#icon-plus"></use></svg>
                                     Add Sport
                                 </a>
                             @endif

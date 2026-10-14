@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class Sport extends Model
 {
-    protected $fillable = ['name', 'classification', 'description', 'status'];
+    protected $fillable = ['name', 'classification', 'description', 'status', 'logo_path'];
 
     public function athletes() { return $this->hasMany(User::class); }
     public function attendanceSessions() { return $this->hasMany(AttendanceSession::class); }

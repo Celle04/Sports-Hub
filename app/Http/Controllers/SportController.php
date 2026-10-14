@@ -60,7 +60,16 @@ class SportController extends Controller
     {
         $this->ensureAdministrator();
 
-        Sport::create($this->validated($request));
+        $data = $this->validated($request);
+        $sport = new Sport($data);
+        $sport->save();
+
+        // handle logo if present
+        if ($request->hasFile('logo')) {
+            $path = $request->file('logo')->store('sports', 'public');
+            $sport->logo_path = $path;
+            $sport->save();
+        }
 
         return redirect()->route('sports.index')->with('success', 'Sport added successfully.');
     }
@@ -157,13 +166,18 @@ class SportController extends Controller
                 'name' => $sport->name,
                 'description' => $sport->description,
                 'classification' => $sport->classification,
-                'coaches' => $sport->coaches()->orderBy('name')->pluck('name')->values(),
+                'coaches' => $sport->coaches()->orderBy('name')->get()->map(fn ($coach) => [
+                    'name' => $coach->name,
+                    'specialty' => $coach->specialty,
+                    'coach_type' => $coach->coach_type,
+                    'email' => $coach->email,
+                    'phone' => $coach->phone,
+                    'photo_url' => $coach->profile_picture_path
+                        ? Storage::disk('public')->url($coach->profile_picture_path)
+                        : null,
+                ])->values(),
             ],
             'total_members' => $totalMembers,
-            'pending_applications' => Application::query()
-                ->where($forSportApplications)
-                ->whereIn('status', ['Pending', 'Under Review', 'Documents Required', 'Waitlisted'])
-                ->count(),
             'grades' => Application::query()
                 ->where($forSportApplications)
                 ->where('status', 'Approved')
@@ -234,7 +248,27 @@ class SportController extends Controller
     {
         $this->ensureAdministrator();
 
-        $sport->update($this->validated($request, $sport));
+        $data = $this->validated($request, $sport);
+        $sport->update($data);
+
+        $previousLogo = $sport->logo_path;
+
+        if ($request->boolean('remove_logo') && ! $request->hasFile('logo')) {
+            $sport->logo_path = null;
+            $sport->save();
+            if ($previousLogo && str_starts_with($previousLogo, 'sports/')) {
+                Storage::disk('public')->delete($previousLogo);
+            }
+        }
+
+        if ($request->hasFile('logo')) {
+            $path = $request->file('logo')->store('sports', 'public');
+            $sport->logo_path = $path;
+            $sport->save();
+            if ($previousLogo && str_starts_with($previousLogo, 'sports/')) {
+                Storage::disk('public')->delete($previousLogo);
+            }
+        }
 
         return redirect()->route('sports.index')->with('success', 'Sport updated successfully.');
     }
@@ -265,9 +299,13 @@ class SportController extends Controller
             'classification' => ['required', 'in:'.implode(',', self::classifications())],
             'description' => ['required', 'string', 'max:1000'],
             'status' => ['nullable', 'in:'.implode(',', self::statuses())],
+            'logo' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
+            'remove_logo' => ['nullable', 'boolean'],
         ]);
 
         $validated['status'] = $validated['status'] ?? 'Active';
+
+        unset($validated['logo'], $validated['remove_logo']);
 
         return $validated;
     }

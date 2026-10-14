@@ -231,12 +231,17 @@
                 'Accept': 'application/json',
                 'X-Requested-With': 'XMLHttpRequest'
             },
-            credentials: 'same-origin'
+            credentials: 'same-origin',
+            // Do not let fetch follow the 302: the automatic redirect follow
+            // consumes the server's flash 'success' message on a request the
+            // page throws away, so nothing shows on the next load. Every modal
+            // action redirects back to the page the dialog opened from (back()
+            // or the module index), so an explicit reload lands on that same
+            // page with the flash message still in the session.
+            redirect: 'manual'
         }).then(function (response) {
-            if (response.ok) {
-                // The server redirects back to the review page with a flash
-                // success message; navigate there so the status refreshes.
-                window.location.href = response.redirected ? response.url : window.location.href;
+            if (response.type === 'opaqueredirect' || response.ok) {
+                window.location.reload();
                 return null;
             }
             return response.json().catch(function () {

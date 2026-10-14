@@ -18,10 +18,13 @@ class PortalUiTest extends TestCase
 
         $response->assertOk();
         $response->assertSee('id="portal-sidebar"', false);
-        $response->assertSee('id="sidebar-toggle"', false);
+        $response->assertSee('data-sidebar-toggle', false);
+        $response->assertSee('portal-sidebar-collapse', false);
+        $response->assertSee('portal-sidebar-open', false);
         $response->assertSee('id="theme-toggle"', false);
-        $response->assertSee('aria-label="Toggle sidebar"', false);
-        $response->assertSee('aria-label="Toggle dark mode"', false);
+        $response->assertSee('aria-label="Collapse sidebar"', false);
+        $response->assertSee('aria-label="Open navigation"', false);
+        $response->assertSee('aria-label="Dark Mode"', false);
         $response->assertSee('sports_hub_theme', false);
         $response->assertSee('sports_hub_sidebar', false);
         $response->assertSee('js/portal-ui.js', false);
@@ -47,7 +50,7 @@ class PortalUiTest extends TestCase
         $response = $this->actingAs($student)->get(route('student.dashboard'));
 
         $response->assertOk();
-        $response->assertSee('id="sidebar-toggle"', false);
+        $response->assertSee('data-sidebar-toggle', false);
         $response->assertSee('id="theme-toggle"', false);
         $response->assertSee('sports_hub_theme', false);
     }

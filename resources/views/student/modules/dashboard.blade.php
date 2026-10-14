@@ -39,7 +39,7 @@
 			@else
 				<p class="empty-state">No upcoming activities.</p>
 			@endif
-			<a class="text-link" href="{{ route('student.schedule') }}">View schedule <span aria-hidden="true">&rarr;</span></a>
+			<a class="text-link" href="{{ route('student.schedule') }}">View schedule</a>
 		</section>
 
 		<section class="card student-dashboard-attendance">
@@ -70,7 +70,7 @@
 					@endforeach
 				</div>
 			@endif
-			<a class="text-link" href="{{ route('student.attendance') }}">Full attendance history <span aria-hidden="true">&rarr;</span></a>
+			<a class="text-link" href="{{ route('student.attendance') }}">Full attendance history</a>
 		</section>
 	</div>
 
@@ -81,7 +81,7 @@
 				@php($applicationStatus = $studentApplication->status === 'Documents Required' ? 'Incomplete' : $studentApplication->status)
 				<div class="student-application-status"><span class="badge">{{ $applicationStatus }}</span><span>{{ $studentApplication->sportCategory?->name ?? $studentApplication->sport ?? 'Sport not assigned' }}</span></div>
 				@if ($studentApplication->review_notes)<p class="student-review-notes">{{ $studentApplication->review_notes }}</p>@endif
-				<a class="text-link" href="{{ route('student.application') }}">View application <span aria-hidden="true">&rarr;</span></a>
+				<a class="text-link" href="{{ route('student.application') }}">View application</a>
 			@else
 				<p class="empty-state">No sports application is linked to your account.</p>
 			@endif

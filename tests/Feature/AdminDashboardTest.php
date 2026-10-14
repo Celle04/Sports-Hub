@@ -52,7 +52,7 @@ class AdminDashboardTest extends TestCase
         $response->assertSee('Quick Actions');
         $response->assertSee('Upcoming Events');
         $response->assertSee('Basketball Practice');
-        $response->assertSee('Pending Sports Applications');
+        $response->assertSee('Pending Applications');
         $response->assertSee('Pending Athlete');
         $response->assertSee('Medical Clearance');
     }
@@ -64,13 +64,15 @@ class AdminDashboardTest extends TestCase
         $response = $this->actingAs($admin)->get(route('dashboard'));
 
         $response->assertOk();
-        $response->assertSee('Sports Statistics & Achievements');
-        $response->assertSee('Total Athletes');
+        $response->assertSee('Sports Performance');
+        $response->assertSee('Active Athletes');
         $response->assertSee('Total Sports');
         $response->assertSee('Total Achievements');
         $response->assertSee('Athletes by Sport');
         $response->assertSee('Achievements by Sport');
-        $response->assertSee('Achievement Medal Summary');
+        $response->assertSee('Gold Medals');
+        $response->assertSee('Silver Medals');
+        $response->assertSee('Bronze Medals');
         $response->assertSee('Top Performing Sports');
         $response->assertSee('Recent Achievements');
         $response->assertSee('Generate Certificate');
@@ -111,14 +113,14 @@ class AdminDashboardTest extends TestCase
         $response = $this->actingAs($admin)->get(route('dashboard'));
 
         $response->assertOk();
-        $response->assertSee('Sports Statistics & Achievements');
+        $response->assertSee('Sports Performance');
 
         $html = $response->getContent();
 
         $this->assertStringContainsString('Live counts across 2 programs', $html);
         $this->assertStringContainsString('3 athletes assigned to 2 programs', $html);
         $this->assertStringContainsString('3 achievements split across 2 sports', $html);
-        $this->assertStringContainsString('3 medals awarded to date', $html);
+        $this->assertStringContainsString('Medals Awarded', $html);
         $this->assertStringContainsString('Gold Medal', $html);
         $this->assertStringContainsString('Silver Medal', $html);
         $this->assertStringContainsString('Bronze Medal', $html);

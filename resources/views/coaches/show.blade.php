@@ -12,11 +12,15 @@
             <h1>Coach Profile</h1>
             <p class="page-subtitle">Coach Management / Coach Details</p>
         </div>
-        <a class="button button-secondary" href="{{ route('coaches.index') }}">Back to Coaches</a>
-        <a class="button" href="{{ route('coaches.edit', $coach) }}">
-            <svg class="button-icon" aria-hidden="true"><use href="#icon-activity"></use></svg>
-            Edit Coach
-        </a>
+        <div class="event-header-actions">
+            <a class="button button-secondary button-icon-only" href="{{ route('coaches.index') }}" aria-label="Back to Coaches" title="Back to Coaches">
+                <svg class="button-icon" aria-hidden="true"><use href="#icon-arrow-left"></use></svg>
+            </a>
+            <a class="button" href="{{ route('coaches.edit', $coach) }}">
+                <svg class="button-icon" aria-hidden="true"><use href="#icon-activity"></use></svg>
+                Edit Coach
+            </a>
+        </div>
     </div>
 
     @if (session('success'))
@@ -24,7 +28,11 @@
     @endif
 
     <section class="card profile-hero medical-hero coach-detail-hero">
-        <span class="avatar avatar--lg avatar-initials coach-avatar" aria-hidden="true">{{ $coachInitials }}</span>
+        @if ($coach->profile_picture_path)
+            <img class="coach-avatar" src="{{ Storage::disk('public')->url($coach->profile_picture_path) }}" alt="{{ $coach->name }}" style="width: 84px; height: 84px; border-radius: 50%; object-fit: cover;">
+        @else
+            <span class="avatar avatar--lg avatar-initials coach-avatar" aria-hidden="true">{{ $coachInitials }}</span>
+        @endif
         <div class="medical-hero-copy">
             <span class="admin-dashboard-kicker">COACH PROFILE</span>
             <h2>{{ $coach->name }}</h2>
@@ -58,30 +66,32 @@
 
     <section class="coach-detail-grid">
         <div class="card">
-            <div class="section-heading">
+            <div class="medical-card-head">
                 <div>
+                    <span class="admin-dashboard-kicker">DETAILS</span>
                     <h2>Coach Information</h2>
                     <p class="meta">Core details for {{ $coach->name }}.</p>
                 </div>
             </div>
-            <div class="coach-detail-list">
-                <span><strong>Full name</strong>{{ $coach->name }}</span>
-                <span><strong>Specialty</strong>{{ $coach->specialty }}</span>
-                <span><strong>Status</strong>{{ $coach->status }}</span>
-                <span><strong>Registered on</strong>{{ $registeredAt ?? 'Not recorded' }}</span>
+            <div class="medical-fact-grid">
+                <div class="medical-fact"><span>Full name</span><strong>{{ $coach->name }}</strong></div>
+                <div class="medical-fact"><span>Specialty</span><strong>{{ $coach->specialty ?: 'Not set' }}</strong></div>
+                <div class="medical-fact"><span>Status</span><strong>{{ $coach->status }}</strong></div>
+                <div class="medical-fact"><span>Registered on</span><strong>{{ $registeredAt ?? 'Not recorded' }}</strong></div>
             </div>
         </div>
 
         <div class="card">
-            <div class="section-heading">
+            <div class="medical-card-head">
                 <div>
+                    <span class="admin-dashboard-kicker">CONTACT</span>
                     <h2>Contact Information</h2>
                     <p class="meta">How to reach this coach.</p>
                 </div>
             </div>
-            <div class="coach-detail-list">
-                <span><strong>Email</strong>{{ $coach->email }}</span>
-                <span><strong>Phone</strong>{{ $coach->phone ?: 'Not provided' }}</span>
+            <div class="medical-fact-grid">
+                <div class="medical-fact"><span>Email</span><strong>{{ $coach->email }}</strong></div>
+                <div class="medical-fact"><span>Phone</span><strong>{{ $coach->phone ?: 'Not provided' }}</strong></div>
             </div>
         </div>
     </section>

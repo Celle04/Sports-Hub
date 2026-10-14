@@ -46,10 +46,11 @@
                 <input type="checkbox" name="remember" value="1" @checked(old('remember'))>
                 <span>Remember me</span>
             </label>
-            <a class="auth-link" href="{{ route('password.request') }}">Forgot Password?</a>
         </div>
 
         <button class="button auth-submit" type="submit">Login</button>
+
+        <p class="auth-hint">Forgot your password? Please contact the Sports Coordinator or Admin for assistance.</p>
 
         <a class="auth-back" href="{{ url('/') }}">Back to Home</a>
     </form>

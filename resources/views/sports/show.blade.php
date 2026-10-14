@@ -18,11 +18,15 @@
             <h1>{{ $sport->name }}</h1>
             <p class="page-subtitle">Sports Management / Sport Details</p>
         </div>
-        <a class="button button-secondary" href="{{ route('sports.index') }}">Back to Sports</a>
-        <a class="button" href="{{ route('sports.edit', $sport) }}">
-            <svg class="button-icon" aria-hidden="true"><use href="#icon-activity"></use></svg>
-            Edit Sport
-        </a>
+        <div class="event-header-actions">
+            <a class="button button-secondary button-icon-only" href="{{ route('sports.index') }}" aria-label="Back to Sports" title="Back to Sports">
+                <svg class="button-icon" aria-hidden="true"><use href="#icon-arrow-left"></use></svg>
+            </a>
+            <a class="button" href="{{ route('sports.edit', $sport) }}">
+                <svg class="button-icon" aria-hidden="true"><use href="#icon-activity"></use></svg>
+                Edit Sport
+            </a>
+        </div>
     </div>
 
     @if (session('success'))
@@ -30,7 +34,11 @@
     @endif
 
     <section class="card profile-hero medical-hero sport-detail-hero">
-        <span class="avatar avatar--lg avatar-initials medical-hero-avatar" aria-hidden="true">{{ filled($sport->name ?? '') ? $initials($sport->name) : '?' }}</span>
+        @if ($sport->logo_path)
+            <img class="medical-hero-avatar" src="{{ Storage::disk('public')->url($sport->logo_path) }}" alt="{{ $sport->name }} logo" style="width: 84px; height: 84px; border-radius: 8px; object-fit: contain; background: rgba(255,255,255,0.95); padding: 8px;">
+        @else
+            <span class="avatar avatar--lg avatar-initials medical-hero-avatar" aria-hidden="true">{{ filled($sport->name ?? '') ? $initials($sport->name) : '?' }}</span>
+        @endif
         <div class="medical-hero-copy">
             <span class="admin-dashboard-kicker">SPORT PROFILE</span>
             <h2>{{ $sport->name }}</h2>
@@ -90,7 +98,7 @@
                     <h2>Registered Athletes</h2>
                     <p class="meta">Athletes currently assigned to this sport.</p>
                 </div>
-                <a class="text-link" href="{{ route('athletes.index') }}">View all &rarr;</a>
+                <a class="text-link" href="{{ route('athletes.index') }}">View all</a>
             </div>
             @forelse ($sport->athletes as $athlete)
                 <div class="related-row">
@@ -110,7 +118,7 @@
                     <h2>Assigned Coaches</h2>
                     <p class="meta">Coaches linked to this sport.</p>
                 </div>
-                <a class="text-link" href="{{ route('coaches.index') }}">View all &rarr;</a>
+                <a class="text-link" href="{{ route('coaches.index') }}">View all</a>
             </div>
             @forelse ($sport->coaches as $coach)
                 <div class="related-row">
@@ -131,7 +139,7 @@
                 <h2>Upcoming Events</h2>
                 <p class="meta">Scheduled activities for {{ $sport->name }}.</p>
             </div>
-            <a class="text-link" href="{{ route('events.index', ['sport_id' => $sport->id]) }}">View all &rarr;</a>
+            <a class="text-link" href="{{ route('events.index', ['sport_id' => $sport->id]) }}">View all</a>
         </div>
         @forelse ($sport->events as $event)
             <a class="related-event-row" href="{{ route('events.show', $event) }}">
@@ -152,7 +160,7 @@
                 <h2>Recent Applications</h2>
                 <p class="meta">Applications associated with {{ $sport->name }}.</p>
             </div>
-            <a class="text-link" href="{{ route('admin.applications', ['sport_id' => $sport->id]) }}">View all &rarr;</a>
+            <a class="text-link" href="{{ route('admin.applications', ['sport_id' => $sport->id]) }}">View all</a>
         </div>
         @forelse ($sport->applications as $application)
             <a class="related-event-row" href="{{ route('applications.show', $application) }}">

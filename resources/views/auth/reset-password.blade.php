@@ -5,12 +5,22 @@
 @section('content')
     <div class="auth-heading">
         <h2>Reset your password</h2>
-        <p>Your email has been verified. Choose a new password for your SportsHub account.</p>
-        <p class="otp-sent-to">{{ $maskedEmail }}</p>
+        <p>Confirm your email address and choose a new password for your SportsHub account.</p>
     </div>
 
     <form class="auth-form" method="POST" action="{{ route('password.update') }}" aria-label="Set a new password" data-loading-label="Updating...">
         @csrf
+
+        <input type="hidden" name="token" value="{{ $token }}">
+
+        <div class="auth-field">
+            <label for="email">Email address</label>
+            <span class="auth-control">
+                <svg class="auth-control-icon" aria-hidden="true"><use href="#icon-mail"></use></svg>
+                <input id="email" name="email" type="email" placeholder="Enter your email" autocomplete="email" value="{{ old('email', $email) }}" required>
+            </span>
+            @error('email')<p class="auth-error">{{ $message }}</p>@enderror
+        </div>
 
         <div class="auth-field">
             <label for="password">New password</label>

@@ -1,7 +1,7 @@
 @extends('layouts.portal')
 
 @section('content')
-<div class="module-header"><div><h1>Event Details</h1><p class="page-subtitle">Review the complete event record</p></div><div class="event-header-actions"><a class="button button-secondary" href="{{ route('events.index') }}">Back</a><a class="button" href="{{ route('events.edit', $event) }}">Edit Event</a></div></div>
+<div class="module-header"><div><h1>Event Details</h1><p class="page-subtitle">Review the complete event record</p></div><div class="event-header-actions"><a class="button button-secondary button-icon-only" href="{{ route('events.index') }}" aria-label="Back to Events" title="Back to Events"><svg class="button-icon" aria-hidden="true"><use href="#icon-arrow-left"></use></svg></a><a class="button" href="{{ route('events.edit', $event) }}">Edit Event</a></div></div>
 
 <div class="card event-detail-card">
     <div class="profile-hero event-hero">

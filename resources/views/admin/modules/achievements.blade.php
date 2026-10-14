@@ -51,7 +51,7 @@
             @endif
             <a class="button" href="{{ route('admin.achievements.certificate.generate', ['achievement' => $selectedAchievement->id]) }}">Generate Certificate</a>
             <a class="button button-secondary" href="{{ route('admin.achievements.edit', $selectedAchievement) }}">Edit</a>
-            <button class="text-link" type="button" data-confirm-dialog data-confirm-title="Delete Achievement?" data-confirm-message="Delete this achievement? This action cannot be undone." data-confirm-label="Delete" data-confirm-method="DELETE" data-confirm-url="{{ route('admin.achievements.destroy', $selectedAchievement) }}">Delete</button>
+            <button class="button button-danger" type="button" data-confirm-dialog data-confirm-title="Delete Achievement?" data-confirm-message="Delete this achievement? This action cannot be undone." data-confirm-label="Delete" data-confirm-method="DELETE" data-confirm-url="{{ route('admin.achievements.destroy', $selectedAchievement) }}">Delete</button>
         </div>
     </section>
 @else
@@ -227,10 +227,12 @@
                             <td>{{ $record->competitionLabel() ?: 'Not recorded' }}</td>
                             <td>{{ $record->dateAchievedLabel() }}</td>
                             <td>
-                                <a class="text-link" href="{{ route('admin.achievements.show', $record) }}">View</a>
-                                <a class="text-link" href="{{ route('admin.achievements.edit', $record) }}">Edit</a>
-                                <a class="text-link" href="{{ route('admin.achievements.certificate.generate', ['achievement' => $record->id]) }}">Certificate</a>
-                                <button class="text-link" type="button" data-confirm-dialog data-confirm-title="Delete Achievement?" data-confirm-message="Delete this achievement? This action cannot be undone." data-confirm-label="Delete" data-confirm-method="DELETE" data-confirm-url="{{ route('admin.achievements.destroy', $record) }}">Delete</button>
+                                <div class="achievement-actions">
+                                    <a class="text-link" href="{{ route('admin.achievements.show', $record) }}">View</a>
+                                    <a class="text-link" href="{{ route('admin.achievements.edit', $record) }}">Edit</a>
+                                    <a class="text-link" href="{{ route('admin.achievements.certificate.generate', ['achievement' => $record->id]) }}">Certificate</a>
+                                    <button class="row-action row-action-danger" type="button" data-confirm-dialog data-confirm-title="Delete Achievement?" data-confirm-message="Delete this achievement? This action cannot be undone." data-confirm-label="Delete" data-confirm-method="DELETE" data-confirm-url="{{ route('admin.achievements.destroy', $record) }}">Delete</button>
+                                </div>
                             </td>
                         </tr>
                     @empty

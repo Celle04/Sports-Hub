@@ -4,7 +4,7 @@
     @php
         $latestApplication = $athlete->applications->sortByDesc('created_at')->first();
         $latestMedical = $athlete->medicalRecords->sortByDesc('examination_date')->first();
-        $eligibility = $latestMedical?->medical_status === 'Cleared' ? 'Eligible' : ($latestApplication?->status === 'Rejected' ? 'Not Eligible' : 'Pending');
+        $eligibility = $athlete->eligibilityStatus();
         $attendanceRecords = $athlete->attendanceRecords;
         $presentCount = $attendanceRecords->where('status', 'Present')->count();
         $absentCount = $attendanceRecords->where('status', 'Absent')->count();
@@ -21,11 +21,16 @@
             <h1>Athlete Profile</h1>
             <p class="page-subtitle">Athlete Management / Athlete Details</p>
         </div>
-        <a class="button button-secondary" href="{{ route('athletes.index') }}">Back to Athletes</a>
-        <a class="button" href="{{ route('athletes.edit', $athlete) }}">
-            <svg class="button-icon" aria-hidden="true"><use href="#icon-activity"></use></svg>
-            Edit Athlete
-        </a>
+        <div class="event-header-actions">
+            <a class="button button-secondary button-icon-only" href="{{ route('athletes.index') }}" aria-label="Back to Athletes" title="Back to Athletes">
+                <svg class="button-icon" aria-hidden="true"><use href="#icon-arrow-left"></use></svg>
+            </a>
+            <a class="button" href="{{ route('athletes.edit', $athlete) }}">
+                <svg class="button-icon" aria-hidden="true"><use href="#icon-activity"></use></svg>
+                Edit Athlete
+            </a>
+            <button class="button button-secondary" type="button" data-confirm-dialog data-confirm-title="Assist with Password Reset?" data-confirm-message="Send a secure password reset link to this athlete's registered email address?" data-confirm-label="Send Reset Link" data-confirm-busy-label="Sending..." data-confirm-icon="mail" data-confirm-variant="info" data-confirm-method="POST" data-confirm-url="{{ route('athletes.password.reset', $athlete) }}">Assist with Password Reset</button>
+        </div>
     </div>
 
     @if (session('success'))
@@ -60,6 +65,7 @@
             <div class="medical-fact"><span>Grade</span><strong>{{ $athlete->gradeLevel() ?: 'Not provided' }}</strong></div>
             <div class="medical-fact"><span>Username</span><strong>{{ $athlete->username ?: 'Not provided' }}</strong></div>
             <div class="medical-fact"><span>Email</span><strong>{{ $athlete->email }}</strong></div>
+            <div class="medical-fact"><span>Contact number</span><strong>{{ $athlete->phone ?: 'Not provided' }}</strong></div>
             <div class="medical-fact"><span>Gender</span><strong>{{ $latestApplication?->gender ?: 'Not provided' }}</strong></div>
         </div>
     </section>
@@ -167,7 +173,7 @@
                     <h2>Eligibility and Medical</h2>
                     <p class="meta">Latest medical clearance and document checks.</p>
                 </div>
-                <a class="text-link" href="{{ route('admin.medical', ['search' => $athlete->name]) }}">View medical &rarr;</a>
+                <a class="text-link" href="{{ route('admin.medical', ['search' => $athlete->name]) }}">View medical</a>
             </div>
             <div class="athlete-detail-list">
                 <span><strong>Medical clearance</strong>{{ $latestMedical?->medical_status ?? 'Pending' }}</span>
@@ -191,7 +197,7 @@
                     <h2>Application History</h2>
                     <p class="meta">Applications linked to this athlete.</p>
                 </div>
-                <a class="text-link" href="{{ route('admin.applications', ['search' => $athlete->student_id ?: $athlete->name]) }}">View all &rarr;</a>
+                <a class="text-link" href="{{ route('admin.applications', ['search' => $athlete->student_id ?: $athlete->name]) }}">View all</a>
             </div>
             @forelse ($athlete->applications->sortByDesc('created_at') as $application)
                 <a class="related-event-row" href="{{ route('applications.show', $application) }}">
@@ -213,7 +219,7 @@
                 <h2>Recent Events</h2>
                 <p class="meta">Events this athlete has been recorded on.</p>
             </div>
-            <a class="text-link" href="{{ route('events.index', ['sport_id' => $athlete->sport_id]) }}">View all &rarr;</a>
+            <a class="text-link" href="{{ route('events.index', ['sport_id' => $athlete->sport_id]) }}">View all</a>
         </div>
         @forelse ($events->take(6) as $event)
             <a class="related-event-row" href="{{ route('events.show', $event) }}">

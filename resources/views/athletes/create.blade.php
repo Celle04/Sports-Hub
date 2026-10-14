@@ -7,7 +7,9 @@
             <p class="page-subtitle">Issue the official athlete login for an approved application</p>
         </div>
         <div class="event-header-actions">
-            <a class="button button-secondary" href="{{ route('applications.show', $application) }}">Back to Application</a>
+            <a class="button button-secondary button-icon-only" href="{{ route('applications.show', $application) }}" aria-label="Back to Application" title="Back to Application">
+                <svg class="button-icon" aria-hidden="true"><use href="#icon-arrow-left"></use></svg>
+            </a>
             <a class="button button-secondary" href="{{ route('athletes.index') }}">Back to Athletes</a>
         </div>
     </div>

@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ $title ?? 'SNNHS SportsHub' }}</title>
     <link rel="manifest" href="{{ asset('manifest.webmanifest') }}">
-    <link rel="stylesheet" href="{{ asset('css/portal.css') }}">
+    <link rel="stylesheet" href="{{ asset('css/portal.css') }}?v={{ filemtime(public_path('css/portal.css')) }}">
     <script>
         (function () {
             try {
@@ -41,6 +41,7 @@
         <symbol id="icon-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" /></symbol>
         <symbol id="icon-moon" viewBox="0 0 24 24"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z" /></symbol>
         <symbol id="icon-chevron-left" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7" /></symbol>
+        <symbol id="icon-arrow-left" viewBox="0 0 24 24"><path d="M20 12H4M11 19l-7-7 7-7" /></symbol>
         <symbol id="icon-chevron-right" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7" /></symbol>
 <symbol id="icon-certificate" viewBox="0 0 24 24"><path d="M6 3h12a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z" /><path d="M12 16.5l-1.4.9.5-1.7-1.4-1 1.7-.1.6-1.7.6 1.7 1.7.1-1.4 1 .5 1.7-1.4-.9Z" /></symbol>
         <symbol id="icon-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></symbol>
@@ -55,13 +56,21 @@
     </svg>
     <div class="portal">
         <aside class="portal-sidebar" id="portal-sidebar">
-            <a class="portal-brand" href="{{ $homeUrl ?? url('/') }}">
-                <img class="portal-logo" src="{{ asset('images/snnhs logo.png') }}" alt="SNNHS logo">
-                <span>
-                    <strong>SportsHub</strong>
-                    <small>{{ $roleLabel ?? 'SportsHub' }}</small>
-                </span>
-            </a>
+            <button type="button" class="portal-sidebar-close" data-sidebar-close aria-label="Close navigation">
+                <svg aria-hidden="true"><use href="#icon-x"></use></svg>
+            </button>
+            <div class="portal-sidebar-head">
+                <div class="portal-brand">
+                    <img class="portal-logo" src="{{ asset('images/snnhs logo.png') }}" alt="SNNHS logo">
+                    <span>
+                        <strong>SportsHub</strong>
+                        <small>{{ $roleLabel ?? 'SportsHub' }}</small>
+                    </span>
+                </div>
+                <button type="button" class="portal-sidebar-collapse" data-sidebar-toggle aria-label="Collapse sidebar" aria-expanded="true" aria-controls="portal-sidebar" data-tooltip="Collapse sidebar">
+                    <svg class="nav-icon" aria-hidden="true"><use href="#icon-panel-left"></use></svg>
+                </button>
+            </div>
 
             <div class="user-chip">
                 @auth
@@ -100,9 +109,11 @@
             </form>
         </aside>
 
+        <div class="portal-sidebar-backdrop" data-sidebar-backdrop></div>
+
         <main class="portal-main">
             <header class="portal-topbar">
-                <button type="button" class="portal-icon-button" id="sidebar-toggle" aria-label="Sidebar" aria-expanded="true" aria-controls="portal-sidebar" data-tooltip="Sidebar">
+                <button type="button" class="portal-icon-button portal-sidebar-open" data-sidebar-toggle aria-label="Open navigation" aria-expanded="false" aria-controls="portal-sidebar" data-tooltip="Open navigation">
                     <svg aria-hidden="true"><use href="#icon-panel-left"></use></svg>
                 </button>
                 <div class="portal-topbar-actions">

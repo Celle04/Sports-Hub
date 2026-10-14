@@ -48,14 +48,16 @@
     </form>
 </section>
 
-<div class="grid grid-2">
+<div class="grid grid-2 event-card-grid">
     @forelse ($events as $event)
         <article class="card event-card">
             <div class="event-card-top">
                 @php $cardTone = $event->status === 'Cancelled' ? 'tone-danger' : ($event->status === 'Completed' ? 'tone-green' : ($event->status === 'Ongoing' ? 'tone-blue' : 'tone-gold')); @endphp
                 <span class="medical-kpi-icon {{ $cardTone }}"><svg aria-hidden="true"><use href="#icon-trophy"></use></svg></span>
-                <div class="event-card-heading"><div><h3>{{ $event->title }}</h3><span class="badge event-status-{{ strtolower(str_replace(' ', '-', $event->status)) }}">{{ $event->status }}</span></div><span class="event-type-label">{{ $event->event_type }}</span></div>
-                <a class="text-link event-card-open" href="{{ route('events.show', $event) }}">Open</a>
+                <div class="event-card-heading">
+                    <h3>{{ $event->title }}</h3>
+                    <span class="badge event-status-{{ strtolower(str_replace(' ', '-', $event->status)) }}">{{ $event->status }}</span>
+                </div>
             </div>
             <p class="event-sport">{{ $event->sport?->name ?? 'All sports' }} <span>&middot;</span> {{ $event->event_type }}</p>
             <div class="event-details-list"><span><strong>Date</strong>{{ $event->starts_at->format('F j, Y') }}</span><span><strong>Time</strong>{{ $event->starts_at->format('g:i A') }} - {{ $event->ends_at->format('g:i A') }}</span><span><strong>Venue</strong>{{ $event->venue }}</span><span><strong>Coach</strong>{{ $event->coach?->name ?? 'Unassigned' }}</span><span><strong>Team</strong>{{ $event->team_name ?: 'Not assigned' }}</span><span><strong>Participants</strong>{{ $event->attendance_records_count }}{{ $event->max_participants ? ' / '.$event->max_participants : '' }}</span></div>

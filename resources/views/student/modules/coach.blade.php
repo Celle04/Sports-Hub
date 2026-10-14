@@ -9,7 +9,11 @@
 			@forelse ($sport->coaches as $coach)
 				<div class="student-coach-profile">
 					<div class="student-coach-identity">
-						<div class="student-coach-avatar" aria-hidden="true">{{ strtoupper(substr($coach->name, 0, 2)) }}</div>
+						@if ($coach->profile_picture_path)
+							<img class="student-coach-avatar" src="{{ Storage::disk('public')->url($coach->profile_picture_path) }}" alt="{{ $coach->name }}" style="width: 76px; height: 76px; border-radius: 50%; object-fit: cover; border: 3px solid rgba(255,255,255,.62);">
+						@else
+							<div class="student-coach-avatar" aria-hidden="true">{{ strtoupper(substr($coach->name, 0, 2)) }}</div>
+						@endif
 						<div class="student-coach-copy">
 							<span class="student-coach-eyebrow">YOUR SPORTS COACH</span>
 							<h2>{{ $coach->name }}</h2>

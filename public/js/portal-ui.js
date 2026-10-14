@@ -11,6 +11,7 @@
     var THEME_KEY = 'sports_hub_theme';
     var SIDEBAR_KEY = 'sports_hub_sidebar';
     var root = document.documentElement;
+    var mobileQuery = window.matchMedia('(max-width: 760px)');
 
     function readPreference(key, fallback) {
         try {
@@ -28,15 +29,31 @@
         }
     }
 
-    function applySidebar(collapsed) {
-        root.classList.toggle('sidebar-collapsed', collapsed);
-        var toggle = document.getElementById('sidebar-toggle');
-        if (toggle) {
-            var label = collapsed ? 'Expand sidebar' : 'Collapse sidebar';
-            toggle.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+    function syncToggleLabel() {
+        var isMobile = mobileQuery.matches;
+        var open = isMobile
+            ? root.classList.contains('sidebar-open')
+            : root.classList.contains('sidebar-collapsed');
+        var label = isMobile
+            ? (open ? 'Close navigation' : 'Open navigation')
+            : (open ? 'Expand sidebar' : 'Collapse sidebar');
+        document.querySelectorAll('[data-sidebar-toggle]').forEach(function (toggle) {
+            toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
             toggle.setAttribute('aria-label', label);
             toggle.setAttribute('data-tooltip', label);
-        }
+        });
+    }
+
+    /* Desktop: collapse the rail. Mobile: slide the off-canvas drawer. */
+    function applySidebar(collapsed) {
+        root.classList.toggle('sidebar-collapsed', collapsed);
+        syncToggleLabel();
+    }
+
+    function setDrawer(open) {
+        root.classList.toggle('sidebar-open', !!open);
+        syncToggleLabel();
+        hideTooltip();
     }
 
     function applyTheme(theme) {
@@ -74,6 +91,11 @@
         var tipRect = tip.getBoundingClientRect();
         var top = rect.top + (rect.height - tipRect.height) / 2;
         var left = rect.right + 10;
+
+        var sidebar = target.closest('.portal-sidebar');
+        if (sidebar) {
+            left = Math.max(left, sidebar.getBoundingClientRect().right + 12);
+        }
 
         if (left + tipRect.width > window.innerWidth - 8) {
             left = rect.left - tipRect.width - 10;
@@ -159,6 +181,9 @@
     document.addEventListener('keydown', function (event) {
         if (event.key === 'Escape') {
             closeTableMenus();
+            if (root.classList.contains('sidebar-open')) {
+                setDrawer(false);
+            }
         }
     });
 
@@ -166,14 +191,50 @@
         applySidebar(readPreference(SIDEBAR_KEY, 'expanded') === 'collapsed');
         applyTheme(readPreference(THEME_KEY, 'light'));
 
-        var sidebarToggle = document.getElementById('sidebar-toggle');
-        if (sidebarToggle) {
-            sidebarToggle.addEventListener('click', function () {
+        document.querySelectorAll('[data-sidebar-toggle]').forEach(function (toggle) {
+            toggle.addEventListener('click', function () {
+                if (mobileQuery.matches) {
+                    setDrawer(!root.classList.contains('sidebar-open'));
+                    return;
+                }
                 var collapsed = !root.classList.contains('sidebar-collapsed');
                 applySidebar(collapsed);
                 writePreference(SIDEBAR_KEY, collapsed ? 'collapsed' : 'expanded');
                 hideTooltip();
             });
+        });
+
+        /* Mobile drawer affordances: backdrop, close button and nav links. */
+        var backdrop = document.querySelector('[data-sidebar-backdrop]');
+        if (backdrop) {
+            backdrop.addEventListener('click', function () {
+                setDrawer(false);
+            });
+        }
+
+        var closeButton = document.querySelector('[data-sidebar-close]');
+        if (closeButton) {
+            closeButton.addEventListener('click', function () {
+                setDrawer(false);
+            });
+        }
+
+        document.querySelectorAll('.portal-sidebar .portal-nav a').forEach(function (link) {
+            link.addEventListener('click', function () {
+                setDrawer(false);
+            });
+        });
+
+        var onViewportChange = function () {
+            if (!mobileQuery.matches) {
+                setDrawer(false);
+            }
+            syncToggleLabel();
+        };
+        if (mobileQuery.addEventListener) {
+            mobileQuery.addEventListener('change', onViewportChange);
+        } else if (mobileQuery.addListener) {
+            mobileQuery.addListener(onViewportChange);
         }
 
         var themeToggle = document.getElementById('theme-toggle');

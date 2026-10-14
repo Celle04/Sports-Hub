@@ -11,7 +11,6 @@
             <p class="page-subtitle">Manage registered athletes and their sports participation</p>
         </div>
         <a class="button" href="{{ route('admin.applications', ['status' => 'Approved']) }}" title="Athlete accounts are created from approved applications">
-            <svg class="button-icon" aria-hidden="true"><use href="#icon-plus"></use></svg>
             Add Athlete
         </a>
     </div>
@@ -113,9 +112,7 @@
             <tbody>
                 @forelse ($athletes as $athlete)
                     @php
-                        $latestApplication = $athlete->applications->sortByDesc('created_at')->first();
-                        $latestMedical = $athlete->medicalRecords->sortByDesc('examination_date')->first();
-                        $eligibility = $latestMedical?->medical_status === 'Cleared' ? 'Eligible' : ($latestApplication?->status === 'Rejected' ? 'Not Eligible' : 'Pending');
+                        $eligibility = $athlete->eligibilityStatus();
                     @endphp
                     <tr>
                         <td>
@@ -137,6 +134,7 @@
                             <div class="athlete-actions">
                                 <a class="text-link" href="{{ route('athletes.show', $athlete) }}">View</a>
                                 <a class="text-link" href="{{ route('athletes.edit', $athlete) }}">Edit</a>
+                                <button class="button button-secondary" type="button" data-confirm-dialog data-confirm-title="Assist with Password Reset?" data-confirm-message="Send a secure password reset link to this athlete's registered email address?" data-confirm-label="Send Reset Link" data-confirm-busy-label="Sending..." data-confirm-icon="mail" data-confirm-variant="info" data-confirm-method="POST" data-confirm-url="{{ route('athletes.password.reset', $athlete) }}">Assist with Password Reset</button>
                                 <button class="row-action row-action-danger" type="button" data-confirm-dialog data-confirm-title="Delete Athlete?" data-confirm-message="Are you sure you want to delete this athlete? Athletes with related records will be set to inactive instead of deleted." data-confirm-label="Delete Athlete" data-confirm-method="DELETE" data-confirm-url="{{ route('athletes.destroy', $athlete) }}">Delete</button>
                             </div>
                         </td>
@@ -156,7 +154,6 @@
                                 <small>Athlete accounts are created from approved applications.</small>
                                 <br>
                                 <a class="button" href="{{ route('admin.applications', ['status' => 'Approved']) }}">
-                                    <svg class="button-icon" aria-hidden="true"><use href="#icon-plus"></use></svg>
                                     Add Athlete
                                 </a>
                             @endif

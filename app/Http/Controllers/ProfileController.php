@@ -55,6 +55,8 @@ class ProfileController extends Controller
 
         $this->syncProfilePhoto($request, $athlete);
 
+        $athlete->syncLinkedApplications();
+
         return back()->with('success', 'Profile updated successfully.');
     }
 

@@ -1,7 +1,7 @@
 @extends('layouts.portal')
 
 @section('content')
-<div class="module-header"><div><h1>Edit Athlete</h1><p class="page-subtitle">Update athlete account and sport assignment</p></div><div class="event-header-actions"><a class="button button-secondary" href="{{ route('athletes.show', $athlete) }}">Back to Profile</a><a class="button button-secondary" href="{{ route('athletes.index') }}">Back to Athletes</a></div></div>
+<div class="module-header"><div><h1>Edit Athlete</h1><p class="page-subtitle">Update athlete account and sport assignment</p></div><div class="event-header-actions"><a class="button button-secondary button-icon-only" href="{{ route('athletes.show', $athlete) }}" aria-label="Back to Profile" title="Back to Profile"><svg class="button-icon" aria-hidden="true"><use href="#icon-arrow-left"></use></svg></a></div></div>
 @if ($errors->any())<div class="notice notice-error">{{ $errors->first() }}</div>@endif
 <form class="card athlete-edit-form" method="POST" action="{{ route('athletes.update', $athlete) }}" enctype="multipart/form-data">
 	@csrf

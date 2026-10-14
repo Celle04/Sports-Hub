@@ -52,13 +52,15 @@
     <div class="table-wrap"><table class="data-table"><thead><tr><th>Title</th><th>Target</th><th>Status</th><th>Date</th><th>Actions</th></tr></thead><tbody>
         @forelse ($announcements ?? [] as $row)
             <tr><td><strong>{{ $row->title }}</strong><br><small>{{ Str::limit($row->body, 90) }}</small></td><td>{{ $row->sport?->name ?? 'All Athletes' }}</td><td><span class="badge">{{ $row->status }}</span></td><td>{{ $row->published_at?->format('M j, Y') ?? 'Unscheduled' }}</td><td>
-                <a class="text-link" href="{{ route('admin.announcements', ['announcement_id' => $row->id]) }}">Edit</a>
-                @if ($row->status !== 'Published')
-                    <form method="POST" action="{{ route('admin.announcements.publish', $row) }}" style="display:inline">@csrf<button class="text-link" type="submit">Publish</button></form>
-                @else
-                    <form method="POST" action="{{ route('admin.announcements.archive', $row) }}" style="display:inline">@csrf<button class="text-link" type="submit">Unpublish</button></form>
-                @endif
-                <button class="text-link" type="button" data-confirm-dialog data-confirm-title="Delete Announcement?" data-confirm-message="Delete this announcement? This action cannot be undone." data-confirm-label="Delete" data-confirm-method="DELETE" data-confirm-url="{{ route('admin.announcements.destroy', $row) }}">Delete</button>
+                <div class="announcement-actions">
+                    <a class="text-link" href="{{ route('admin.announcements', ['announcement_id' => $row->id]) }}">Edit</a>
+                    @if ($row->status !== 'Published')
+                        <form method="POST" action="{{ route('admin.announcements.publish', $row) }}">@csrf<button class="row-action" type="submit">Publish</button></form>
+                    @else
+                        <form method="POST" action="{{ route('admin.announcements.archive', $row) }}">@csrf<button class="row-action" type="submit">Unpublish</button></form>
+                    @endif
+                    <button class="row-action row-action-danger" type="button" data-confirm-dialog data-confirm-title="Delete Announcement?" data-confirm-message="Delete this announcement? This action cannot be undone." data-confirm-label="Delete" data-confirm-method="DELETE" data-confirm-url="{{ route('admin.announcements.destroy', $row) }}">Delete</button>
+                </div>
             </td></tr>
         @empty
             <tr><td colspan="5" class="empty-cell">No announcements match your search.</td></tr>

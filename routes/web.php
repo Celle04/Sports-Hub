@@ -4,12 +4,12 @@ use App\Http\Controllers\AchievementController;
 use App\Http\Controllers\ApplicationController;
 use App\Http\Controllers\AthleteController;
 use App\Http\Controllers\AttendanceController;
+use App\Http\Controllers\Auth\PasswordResetController;
 use App\Http\Controllers\CertificateRequestController;
 use App\Http\Controllers\CoachController;
 use App\Http\Controllers\EventController;
 use App\Http\Controllers\MedicalController;
 use App\Http\Controllers\MedicalIncidentController;
-use App\Http\Controllers\Auth\PasswordResetController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\SportController;
@@ -68,28 +68,20 @@ Route::post('/login', function () {
     return redirect()->route('login')->withErrors(['username' => 'Invalid email or password.'])->withInput(request()->only('username', 'role'));
 })->name('login.submit');
 
+// Password reset runs entirely through Laravel's password broker: the broker
+// creates and hashes the token, delivers the branded notification, enforces
+// the 60 minute expiry and the per-user resend throttle, and invalidates the
+// token once it has been used. The throttles below add per-IP rate limiting.
 Route::get('/forgot-password', [PasswordResetController::class, 'showLinkRequestForm'])->name('password.request');
 
-Route::post('/forgot-password', [PasswordResetController::class, 'sendOtp'])
+Route::post('/forgot-password', [PasswordResetController::class, 'sendResetLink'])
     ->middleware('throttle:5,1')
     ->name('password.email');
 
-Route::get('/forgot-password/verify', [PasswordResetController::class, 'showVerifyForm'])->name('password.otp.verify');
-
-Route::post('/forgot-password/verify', [PasswordResetController::class, 'verifyOtp'])
-    ->middleware('throttle:10,1')
-    ->name('password.otp.check');
-
-Route::post('/forgot-password/resend', [PasswordResetController::class, 'resendOtp'])
-    ->middleware('throttle:5,1')
-    ->name('password.otp.resend');
-
-Route::get('/reset-password', [PasswordResetController::class, 'showResetForm'])
-    ->middleware('otp.verified')
-    ->name('password.reset');
+Route::get('/reset-password', [PasswordResetController::class, 'showResetForm'])->name('password.reset');
 
 Route::post('/reset-password', [PasswordResetController::class, 'reset'])
-    ->middleware('otp.verified')
+    ->middleware('throttle:5,1')
     ->name('password.update');
 
 Route::post('/logout', function () {
@@ -453,7 +445,26 @@ Route::post('/student/achievements/{achievement}/certificate-request', function 
 
 Route::get('/student', fn () => redirect()->route('student.dashboard'));
 Route::get('/student/dashboard', fn () => $studentPage('dashboard'))->middleware('auth')->name('student.dashboard');
-Route::get('/student/sports', fn () => $studentPage('sports', ['studentSports' => Sport::where('status', 'Active')->with('coaches')->orderBy('name')->get()]))->middleware('auth')->name('student.sports');
+Route::get('/student/sports', function () use ($studentPage) {
+    $sports = Sport::where('status', 'Active')->with('coaches')->orderBy('name')->get();
+
+    $sports->each(function (Sport $sport): void {
+        $forSportApplications = static fn ($query) => $query->where(static fn ($sportApplications) => $sportApplications
+            ->where('sport_id', $sport->id)
+            ->orWhere(static fn ($legacyApplications) => $legacyApplications
+                ->whereNull('sport_id')
+                ->where('sport', $sport->name)));
+
+        $sport->members_count = User::query()
+            ->where('role', 'Student')
+            ->where('status', 'Active')
+            ->where('sport_id', $sport->id)
+            ->whereDoesntHave('applications', static fn ($query) => $forSportApplications($query)->where('status', '!=', 'Approved'))
+            ->count();
+    });
+
+    return $studentPage('sports', ['studentSports' => $sports]);
+})->middleware('auth')->name('student.sports');
 Route::get('/student/sports/{sport}/members', [SportController::class, 'studentMembers'])->middleware('auth')->name('student.sports.members');
 Route::get('/student/sports/{sport}/members/{athlete}', [SportController::class, 'studentMemberProfile'])->middleware('auth')->name('student.sports.member-profile');
 Route::get('/student/calendar', fn () => $studentPage('calendar', $calendarData(request('month'))))->middleware('auth')->name('student.calendar');
@@ -724,6 +735,30 @@ Route::get('/athletes/{athlete}', [AthleteController::class, 'show'])->middlewar
 Route::get('/athletes/{athlete}/edit', [AthleteController::class, 'edit'])->middleware('auth')->name('athletes.edit');
 Route::put('/athletes/{athlete}', [AthleteController::class, 'update'])->middleware('auth')->name('athletes.update');
 Route::delete('/athletes/{athlete}', [AthleteController::class, 'destroy'])->middleware('auth')->name('athletes.destroy');
+
+Route::middleware(['auth', 'throttle:5,1'])->group(function () {
+    Route::post('/athletes/{athlete}/password-reset', [AthleteController::class, 'assistPasswordReset'])->name('athletes.password.reset');
+    Route::post('/athletes/{athlete}/password-reset-link', [AthleteController::class, 'assistPasswordResetLink'])->name('athletes.password.reset.link');
+    Route::post('/athletes/{athlete}/reset-password', [AthleteController::class, 'resetPassword'])->name('athletes.reset-password');
+    Route::post('/athletes/{athlete}/reset_password', [AthleteController::class, 'resetPassword'])->name('athletes.reset_password');
+    Route::post('/athletes/{athlete}/assist-password-reset', [AthleteController::class, 'assistPasswordReset'])->name('athletes.assist-password-reset');
+    Route::post('/athletes/{athlete}/assist_password_reset', [AthleteController::class, 'assistPasswordReset'])->name('athletes.assist_password_reset');
+    Route::post('/athletes/{athlete}/assist-password-reset-link', [AthleteController::class, 'assistPasswordResetLink'])->name('athletes.assist-password-reset-link');
+    Route::post('/athletes/{athlete}/send-password-reset', [AthleteController::class, 'sendPasswordResetLink'])->name('athletes.send-password-reset');
+    Route::post('/athletes/{athlete}/send_password_reset', [AthleteController::class, 'sendPasswordResetLink'])->name('athletes.send_password_reset');
+    Route::post('/athletes/{athlete}/send-password-reset-link', [AthleteController::class, 'sendPasswordResetLink'])->name('athletes.send-password-reset-link');
+    Route::post('/athletes/{athlete}/password/reset', [AthleteController::class, 'assistPasswordReset'])->name('athletes.password.reset-alt');
+});
+Route::middleware(['auth', 'throttle:5,1'])->group(function () {
+    Route::post('/athletes/{athlete}/passwordReset', [AthleteController::class, 'assistPasswordReset'])->name('athletes.passwordReset');
+    Route::post('/athletes/{athlete}/password_reset', [AthleteController::class, 'assistPasswordReset'])->name('athletes.password_reset');
+    Route::post('/athletes/{athlete}/assistPasswordReset', [AthleteController::class, 'assistPasswordReset'])->name('athletes.assistPasswordReset');
+    Route::post('/athletes/{athlete}/assist_password_reset', [AthleteController::class, 'assistPasswordReset'])->name('athletes.assist_password_reset');
+    Route::post('/athletes/{athlete}/sendPasswordResetLink', [AthleteController::class, 'sendPasswordResetLink'])->name('athletes.sendPasswordResetLink');
+    Route::post('/athletes/{athlete}/send_password_reset', [AthleteController::class, 'sendPasswordResetLink'])->name('athletes.send_password_reset');
+    Route::post('/athletes/{athlete}/resetPassword', [AthleteController::class, 'resetPassword'])->name('athletes.resetPassword');
+    Route::post('/athletes/{athlete}/reset_password', [AthleteController::class, 'resetPassword'])->name('athletes.reset_password');
+});
 Route::get('/admin/medical', [MedicalController::class, 'index'])->middleware('auth')->name('admin.medical');
 Route::get('/admin/medical/create', [MedicalController::class, 'create'])->middleware('auth')->name('admin.medical.create');
 Route::post('/admin/medical', [MedicalController::class, 'store'])->middleware('auth')->name('admin.medical.store');

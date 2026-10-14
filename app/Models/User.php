@@ -2,7 +2,7 @@
 
 namespace App\Models;
 
-use Database\Factories\UserFactory;
+use App\Notifications\ResetPasswordNotification;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -15,11 +15,22 @@ class User extends Authenticatable
     use HasFactory, Notifiable;
 
     protected $fillable = ['name', 'email', 'username', 'role', 'status', 'sport_id', 'student_id', 'phone', 'grade_level', 'emergency_contact_name', 'emergency_contact_relationship', 'emergency_contact_phone', 'profile_photo_path', 'password'];
+
     protected $hidden = ['password', 'remember_token'];
 
     public function sport()
     {
         return $this->belongsTo(Sport::class);
+    }
+
+    /**
+     * Deliver the password broker's reset token through the SportsHub-branded
+     * notification instead of the framework default. The token itself is
+     * still created, hashed and expired by the broker.
+     */
+    public function sendPasswordResetNotification(#[\SensitiveParameter] $token)
+    {
+        $this->notify(new ResetPasswordNotification($token));
     }
 
     public function attendanceRecords()
@@ -134,17 +145,42 @@ class User extends Authenticatable
      */
     private function applyEligibilityFilter(Builder $query, string $eligibility): Builder
     {
+        $matchesNotEligible = fn (Builder $nested) => $nested
+            ->whereHas('applications', fn (Builder $applications) => $applications->where('status', 'Rejected'))
+            ->orWhereHas('medicalRecords', fn (Builder $medical) => $medical->whereIn('medical_status', ['Not Cleared', 'Restricted']));
+
+        $matchesEligible = fn (Builder $nested) => $nested
+            ->whereHas('applications', fn (Builder $applications) => $applications->where('status', 'Approved'))
+            ->orWhereHas('medicalRecords', fn (Builder $medical) => $medical->where('medical_status', 'Cleared'));
+
         return match ($eligibility) {
-            'Eligible' => $query->whereHas('medicalRecords', fn (Builder $medical) => $medical->where('medical_status', 'Cleared')),
-            'Not Eligible' => $query->where(function (Builder $notEligible) {
-                $notEligible->whereHas('medicalRecords', fn (Builder $medical) => $medical->whereIn('medical_status', ['Not Cleared', 'Restricted']))
-                    ->orWhereHas('applications', fn (Builder $applications) => $applications->where('status', 'Rejected'));
-            }),
-            default => $query->where(function (Builder $pending) {
-                $pending->whereDoesntHave('medicalRecords', fn (Builder $medical) => $medical->where('medical_status', 'Cleared'))
-                    ->whereDoesntHave('applications', fn (Builder $applications) => $applications->where('status', 'Rejected'));
-            }),
+            'Not Eligible' => $query->where($matchesNotEligible),
+            'Eligible' => $query->where($matchesEligible)->whereNot($matchesNotEligible),
+            default => $query->whereNot($matchesEligible)->whereNot($matchesNotEligible),
         };
+    }
+
+    /**
+     * Eligibility shown across the portal. An approved application or a
+     * Cleared medical record makes an athlete eligible; a rejected application
+     * or an uncleared medical record rules them out. Anything else is pending.
+     */
+    public function eligibilityStatus(): string
+    {
+        $applications = $this->relationLoaded('applications') ? $this->applications : $this->applications()->get();
+        $medicalRecords = $this->relationLoaded('medicalRecords') ? $this->medicalRecords : $this->medicalRecords()->get();
+
+        if ($applications->contains(fn (Application $application) => $application->status === 'Rejected')
+            || $medicalRecords->contains(fn (MedicalRecord $medical) => in_array($medical->medical_status, ['Not Cleared', 'Restricted'], true))) {
+            return 'Not Eligible';
+        }
+
+        if ($applications->contains(fn (Application $application) => $application->status === 'Approved')
+            || $medicalRecords->contains(fn (MedicalRecord $medical) => $medical->medical_status === 'Cleared')) {
+            return 'Eligible';
+        }
+
+        return 'Pending';
     }
 
     /**
@@ -155,6 +191,29 @@ class User extends Authenticatable
         return $this->profile_photo_path
             ? Storage::disk('public')->url($this->profile_photo_path)
             : null;
+    }
+
+    /**
+     * Keep the applicant details on any linked application in step with the
+     * athlete account, so the admin Applications list, the application review
+     * page and the reports never show stale values after a profile update.
+     */
+    public function syncLinkedApplications(): void
+    {
+        if (! $this->applications()->exists()) {
+            return;
+        }
+
+        $attributes = [
+            'name' => $this->name,
+            'email' => $this->email,
+        ];
+
+        if (filled($this->grade_level)) {
+            $attributes['grade'] = $this->grade_level;
+        }
+
+        $this->applications()->update($attributes);
     }
 
     /**

@@ -8,7 +8,11 @@ use App\Models\Sport;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Password;
 use Illuminate\View\View;
+use Throwable;
 
 class AthleteController extends Controller
 {
@@ -149,7 +153,51 @@ class AthleteController extends Controller
 
         $this->syncProfilePhoto($request, $athlete);
 
+        $athlete->syncLinkedApplications();
+
         return redirect()->route('athletes.show', $athlete)->with('success', 'Athlete updated successfully.');
+    }
+
+    public function assistPasswordReset(Request $request, User $athlete): RedirectResponse
+    {
+        $this->ensureAdministrator();
+
+        abort_unless($athlete->role === 'Student', 403);
+
+        if (! filter_var((string) $athlete->email, FILTER_VALIDATE_EMAIL)) {
+            return $this->redirectToPreviousAthletePage()->withErrors(['password' => 'This athlete does not have a valid email address on file. Update the account before attempting a reset.']);
+        }
+
+        try {
+            $status = Password::broker()->sendResetLink(['email' => $athlete->email]);
+        } catch (Throwable $exception) {
+            DB::table($this->passwordResetTokenTable())->where('email', $athlete->email)->delete();
+
+            Log::error('Admin-assisted password reset email delivery failed for '.self::maskEmail($athlete->email).': '.$exception->getMessage());
+
+            return $this->redirectToPreviousAthletePage()->withErrors(['password' => 'Unable to send the password reset email. Please try again later.']);
+        }
+
+        if ($status !== Password::RESET_LINK_SENT) {
+            return $this->redirectToPreviousAthletePage()->withErrors(['password' => 'Unable to send the password reset link. Please try again.']);
+        }
+
+        return $this->redirectToPreviousAthletePage()->with('success', "A password reset link has been sent to the athlete's registered email address.");
+    }
+
+    public function resetPassword(Request $request, User $athlete): RedirectResponse
+    {
+        return $this->assistPasswordReset($request, $athlete);
+    }
+
+    public function sendPasswordResetLink(Request $request, User $athlete): RedirectResponse
+    {
+        return $this->assistPasswordReset($request, $athlete);
+    }
+
+    public function assistPasswordResetLink(Request $request, User $athlete): RedirectResponse
+    {
+        return $this->assistPasswordReset($request, $athlete);
     }
 
     public function destroy(User $athlete): RedirectResponse
@@ -168,13 +216,7 @@ class AthleteController extends Controller
 
     private function eligibility(User $athlete): string
     {
-        if ($athlete->medicalRecords->contains(fn ($record) => $record->medical_status === 'Cleared')) {
-            return 'Eligible';
-        }
-        if ($athlete->applications->contains(fn ($application) => $application->status === 'Rejected')) {
-            return 'Not Eligible';
-        }
-        return 'Pending';
+        return $athlete->eligibilityStatus();
     }
 
     private function portalData(array $data = []): array
@@ -200,6 +242,41 @@ class AthleteController extends Controller
             'userName' => auth()->user()->name,
             'userRole' => auth()->user()->role,
         ], $data);
+    }
+
+    private function redirectToPreviousAthletePage(): \Illuminate\Http\RedirectResponse
+    {
+        $previous = url()->previous();
+
+        if (! is_string($previous) || $previous === '' || $previous === url('/') || $previous === route('login')) {
+            $previous = route('athletes.index');
+        }
+
+        return redirect()->to($previous);
+    }
+
+    private function passwordResetTokenTable(): string
+    {
+        $broker = (string) config('auth.defaults.passwords');
+
+        return (string) config("auth.passwords.{$broker}.table", 'password_reset_tokens');
+    }
+
+    private static function maskEmail(string $email): string
+    {
+        [$name, $domain] = array_pad(explode('@', $email, 2), 2, '');
+
+        if ($name === '') {
+            return '***@'.$domain;
+        }
+
+        $stars = match (true) {
+            strlen($name) >= 3 => 3,
+            strlen($name) === 2 => 2,
+            default => 1,
+        };
+
+        return substr($name, 0, 1).str_repeat('*', $stars).'@'.$domain;
     }
 
     private function ensureAdministrator(): void

@@ -35,41 +35,61 @@
     };
 @endphp
 
-<div class="grid medical-summary-grid">
-    <div class="card stat medical-kpi">
-        <span class="medical-kpi-icon tone-red"><svg aria-hidden="true"><use href="#icon-clipboard"></use></svg></span>
-        <div class="medical-kpi-body"><small>Total Records</small><strong>{{ $medicalSummary['total'] }}</strong></div>
-    </div>
-    <div class="card stat medical-kpi">
-        <span class="medical-kpi-icon tone-green"><svg aria-hidden="true"><use href="#icon-medical"></use></svg></span>
-        <div class="medical-kpi-body"><small>Cleared</small><strong>{{ $medicalSummary['cleared'] }}</strong></div>
-    </div>
-    <div class="card stat medical-kpi">
-        <span class="medical-kpi-icon tone-gold"><svg aria-hidden="true"><use href="#icon-calendar"></use></svg></span>
-        <div class="medical-kpi-body"><small>Pending</small><strong>{{ $medicalSummary['pending'] }}</strong></div>
-    </div>
-    <div class="card stat medical-kpi">
-        <span class="medical-kpi-icon tone-violet"><svg aria-hidden="true"><use href="#icon-users"></use></svg></span>
-        <div class="medical-kpi-body"><small>Restricted</small><strong>{{ $medicalSummary['restricted'] }}</strong></div>
-    </div>
-    <div class="card stat medical-kpi">
-        <span class="medical-kpi-icon tone-amber"><svg aria-hidden="true"><use href="#icon-certificate"></use></svg></span>
-        <div class="medical-kpi-body"><small>Expiring Soon</small><strong>{{ $medicalSummary['expiring_soon'] }}</strong></div>
-    </div>
-    <div class="card stat medical-kpi">
-        <span class="medical-kpi-icon tone-danger"><svg aria-hidden="true"><use href="#icon-activity"></use></svg></span>
-        <div class="medical-kpi-body"><small>Under Recovery</small><strong>{{ $medicalSummary['under_recovery'] }}</strong></div>
-    </div>
-</div>
+@php
+    $medicalKpis = [
+        ['label' => 'Total Records', 'value' => $medicalSummary['total'], 'icon' => 'clipboard', 'tone' => 'red', 'hint' => 'All records on file'],
+        ['label' => 'Cleared', 'value' => $medicalSummary['cleared'], 'icon' => 'medical', 'tone' => 'green', 'hint' => 'Fit to participate'],
+        ['label' => 'Pending', 'value' => $medicalSummary['pending'], 'icon' => 'calendar', 'tone' => 'gold', 'hint' => 'Awaiting clearance'],
+        ['label' => 'Restricted', 'value' => $medicalSummary['restricted'], 'icon' => 'users', 'tone' => 'violet', 'hint' => 'Limited participation'],
+        ['label' => 'Expiring Soon', 'value' => $medicalSummary['expiring_soon'], 'icon' => 'certificate', 'tone' => 'amber', 'hint' => 'Due within '.$medicalExpiringDays.' days'],
+        ['label' => 'Under Recovery', 'value' => $medicalSummary['under_recovery'], 'icon' => 'activity', 'tone' => 'danger', 'hint' => 'In active recovery'],
+    ];
+@endphp
+
+<div class="admin-dashboard medical-page">
+    <section class="dashboard-overview medical-overview">
+        <div class="section-heading">
+            <div>
+                <span class="admin-dashboard-kicker">AT A GLANCE</span>
+                <h2>Medical Overview</h2>
+                <p>Clearance, certificates and recovery status across every athlete record</p>
+            </div>
+            <span class="dashboard-today"><svg aria-hidden="true"><use href="#icon-certificate"></use></svg> {{ $medicalExpiringDays }}-day expiry window</span>
+        </div>
+        <div class="grid dashboard-kpis medical-kpis">
+            @foreach ($medicalKpis as $kpi)
+                <div class="card stat medical-kpi">
+                    <span class="kpi-body">
+                        <small>{{ $kpi['label'] }}</small>
+                        <strong>{{ $kpi['value'] }}</strong>
+                        <span class="kpi-action">{{ $kpi['hint'] }}</span>
+                    </span>
+                    <span class="medical-kpi-icon tone-{{ $kpi['tone'] }}"><svg aria-hidden="true"><use href="#icon-{{ $kpi['icon'] }}"></use></svg></span>
+                </div>
+            @endforeach
+        </div>
+    </section>
 
 @if (!empty($medicalAlerts))
-    <section class="medical-alerts">
-        @foreach ($medicalAlerts as $alert)
-            <div class="alert-banner {{ $alert['type'] === 'danger' ? 'alert-danger' : 'alert-warning' }}">
-                <strong>{{ $alert['title'] }}</strong>
-                <p>{{ $alert['message'] }}</p>
+    <section class="card dashboard-attention">
+        <div class="section-heading">
+            <div>
+                <span class="admin-dashboard-kicker">ACTION REQUIRED</span>
+                <h2>Needs Your Attention</h2>
             </div>
-        @endforeach
+            <span class="badge status-pending">{{ count($medicalAlerts) }} alert{{ count($medicalAlerts) === 1 ? '' : 's' }}</span>
+        </div>
+        <div class="dashboard-attention-items">
+            @foreach ($medicalAlerts as $alert)
+                <div class="attention-item attention-{{ $alert['type'] === 'danger' ? 'danger' : 'warning' }}">
+                    <span><svg aria-hidden="true"><use href="#icon-{{ $alert['type'] === 'danger' ? 'medical' : 'bell' }}"></use></svg></span>
+                    <span class="attention-body">
+                        <strong>{{ $alert['title'] }}</strong>
+                        <p>{{ $alert['message'] }}</p>
+                    </span>
+                </div>
+            @endforeach
+        </div>
     </section>
 @endif
 
@@ -204,6 +224,7 @@
         </div>
     </section>
 @else
+    @if ($medicalShowForm)
     <section class="card medical-form-card" id="medical-record-form">
         <div class="section-heading">
             <div>
@@ -298,6 +319,7 @@
             </div>
         </form>
     </section>
+    @endif
 
     <section class="card medical-records-card">
         <div class="medical-card-head">
@@ -491,17 +513,15 @@
         </section>
     </div>
 
-    <section class="card medical-incidents-card" id="incident-form">
-        <div class="section-heading">
-            <div>
-                <span class="admin-dashboard-kicker">{{ $medicalIncidentFormMode === 'edit' ? 'UPDATE INCIDENT' : 'NEW INCIDENT' }}</span>
-                <h2>{{ $medicalIncidentFormMode === 'edit' ? 'Edit Injury / Medical Incident' : 'Record Injury / Medical Incident' }}</h2>
-                <p>Injuries are stored per athlete, so repeated examinations never overwrite the injury history.</p>
-            </div>
-            @if ($medicalIncidentFormMode === 'edit')
-                <a class="text-link" href="{{ route('admin.medical') }}">Cancel</a>
-            @endif
-        </div>
+    <details class="card medical-incident-disclosure" id="incident-form" @if ($medicalIncidentFormMode === 'edit' || $errors->any()) open @endif>
+        <summary class="medical-disclosure-summary">
+            <span class="medical-kpi-icon tone-gold"><svg aria-hidden="true"><use href="#icon-plus"></use></svg></span>
+            <span class="medical-disclosure-copy">
+                <strong>{{ $medicalIncidentFormMode === 'edit' ? 'Edit Injury / Medical Incident' : 'Record Injury / Medical Incident' }}</strong>
+                <small>Log injuries, treatment and return-to-play dates. Records are stored per athlete, so repeated examinations never overwrite the injury history.</small>
+            </span>
+            <span class="medical-disclosure-toggle" aria-hidden="true"></span>
+        </summary>
 
         <form method="POST" action="{{ $medicalIncidentFormMode === 'edit' ? route('admin.medical.incidents.update', $medicalIncidentFormRecord) : route('admin.medical.incidents.store') }}" class="medical-form-body">
             @csrf
@@ -617,7 +637,7 @@
                 @endif
             </div>
         </form>
-    </section>
+    </details>
 
     <section class="card medical-incidents-card">
         <div class="medical-card-head">
@@ -680,3 +700,4 @@
         </div>
     </section>
 @endif
+</div>

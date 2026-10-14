@@ -55,7 +55,12 @@ class CoachController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $this->ensureAdministrator();
-        Coach::create($this->validated($request));
+        $coach = Coach::create($this->validated($request));
+        if ($request->hasFile('profile_picture')) {
+            $path = $request->file('profile_picture')->store('coaches', 'public');
+            $coach->profile_picture_path = $path;
+            $coach->save();
+        }
         return redirect()->route('coaches.index')->with('success', 'Coach added successfully.');
     }
 
@@ -69,6 +74,22 @@ class CoachController extends Controller
     {
         $this->ensureAdministrator();
         $coach->update($this->validated($request));
+        $previous = $coach->profile_picture_path;
+        if ($request->boolean('remove_profile_picture') && ! $request->hasFile('profile_picture')) {
+            $coach->profile_picture_path = null;
+            $coach->save();
+            if ($previous && str_starts_with($previous, 'coaches/')) {
+                \Illuminate\Support\Facades\Storage::disk('public')->delete($previous);
+            }
+        }
+        if ($request->hasFile('profile_picture')) {
+            $path = $request->file('profile_picture')->store('coaches', 'public');
+            $coach->profile_picture_path = $path;
+            $coach->save();
+            if ($previous && str_starts_with($previous, 'coaches/')) {
+                \Illuminate\Support\Facades\Storage::disk('public')->delete($previous);
+            }
+        }
         return redirect()->route('coaches.show', $coach)->with('success', 'Coach updated successfully.');
     }
 
@@ -94,6 +115,8 @@ class CoachController extends Controller
             'sport_id' => ['required', 'exists:sports,id'],
             'coach_type' => ['nullable', 'in:'.implode(',', self::coachTypes())],
             'status' => ['required', 'in:'.implode(',', self::statuses())],
+            'profile_picture' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
+            'remove_profile_picture' => ['nullable', 'boolean'],
         ]);
     }
 
