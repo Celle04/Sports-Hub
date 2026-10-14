@@ -2613,3 +2613,238 @@ html[data-theme="dark"] .otp-box[disabled] { background: #171a20; }
 html[data-theme="dark"] .medical-kpi:hover { border-color: rgba(226, 104, 138, .4); box-shadow: 0 14px 30px rgba(0, 0, 0, .35); }
 html[data-theme="dark"] .medical-kpi::before { background: linear-gradient(90deg, var(--red), rgba(226, 104, 138, .25)); }
 html[data-theme="dark"] .medical-disclosure-toggle { border-color: var(--line); background: rgba(31, 35, 43, .6); color: var(--muted); }
+/* =========================================================
+   SportsHub premium refresh overlay
+   Preserves the established burgundy/red brand palette.
+   ========================================================= */
+
+:root {
+    --refresh-radius-xl: 24px;
+    --refresh-radius-lg: 18px;
+    --refresh-radius-md: 14px;
+    --refresh-shadow-soft: 0 10px 30px rgba(39, 34, 46, 0.08);
+    --refresh-shadow-hover: 0 18px 44px rgba(110, 13, 43, 0.14);
+    --refresh-transition: 220ms ease;
+}
+
+/* Global polish */
+body {
+    font-smoothing: antialiased;
+    -webkit-font-smoothing: antialiased;
+}
+
+.portal,
+.portal-main {
+    min-width: 0;
+}
+
+.portal-main {
+    animation: sportsHubFadeIn 360ms ease both;
+}
+
+@keyframes sportsHubFadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Sidebar modernization */
+.portal-sidebar {
+    border-radius: 0 24px 24px 0;
+    box-shadow: 8px 0 30px rgba(24, 24, 30, 0.08);
+    background: linear-gradient(180deg, rgba(255,255,255,.82), rgba(249,237,241,.58));
+    backdrop-filter: blur(22px);
+    -webkit-backdrop-filter: blur(22px);
+}
+
+.portal-sidebar-head {
+    min-height: 92px;
+}
+
+.portal-brand strong {
+    font-size: 18px;
+    letter-spacing: -0.01em;
+}
+
+.portal-nav a {
+    border-radius: 12px;
+    padding: 12px 14px;
+    font-weight: 600;
+    transition: all var(--refresh-transition);
+}
+
+.portal-nav a:hover {
+    transform: translateX(3px);
+}
+
+.portal-nav a.active {
+    border-radius: 12px;
+    box-shadow: 0 8px 20px rgba(143, 18, 56, 0.24);
+}
+
+/* Topbar glass */
+.portal-topbar {
+    border-radius: 0 0 18px 18px;
+    background: rgba(255,255,255,.72);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+    box-shadow: 0 8px 24px rgba(24,24,30,.05);
+}
+
+/* Cards */
+.soft-card,
+.kpi-card,
+.stat-card,
+.content-card,
+.report-chooser-item,
+.report-card,
+.medical-kpi,
+.student-sport-card,
+.student-coach-profile,
+.student-profile-hero,
+.admin-dashboard-overview {
+    border-radius: var(--refresh-radius-lg);
+    box-shadow: var(--refresh-shadow-soft);
+    transition: transform var(--refresh-transition), box-shadow var(--refresh-transition), border-color var(--refresh-transition);
+}
+
+.soft-card:hover,
+.kpi-card:hover,
+.stat-card:hover,
+.content-card:hover,
+.report-chooser-item:hover,
+.medical-kpi:hover,
+.student-sport-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--refresh-shadow-hover);
+}
+
+/* Buttons */
+.button,
+.portal-icon-button,
+.row-action,
+.student-calendar-today {
+    border-radius: 12px;
+    transition: all var(--refresh-transition);
+}
+
+.button:hover,
+.portal-icon-button:hover,
+.row-action:hover,
+.student-calendar-today:hover {
+    transform: translateY(-1px);
+}
+
+.button {
+    box-shadow: 0 10px 24px rgba(143, 18, 56, 0.12);
+}
+
+/* Forms and inputs */
+.form-control,
+.filters input,
+.filters select,
+.auth-control input,
+.auth-field select,
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="number"],
+input[type="date"],
+textarea,
+select {
+    border-radius: 12px;
+    transition: border-color var(--refresh-transition), box-shadow var(--refresh-transition), background var(--refresh-transition);
+}
+
+.form-control:focus,
+.filters input:focus,
+.filters select:focus,
+.auth-control input:focus,
+.auth-field select:focus,
+textarea:focus,
+select:focus {
+    outline: none;
+    border-color: rgba(143, 18, 56, 0.55);
+    box-shadow: 0 0 0 4px rgba(143, 18, 56, 0.10);
+}
+
+/* Tables */
+.data-table,
+.admin-data-table,
+.student-data-table {
+    border-radius: var(--refresh-radius-md);
+    overflow: hidden;
+}
+
+.data-table th,
+.admin-data-table th,
+.student-data-table th {
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
+
+.data-table tbody tr,
+.admin-data-table tbody tr,
+.student-data-table tbody tr {
+    transition: background var(--refresh-transition);
+}
+
+.data-table tbody tr:hover,
+.admin-data-table tbody tr:hover,
+.student-data-table tbody tr:hover {
+    background: rgba(249, 237, 241, 0.7);
+}
+
+/* Horizontal scroll wrapper for wide tables */
+.table-wrap,
+.table-container,
+.data-table-container {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* Badges */
+.badge,
+.status-badge,
+.status-present,
+.status-absent,
+.status-pending,
+.status-cleared,
+.status-not-cleared {
+    border-radius: 999px;
+    font-weight: 700;
+}
+
+/* Alerts */
+.auth-alert,
+.alert,
+.attention-warning,
+.attention-danger {
+    border-radius: 14px;
+}
+
+/* Empty states and modals */
+.app-modal-box,
+.confirm-dialog,
+.modal,
+.empty-state {
+    border-radius: var(--refresh-radius-lg);
+}
+
+/* Dark mode harmony */
+html[data-theme="dark"] .portal-sidebar {
+    background: linear-gradient(180deg, rgba(33,37,44,.92), rgba(38,29,36,.82));
+    box-shadow: 8px 0 34px rgba(0,0,0,.34);
+}
+
+html[data-theme="dark"] .portal-topbar {
+    background: rgba(24,27,34,.76);
+}
+
+html[data-theme="dark"] .data-table tbody tr:hover {
+    background: rgba(51,32,39,.72);
+}
+
+html[data-theme="dark"] .button {
+    box-shadow: 0 10px 24px rgba(0,0,0,.24);
+}
