@@ -39,8 +39,8 @@ class AttendanceSessionTest extends TestCase
             'title' => 'Daily Basketball Training',
             'event_id' => $event->id,
             'session_date' => today()->toDateString(),
-            'start_time' => '23:59',
-            'end_time' => '18:00',
+            'start_time' => '23:58',
+            'end_time' => '23:59',
             'venue' => 'SNNHS Gymnasium',
             'description' => 'Regular basketball training session.',
         ])->assertSessionHas('success');
