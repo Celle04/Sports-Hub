@@ -61,8 +61,13 @@
                     <option value="{{ $status }}" @selected(request('status') === $status)>{{ $status }}</option>
                 @endforeach
             </select>
-            <button class="button" type="submit">Search</button>
-            <a class="button button-secondary" href="{{ route('sports.index') }}">Reset</a>
+            <select class="form-control" name="gender" aria-label="Filter by gender">
+                <option value="">All Genders</option>
+                @foreach ($genders as $gender)
+                    <option value="{{ $gender }}" @selected(request('gender') === $gender)>{{ $gender }}</option>
+                @endforeach
+            </select>
+            <button class="button" type="submit">Search</button>            <a class="button button-secondary" href="{{ route('sports.index') }}">Reset</a>
         </form>
     </section>
 
@@ -79,6 +84,7 @@
                 <tr>
                     <th scope="col">Sport</th>
                     <th scope="col">Classification</th>
+                    <th scope="col">Gender</th>
                     <th scope="col">Description</th>
                     <th scope="col" class="num">Athletes</th>
                     <th scope="col" class="num">Coaches</th>
@@ -100,9 +106,23 @@
                             </div>
                         </td>
                         <td>{{ $sport->classification }}</td>
+                        <td>
+                            @if ($sport->gender)
+                                <span class="badge sport-gender-{{ strtolower($sport->gender) }}">{{ $sport->gender }}</span>
+                            @else
+                                <span class="meta">Not set</span>
+                            @endif
+                        </td>
                         <td class="cell-description"><span title="{{ $sport->description }}">{{ $sport->description }}</span></td>
                         <td class="num">{{ $sport->athletes_count }}</td>
-                        <td class="num">{{ $sport->coaches_count }}</td>
+                        <td class="num cell-coach">
+                            <span>{{ $sport->coaches_count }}</span>
+                            @if ($sport->coaches->isNotEmpty())
+                                <small class="meta">{{ $sport->coaches->pluck('name')->implode(', ') }}</small>
+                            @else
+                                <small class="meta">Unassigned</small>
+                            @endif
+                        </td>
                         <td>
                             <span class="badge sport-status-{{ strtolower($sport->status) }}">{{ $sport->status }}</span>
                         </td>
@@ -116,8 +136,8 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="7" class="empty-cell">
-                            @if (request()->hasAny(['search', 'classification', 'status']))
+                        <td colspan="8" class="empty-cell">
+                            @if (request()->hasAny(['search', 'classification', 'status', 'gender']))
                                 <strong>No sports found</strong>
                                 <br>
                                 <small>Try adjusting your search or filters.</small>

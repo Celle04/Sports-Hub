@@ -14,22 +14,46 @@
         </select>
         @error('classification')<small class="form-error">{{ $message }}</small>@enderror
     </div>
+    <div class="form-group">
+        <label for="gender">Gender</label>
+        <select class="form-control" id="gender" name="gender" required>
+            <option value="">Select gender</option>
+            @foreach ($genders as $gender)
+                <option value="{{ $gender }}" @selected(old('gender', $sport->gender ?? 'Boys') === $gender)>{{ $gender }}</option>
+            @endforeach
+        </select>
+        <small class="form-hint">Denotes whether the program is open to boys or girls.</small>
+        @error('gender')<small class="form-error">{{ $message }}</small>@enderror
+    </div>
+    <div class="form-group">
+        <label for="status">Status</label>
+        <select class="form-control" id="status" name="status">
+            @foreach ($statuses as $status)
+                <option value="{{ $status }}" @selected(old('status', $sport->status ?? 'Active') === $status)>{{ $status }}</option>
+            @endforeach
+        </select>
+        <small class="form-hint">Inactive sports are hidden from student sign-ups but kept on record.</small>
+        @error('status')<small class="form-error">{{ $message }}</small>@enderror
+    </div>
+    <div class="form-group">
+        <label for="coach_id">Coach Assignment</label>
+        <select class="form-control @error('coach_id') is-invalid @enderror" id="coach_id" name="coach_id">
+            <option value="">Unassigned</option>
+            @foreach ($coaches ?? [] as $coach)
+                <option value="{{ $coach->id }}" @selected((string) old('coach_id', $assignedCoachId ?? '') === (string) $coach->id)>
+                    {{ $coach->name }} &mdash; {{ $coach->sport?->name ?? ($coach->specialty ?: 'No sport assigned') }}@if ($coach->status !== 'Active') (Inactive)@endif
+                </option>
+            @endforeach
+        </select>
+        <small class="form-hint">Assign a coach to this program. A coach can only hold one sport, so choosing a coach already assigned elsewhere moves them here.</small>
+        @error('coach_id')<small class="form-error">{{ $message }}</small>@enderror
+    </div>
 </div>
 <div class="form-group">
     <label for="description">Description</label>
     <textarea class="form-control" id="description" name="description" rows="4" required>{{ old('description', $sport->description ?? '') }}</textarea>
     <small class="form-hint">A short description of the sport and how it is played.</small>
     @error('description')<small class="form-error">{{ $message }}</small>@enderror
-</div>
-<div class="form-group">
-    <label for="status">Status</label>
-    <select class="form-control" id="status" name="status">
-        @foreach ($statuses as $status)
-            <option value="{{ $status }}" @selected(old('status', $sport->status ?? 'Active') === $status)>{{ $status }}</option>
-        @endforeach
-    </select>
-    <small class="form-hint">Inactive sports are hidden from student sign-ups but kept on record.</small>
-    @error('status')<small class="form-error">{{ $message }}</small>@enderror
 </div>
 <div class="form-group">
     <label for="logo">Sport Logo</label>

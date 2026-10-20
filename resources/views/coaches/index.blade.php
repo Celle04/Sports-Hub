@@ -152,9 +152,9 @@
                                 <br>
                                 <a class="button button-secondary" href="{{ route('coaches.index') }}">Reset Filters</a>
                             @else
-                                <strong>No coaches found</strong>
+                                <strong>No coaches are on record yet.</strong>
                                 <br>
-                                <small>There are currently no coaches registered. Add a coach to get started.</small>
+                                <small>Add a coach to get started, then assign them to a program from the Sports Management module.</small>
                                 <br>
                                 <a class="button" href="{{ route('coaches.create') }}">
                                     <svg class="button-icon" aria-hidden="true"><use href="#icon-plus"></use></svg>

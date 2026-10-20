@@ -1,34 +1,21 @@
 /* =========================================================
    SNNHS SPORTSHUB
-   MODERN LANDING PAGE
+   PUBLIC WEBSITE — LANDING PAGE & APPLICATION FORM
+   -------------------------------------------------------------
+   Colour, radius and shadow tokens live in css/theme.css.
+   This file only holds public-site specific rules.
    ========================================================= */
 
 :root {
-    --maroon: #8f0028;
-    --maroon-dark: #70001f;
-    --maroon-light: #b51243;
-    --maroon-soft: #f9edf1;
-
-    --ink: #171717;
-    --dark: #22202a;
-    --muted: #77727a;
-
-    --white: #ffffff;
-    --light: #fafafa;
-    --line: #e9e6e8;
-
-    /* Used by application glass cards */
-    --paper: rgba(255, 255, 255, 0.82);
-
-    --shadow:
-        0 12px 35px rgba(73, 14, 34, 0.08);
+    /* Glass surface used by the application card */
+    --paper: rgba(255, 255, 255, 0.86);
 
     font-family:
         Arial,
         Helvetica,
         sans-serif;
 
-    color: var(--ink);
+    color: var(--color-text);
 }
 
 
@@ -46,8 +33,8 @@ html {
 
 body {
     margin: 0;
-    background: #ffffff;
-    color: var(--ink);
+    background: var(--color-background);
+    color: var(--color-text);
 }
 
 a {
@@ -76,10 +63,10 @@ a {
         10px
         clamp(20px, 7vw, 120px);
 
-    background: rgba(255, 255, 255, 0.96);
+    background: rgba(255, 255, 255, 0.94);
 
     border-bottom:
-        1px solid #eeeeee;
+        1px solid var(--color-border);
 
     backdrop-filter: blur(15px);
     -webkit-backdrop-filter: blur(15px);
@@ -117,7 +104,7 @@ a {
 }
 
 .site-name {
-    color: var(--maroon);
+    color: var(--color-primary);
 
     font-size: 18px;
     font-weight: 800;
@@ -128,7 +115,7 @@ a {
 .site-school {
     margin-top: 3px;
 
-    color: #888;
+    color: var(--color-muted);
 
     font-size: 8px;
     line-height: 1.2;
@@ -155,7 +142,7 @@ a {
 
     padding: 24px 0;
 
-    color: #2e2c31;
+    color: var(--color-text);
 
     font-size: 13px;
     font-weight: 500;
@@ -166,12 +153,18 @@ a {
 }
 
 .nav-link:hover {
-    color: var(--maroon);
+    color: var(--color-primary);
 }
 
 .nav-link.active {
-    color: var(--maroon);
+    color: var(--color-primary);
     font-weight: 700;
+}
+
+.nav-link:focus-visible {
+    outline: 0;
+    border-radius: 4px;
+    box-shadow: var(--focus-ring);
 }
 
 .nav-indicator {
@@ -180,12 +173,12 @@ a {
     left: 0;
     bottom: 14px;
 
-    height: 2px;
+    height: 3px;
     width: 0;
 
     border-radius: 10px;
 
-    background: var(--maroon);
+    background: var(--color-accent);
 
     pointer-events: none;
 
@@ -228,12 +221,12 @@ a {
 
     padding: 0 17px;
 
-    border: 1px solid #e1dfe1;
+    border: 1px solid var(--color-border);
     border-radius: 8px;
 
-    background: #eeeeee;
+    background: var(--color-surface-muted);
 
-    color: #5d5a60;
+    color: var(--color-text);
 
     font-size: 11px;
     font-weight: 700;
@@ -250,18 +243,26 @@ a {
         transform 0.2s ease,
         background 0.2s ease,
         color 0.2s ease,
+        border-color 0.2s ease,
         box-shadow 0.2s ease;
 }
 
 .login-button:hover {
-    background: #f5e8ec;
+    background: var(--color-primary-soft);
 
-    color: var(--maroon);
+    border-color: var(--color-primary-border);
+
+    color: var(--color-primary);
 
     transform: translateY(-1px);
 
     box-shadow:
-        0 5px 14px rgba(73, 14, 34, 0.10);
+        0 5px 14px rgba(16, 6, 159, 0.10);
+}
+
+.login-button:focus-visible {
+    outline: 0;
+    box-shadow: var(--focus-ring);
 }
 
 
@@ -279,9 +280,9 @@ a {
 
     border-radius: 8px;
 
-    background: var(--maroon);
+    background: var(--color-accent);
 
-    color: #ffffff;
+    color: var(--color-accent-contrast);
 
     font-size: 11px;
     font-weight: 700;
@@ -289,18 +290,26 @@ a {
     text-decoration: none;
 
     box-shadow:
-        0 5px 14px rgba(143, 0, 40, 0.20);
+        0 5px 14px rgba(255, 105, 0, 0.28);
 
     transition:
         transform 0.2s ease,
+        background 0.2s ease,
         box-shadow 0.2s ease;
 }
 
 .header-apply:hover {
+    background: var(--color-accent-hover);
+
     transform: translateY(-1px);
 
     box-shadow:
-        0 8px 20px rgba(143, 0, 40, 0.28);
+        0 8px 20px rgba(255, 105, 0, 0.34);
+}
+
+.header-apply:focus-visible {
+    outline: 0;
+    box-shadow: var(--focus-ring-accent);
 }
 
 
@@ -311,24 +320,19 @@ a {
 .hero {
     position: relative;
 
-    min-height: 530px;
+    min-height: 560px;
 
     display: flex;
     align-items: center;
     justify-content: center;
-
-    text-align: center;
 
     overflow: hidden;
 
     color: #ffffff;
 
     background:
-        linear-gradient(
-            135deg,
-            var(--maroon) 0%,
-            var(--maroon-dark) 100%
-        );
+        radial-gradient(circle at 82% 18%, rgba(255, 105, 0, .16), transparent 45%),
+        linear-gradient(135deg, #10069F 0%, #1710C0 46%, #0C0480 100%);
 }
 
 .hero::before {
@@ -336,16 +340,19 @@ a {
 
     position: absolute;
 
-    width: 500px;
-    height: 500px;
+    width: 380px;
+    height: 380px;
 
-    left: -220px;
-    top: -220px;
+    right: 4%;
+    top: 50%;
+
+    transform: translateY(-50%);
 
     border-radius: 50%;
 
-    background:
-        rgba(255, 255, 255, 0.06);
+    border: 56px solid rgba(255, 105, 0, .92);
+
+    pointer-events: none;
 }
 
 .hero::after {
@@ -353,16 +360,18 @@ a {
 
     position: absolute;
 
-    width: 600px;
-    height: 600px;
+    width: 520px;
+    height: 520px;
 
-    right: -280px;
-    bottom: -350px;
+    left: -220px;
+    bottom: -280px;
 
     border-radius: 50%;
 
     background:
         rgba(255, 255, 255, 0.05);
+
+    pointer-events: none;
 }
 
 
@@ -374,41 +383,46 @@ a {
     position: relative;
     z-index: 2;
 
-    width: min(900px, 90%);
+    width: min(1100px, 92%);
 
-    padding: 60px 20px;
+    padding: 70px 24px;
+
+    text-align: left;
 }
 
 .hero-icon {
-    width: 43px;
-    height: 43px;
+    width: 46px;
+    height: 46px;
 
     display: flex;
     align-items: center;
     justify-content: center;
 
-    margin: 0 auto 22px;
+    margin: 0 0 24px;
 
     border-radius: 50%;
 
     background: #ffffff;
 
-    color: var(--maroon);
+    color: var(--color-primary);
 
     font-size: 27px;
     font-weight: 900;
 
     box-shadow:
-        0 8px 20px rgba(0, 0, 0, 0.15);
+        0 0 0 7px rgba(255, 105, 0, .35),
+        0 8px 20px rgba(0, 0, 0, 0.18);
 }
 
 .hero h1 {
     margin: 0;
 
+    max-width: 720px;
+
     color: #ffffff;
 
     font-size:
-        clamp(44px, 6vw, 76px);
+        clamp(40px, 5.4vw, 68px);
 
     font-weight: 500;
 
@@ -418,22 +432,23 @@ a {
 }
 
 .hero h1 span {
+    color: var(--color-accent);
     font-weight: 800;
 }
 
 .hero p {
-    max-width: 760px;
+    max-width: 620px;
 
     margin:
-        25px auto 30px;
+        24px 0 32px;
 
     color:
         rgba(255, 255, 255, 0.88);
 
     font-size:
-        clamp(14px, 1.5vw, 18px);
+        clamp(14px, 1.5vw, 17px);
 
-    line-height: 1.55;
+    line-height: 1.6;
 }
 
 
@@ -444,7 +459,7 @@ a {
 .hero-buttons {
     display: flex;
 
-    justify-content: center;
+    justify-content: flex-start;
     align-items: center;
 
     gap: 14px;
@@ -472,28 +487,30 @@ a {
 
     transition:
         transform 0.2s ease,
+        background 0.2s ease,
         box-shadow 0.2s ease;
 }
 
 .hero-primary-button {
-    background: #ffffff;
+    background: var(--color-accent);
 
-    color: var(--maroon);
+    color: var(--color-accent-contrast);
 
     box-shadow:
-        0 8px 25px rgba(0, 0, 0, 0.16);
+        0 8px 25px rgba(255, 105, 0, .34);
 }
 
 .hero-secondary-button {
     background:
-        rgba(255, 255, 255, 0.16);
+        rgba(255, 255, 255, 0.14);
 
     color: #ffffff;
 
     border:
-        1px solid rgba(255, 255, 255, 0.40);
+        1px solid rgba(255, 255, 255, 0.45);
 
     backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
 }
 
 .hero-primary-button:hover,
@@ -502,8 +519,21 @@ a {
 }
 
 .hero-primary-button:hover {
+    background: var(--color-accent-hover);
+
     box-shadow:
-        0 12px 30px rgba(0, 0, 0, 0.22);
+        0 12px 30px rgba(255, 105, 0, .42);
+}
+
+.hero-secondary-button:hover {
+    background:
+        rgba(255, 255, 255, 0.22);
+}
+
+.hero-primary-button:focus-visible,
+.hero-secondary-button:focus-visible {
+    outline: 0;
+    box-shadow: var(--focus-ring-accent);
 }
 
 
@@ -524,15 +554,15 @@ a {
     background:
         linear-gradient(
             90deg,
-            rgba(40, 0, 15, 0.82),
-            rgba(143, 0, 40, 0.25),
-            rgba(0, 0, 0, 0.25)
+            rgba(16, 6, 159, 0.90),
+            rgba(16, 6, 159, 0.55),
+            rgba(12, 4, 128, 0.35)
         ),
         url("/images/sports-banner.jpg")
         center / cover no-repeat;
 
     background-color:
-        var(--maroon-dark);
+        var(--color-primary);
 }
 
 .sports-banner-overlay {
@@ -555,7 +585,7 @@ a {
 
     margin-bottom: 12px;
 
-    color: var(--maroon);
+    color: var(--color-primary);
 
     font-size: 10px;
     font-weight: 800;
@@ -618,7 +648,7 @@ a {
 }
 
 .section-label {
-    color: var(--maroon);
+    color: var(--color-primary);
 }
 
 .section-heading h2 {
@@ -636,7 +666,7 @@ a {
     margin:
         12px auto 0;
 
-    color: var(--muted);
+    color: var(--color-muted);
 
     font-size: 14px;
 
@@ -663,13 +693,13 @@ a {
     padding: 22px;
 
     border:
-        1px solid var(--line);
+        1px solid var(--color-border);
 
     border-radius: 14px;
 
     background: #ffffff;
 
-    box-shadow: var(--shadow);
+    box-shadow: var(--shadow-md);
 
     transition:
         transform 0.25s ease,
@@ -680,7 +710,7 @@ a {
     transform: translateY(-5px);
 
     box-shadow:
-        0 18px 40px rgba(73, 14, 34, 0.12);
+        0 18px 40px rgba(16, 6, 159, 0.12);
 }
 
 .announcement-top {
@@ -693,7 +723,7 @@ a {
 }
 
 .announcement-date {
-    color: var(--maroon);
+    color: var(--color-primary);
 
     font-size: 10px;
     font-weight: 800;
@@ -705,9 +735,9 @@ a {
 
     border-radius: 20px;
 
-    background: var(--maroon-soft);
+    background: var(--color-primary-soft);
 
-    color: var(--maroon);
+    color: var(--color-primary);
 
     font-size: 9px;
     font-weight: 700;
@@ -725,7 +755,7 @@ a {
 .announcement p {
     margin: 0;
 
-    color: var(--muted);
+    color: var(--color-muted);
 
     font-size: 12px;
 
@@ -754,9 +784,9 @@ a {
 
     border-radius: 50%;
 
-    background: var(--maroon-soft);
+    background: var(--color-primary-soft);
 
-    color: var(--maroon);
+    color: var(--color-primary);
 
     font-weight: 800;
 }
@@ -794,14 +824,14 @@ a {
     padding: 20px;
 
     border:
-        1px solid var(--line);
+        1px solid var(--color-border);
 
     border-radius: 14px;
 
     background: #ffffff;
 
     box-shadow:
-        0 8px 25px rgba(73, 14, 34, 0.06);
+        0 8px 25px rgba(16, 6, 159, 0.06);
 
     transition:
         transform 0.25s ease,
@@ -812,7 +842,7 @@ a {
     transform: translateY(-4px);
 
     border-color:
-        rgba(143, 0, 40, 0.25);
+        rgba(16, 6, 159, 0.25);
 }
 
 .program-icon {
@@ -828,7 +858,7 @@ a {
 
     border-radius: 13px;
 
-    background: var(--maroon-soft);
+    background: var(--color-accent-soft);
 
     font-size: 25px;
 }
@@ -846,7 +876,7 @@ a {
 .program p {
     margin: 0;
 
-    color: var(--muted);
+    color: var(--color-muted);
 
     font-size: 11px;
 
@@ -854,7 +884,7 @@ a {
 }
 
 .program-arrow {
-    color: var(--maroon);
+    color: var(--color-primary);
 
     font-size: 20px;
 
@@ -875,8 +905,9 @@ a {
     background:
         linear-gradient(
             135deg,
-            var(--maroon),
-            var(--maroon-dark)
+            #10069F 0%,
+            #1710C0 55%,
+            #0C0480 100%
         );
 
     color: #ffffff;
@@ -932,14 +963,36 @@ a {
 
     border-radius: 9px;
 
-    background: #ffffff;
+    background: var(--color-accent);
 
-    color: var(--maroon);
+    color: var(--color-accent-contrast);
 
     font-size: 12px;
     font-weight: 800;
 
     text-decoration: none;
+
+    box-shadow:
+        0 8px 22px rgba(255, 105, 0, .34);
+
+    transition:
+        transform 0.2s ease,
+        background 0.2s ease,
+        box-shadow 0.2s ease;
+}
+
+.about-button:hover {
+    background: var(--color-accent-hover);
+
+    transform: translateY(-2px);
+
+    box-shadow:
+        0 12px 28px rgba(255, 105, 0, .42);
+}
+
+.about-button:focus-visible {
+    outline: 0;
+    box-shadow: var(--focus-ring-accent);
 }
 
 .about-button span {
@@ -953,16 +1006,17 @@ a {
 
 .site-footer {
     padding:
-        25px
+        32px
         clamp(20px, 7vw, 120px);
 
     background:
-        #ffffff;
+        var(--color-primary);
 
     border-top:
-        1px solid var(--line);
+        1px solid var(--color-primary-hover);
 
-    color: var(--muted);
+    color:
+        rgba(255, 255, 255, .72);
 
     font-size: 10px;
 }
@@ -989,12 +1043,16 @@ a {
     height: 38px;
 
     object-fit: contain;
+
+    background: #ffffff;
+
+    border-radius: 50%;
 }
 
 .footer-brand strong {
     display: block;
 
-    color: var(--maroon);
+    color: #ffffff;
 
     font-size: 12px;
 }
@@ -1027,6 +1085,15 @@ a {
     .site-header {
         padding-left: 25px;
         padding-right: 25px;
+    }
+
+    /* Keep the accent ring clear of the copy on narrower viewports. */
+    .hero::before {
+        width: 300px;
+        height: 300px;
+        border-width: 44px;
+        right: -90px;
+        opacity: .55;
     }
 
     .announcement-grid,
@@ -1071,7 +1138,7 @@ a {
         gap: 20px;
 
         border-top:
-            1px solid #eeeeee;
+            1px solid var(--color-border);
     }
 
     .nav-link {
@@ -1097,14 +1164,27 @@ a {
         min-height: 500px;
     }
 
+    .hero::before {
+        width: 240px;
+        height: 240px;
+        border-width: 34px;
+        right: -70px;
+        top: auto;
+        bottom: -70px;
+        transform: none;
+        opacity: .45;
+    }
+
     .hero-content {
         padding:
             50px 15px;
+
+        text-align: left;
     }
 
     .hero h1 {
         font-size:
-            clamp(40px, 12vw, 58px);
+            clamp(36px, 10vw, 52px);
 
         letter-spacing: -1.5px;
     }
@@ -1279,15 +1359,15 @@ a {
         clamp(24px, 5vw, 42px);
 
     border:
-        1px solid rgba(255, 255, 255, 0.85);
+        1px solid var(--color-border);
 
     border-radius: 12px;
 
     background:
-        var(--paper);
+        var(--color-surface);
 
     box-shadow:
-        0 12px 32px rgba(62, 20, 35, 0.10);
+        0 12px 32px rgba(23, 24, 43, .10);
 
     backdrop-filter:
         blur(14px);
@@ -1321,7 +1401,7 @@ a {
     border-radius: 50%;
 
     background:
-        var(--maroon);
+        var(--color-primary);
 
     color:
         #ffffff;
@@ -1329,14 +1409,14 @@ a {
     font-size: 25px;
 
     box-shadow:
-        0 8px 18px rgba(143, 0, 40, 0.18);
+        0 8px 18px rgba(16, 6, 159, 0.18);
 }
 
 .application-heading h1 {
     margin: 0;
 
     color:
-        var(--ink);
+        var(--color-text);
 
     font-size:
         clamp(25px, 4vw, 32px);
@@ -1349,7 +1429,7 @@ a {
         10px auto 0;
 
     color:
-        var(--muted);
+        var(--color-muted);
 
     font-size: 13px;
 
@@ -1368,17 +1448,17 @@ a {
         16px 18px;
 
     border-left:
-        4px solid var(--maroon);
+        4px solid var(--color-primary);
 
     border-radius: 6px;
 
     background:
-        rgba(143, 0, 40, 0.06);
+        rgba(16, 6, 159, 0.06);
 }
 
 .application-info strong {
     color:
-        var(--maroon);
+        var(--color-primary);
 
     font-size: 13px;
 }
@@ -1388,7 +1468,7 @@ a {
         6px 0 0;
 
     color:
-        var(--muted);
+        var(--color-muted);
 
     font-size: 11px;
 
@@ -1407,15 +1487,15 @@ a {
         16px 18px;
 
     border:
-        1px solid #b9e7c9;
+        1px solid var(--color-success-border);
 
     border-radius: 7px;
 
     background:
-        #edf9f1;
+        var(--color-success-soft);
 
     color:
-        #176b3a;
+        var(--color-success);
 }
 
 .success-message strong {
@@ -1443,15 +1523,15 @@ a {
         16px 18px;
 
     border:
-        1px solid #efc4c4;
+        1px solid var(--color-danger-border);
 
     border-radius: 7px;
 
     background:
-        #fff2f2;
+        var(--color-danger-soft);
 
     color:
-        #9b1c1c;
+        var(--color-danger);
 
     font-size: 12px;
 }
@@ -1494,7 +1574,7 @@ a {
         22px;
 
     border:
-        1px solid var(--line);
+        1px solid var(--color-border);
 
     border-radius:
         9px;
@@ -1528,7 +1608,7 @@ a {
         50%;
 
     background:
-        var(--maroon);
+        var(--color-primary);
 
     color:
         #ffffff;
@@ -1542,7 +1622,7 @@ a {
     margin: 0;
 
     color:
-        var(--ink);
+        var(--color-text);
 
     font-size: 15px;
 }
@@ -1552,7 +1632,7 @@ a {
         3px 0 0;
 
     color:
-        var(--muted);
+        var(--color-muted);
 
     font-size: 11px;
 }
@@ -1585,7 +1665,7 @@ a {
         15px;
 
     color:
-        var(--ink);
+        var(--color-text);
 
     font-size: 12px;
 
@@ -1602,7 +1682,7 @@ a {
 
 .application-form label b {
     color:
-        var(--maroon);
+        var(--color-primary);
 }
 
 
@@ -1620,7 +1700,7 @@ a {
         11px 13px;
 
     border:
-        1px solid #ddd8da;
+        1px solid var(--color-border);
 
     border-radius:
         6px;
@@ -1628,10 +1708,10 @@ a {
     outline: none;
 
     background:
-        rgba(255, 255, 255, 0.85);
+        var(--color-surface);
 
     color:
-        var(--ink);
+        var(--color-text);
 
     font: inherit;
 
@@ -1645,19 +1725,19 @@ a {
 
 .application-form input::placeholder {
     color:
-        #aaa5a8;
+        var(--color-muted);
 }
 
 .application-form input:focus,
 .application-form select:focus {
     border-color:
-        var(--maroon);
+        var(--color-primary);
 
     background:
         #ffffff;
 
     box-shadow:
-        0 0 0 3px rgba(143, 0, 40, 0.08);
+        0 0 0 3px rgba(16, 6, 159, 0.16);
 }
 
 
@@ -1687,7 +1767,7 @@ a {
         4px;
 
     background:
-        var(--maroon);
+        var(--color-primary);
 
     color:
         #ffffff;
@@ -1707,7 +1787,7 @@ a {
         -2px;
 
     color:
-        var(--muted);
+        var(--color-muted);
 
     font-size:
         10px;
@@ -1732,12 +1812,12 @@ a {
         6px;
 
     background:
-        #f9eff2;
+        var(--color-accent-soft);
 }
 
 .document-notice strong {
     color:
-        var(--maroon);
+        var(--color-primary);
 
     font-size:
         12px;
@@ -1748,7 +1828,7 @@ a {
         5px 0;
 
     color:
-        var(--ink);
+        var(--color-text);
 
     font-size:
         11px;
@@ -1756,7 +1836,7 @@ a {
 
 .document-notice small {
     color:
-        var(--muted);
+        var(--color-muted);
 
     font-size:
         10px;
@@ -1786,7 +1866,7 @@ a {
         0 auto 18px;
 
     color:
-        var(--muted);
+        var(--color-muted);
 
     font-size:
         10px;
@@ -1819,10 +1899,10 @@ a {
         9px;
 
     background:
-        var(--maroon);
+        var(--color-accent);
 
     color:
-        #ffffff;
+        var(--color-accent-contrast);
 
     font-size:
         12px;
@@ -1837,7 +1917,7 @@ a {
         pointer;
 
     box-shadow:
-        0 7px 18px rgba(143, 0, 40, 0.18);
+        0 7px 18px rgba(255, 105, 0, .30);
 
     transition:
         transform 0.2s ease,
@@ -1847,13 +1927,18 @@ a {
 
 .primary-button:hover {
     background:
-        var(--maroon-dark);
+        var(--color-accent-hover);
 
     transform:
         translateY(-1px);
 
     box-shadow:
-        0 10px 22px rgba(143, 0, 40, 0.23);
+        0 10px 22px rgba(255, 105, 0, .38);
+}
+
+.primary-button:focus-visible {
+    outline: 0;
+    box-shadow: var(--focus-ring-accent);
 }
 
 

@@ -1,0 +1,166 @@
+/* ==========================================================================
+   SNNHS SPORTSHUB — SHARED DESIGN SYSTEM
+   --------------------------------------------------------------------------
+   Single source of truth for every colour, radius and shadow token used by
+   the public website, the Admin Portal and the Athlete/Student Portal.
+
+   Loaded BEFORE portal.css / landing.css so that every downstream rule can
+   reference the semantic tokens below instead of hard-coded hex values.
+
+   Palette
+     Primary deep blue   #10069F   branding, navigation emphasis, selected
+     Vibrant orange      #FF6900   primary call-to-action, accents
+     White               #FFFFFF   cards, forms, tables, navigation surfaces
+     Light gray          #F5F6FA   page background
+     Dark navy           #17182B   primary text on light surfaces
+     Muted gray          #6B7280   secondary text and metadata
+     Light blue          #E8E7FF   subtle highlighted / selected backgrounds
+     Light orange        #FFF0E5   soft accent backgrounds, icon containers
+     Border gray         #E5E7EB   borders, dividers, outlines
+
+   Contrast notes (WCAG AA)
+     #10069F on #FFFFFF ................ 13.6:1  (white text on deep blue)
+     #FF6900 on #10069F ................  4.7:1  (orange text on deep blue)
+     #17182B on #FF6900 ................  6.2:1  (dark text on orange CTA)
+   ========================================================================== */
+
+:root {
+    /* ---- Brand: primary deep blue ------------------------------------- */
+    --color-primary: #10069F;
+    --color-primary-hover: #0C0480;
+    --color-primary-active: #080362;
+    --color-primary-soft: #E8E7FF;
+    --color-primary-border: #C9C6F7;
+    --color-primary-contrast: #FFFFFF;
+    /* ---- Brand: vibrant orange accent --------------------------------- */
+    --color-accent: #FF6900;
+    --color-accent-hover: #E05A00;
+    --color-accent-active: #C44F00;
+    --color-accent-soft: #FFF0E5;
+    --color-accent-border: #FFD2AF;
+    /* Dark navy reads 6.2:1 on #FF6900 — white only reaches 2.9:1. */
+    --color-accent-contrast: #17182B;
+
+    /* ---- Neutrals ------------------------------------------------------ */
+    --color-background: #F5F6FA;
+    --color-surface: #FFFFFF;
+    --color-surface-muted: #FAFBFD;
+    --color-surface-raised: #F2F4F7;
+    --color-text: #17182B;
+    --color-text-strong: #0E0F1C;
+    --color-muted: #6B7280;
+    --color-muted-strong: #4B5563;
+    --color-border: #E5E7EB;
+    --color-border-strong: #D3D7DE;
+
+    /* ---- Status (kept distinct from the brand colours) ----------------- */
+    --color-success: #177A42;
+    --color-success-soft: #DEF8E9;
+    --color-success-border: #A9E3C4;
+    --color-warning: #9B5B00;
+    --color-warning-hover: #7A4B00;
+    --color-warning-soft: #FFF4D6;
+    --color-warning-border: #F3D79A;
+    --color-danger: #B42318;
+    --color-danger-hover: #941B12;
+    --color-danger-soft: #FFE3E3;
+    --color-danger-border: #F2CCCE;
+    --color-info: #126A9A;
+    --color-info-soft: #E1F2FB;
+    --color-info-border: #A9D7EF;
+    --color-violet: #6A4CCA;
+    --color-violet-soft: #EFE8FF;
+
+    /* ---- Surfaces / elevation ------------------------------------------ */
+    --surface: rgba(255, 255, 255, .72);
+    --surface-strong: #FFFFFF;
+    --surface-sunken: #F5F6FA;
+    --canvas: #F5F6FA;
+
+    --shadow-xs: 0 1px 2px rgba(23, 24, 43, .05);
+    --shadow-sm: 0 2px 8px rgba(23, 24, 43, .06);
+    --shadow-md: 0 8px 24px rgba(23, 24, 43, .08);
+    --shadow-lg: 0 18px 48px rgba(23, 24, 43, .14);
+    --shadow-primary: 0 6px 16px rgba(16, 6, 159, .22);
+    --shadow-accent: 0 6px 16px rgba(255, 105, 0, .28);
+
+    /* ---- Radii (used consistently, not everything is heavily rounded) --- */
+    --radius-sm: 6px;
+    --radius-md: 8px;
+    --radius-lg: 10px;
+    --radius-xl: 14px;
+    --radius-pill: 999px;
+
+    /* ---- Focus ring ---------------------------------------------------- */
+    --focus-ring: 0 0 0 3px rgba(16, 6, 159, .28);
+    --focus-ring-accent: 0 0 0 3px rgba(255, 105, 0, .32);
+
+    color-scheme: light;
+}
+
+/* ==========================================================================
+   Dark theme
+   The portal supports a persisted dark mode (`data-theme="dark"` on <html>).
+   Primary blue and orange are lightened for legibility on dark surfaces.
+   ========================================================================== */
+
+html[data-theme="dark"] {
+    --color-primary: #8E88FF;
+    --color-primary-hover: #A5A0FF;
+    --color-primary-active: #B7B3FF;
+    --color-primary-soft: #241F45;
+    --color-primary-border: #3C3670;
+    --color-primary-contrast: #0B0B1F;
+
+    --color-accent: #FF8A3D;
+    --color-accent-hover: #FFA163;
+    --color-accent-active: #FFB183;
+    --color-accent-soft: rgba(255, 138, 61, .16);
+    --color-accent-border: rgba(255, 138, 61, .40);
+    --color-accent-contrast: #1A0D03;
+
+    --color-background: #101319;
+    --color-surface: #1B1F27;
+    --color-surface-muted: #161A21;
+    --color-surface-raised: #242833;
+    --color-text: #E9ECF1;
+    --color-text-strong: #FFFFFF;
+    --color-muted: #99A1AE;
+    --color-muted-strong: #B7BECC;
+    --color-border: #2B303A;
+    --color-border-strong: #3A3F49;
+
+    --color-success: #6FDCAC;
+    --color-success-soft: #1C3A2C;
+    --color-success-border: #2C5A44;
+    --color-warning: #E6C46A;
+    --color-warning-hover: #F0D489;
+    --color-warning-soft: #332C1C;
+    --color-warning-border: #5A4D2A;
+    --color-danger: #FBA5A5;
+    --color-danger-hover: #FFC4C4;
+    --color-danger-soft: #3B1F1F;
+    --color-danger-border: #5A2A2A;
+    --color-info: #8FC7E8;
+    --color-info-soft: #1E2F3D;
+    --color-info-border: #2F4B60;
+    --color-violet: #C3B0F0;
+    --color-violet-soft: #2C2547;
+
+    --surface: rgba(30, 33, 40, .78);
+    --surface-strong: #1B1F27;
+    --surface-sunken: #14171D;
+    --canvas: #101319;
+
+    --shadow-xs: 0 1px 2px rgba(0, 0, 0, .40);
+    --shadow-sm: 0 2px 8px rgba(0, 0, 0, .45);
+    --shadow-md: 0 8px 24px rgba(0, 0, 0, .50);
+    --shadow-lg: 0 18px 48px rgba(0, 0, 0, .60);
+    --shadow-primary: 0 6px 16px rgba(0, 0, 0, .45);
+    --shadow-accent: 0 6px 16px rgba(0, 0, 0, .45);
+
+    --focus-ring: 0 0 0 3px rgba(142, 136, 255, .40);
+    --focus-ring-accent: 0 0 0 3px rgba(255, 138, 61, .40);
+
+    color-scheme: dark;
+}

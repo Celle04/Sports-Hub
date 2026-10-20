@@ -1,10 +1,11 @@
-const CACHE_NAME = 'snnhs-sportshub-v2';
+const CACHE_NAME = 'snnhs-sportshub-v3';
 const APP_SHELL = [
     '/',
     '/login',
     '/dashboard',
     '/student/dashboard',
     '/admin/calendar',
+    '/css/theme.css',
     '/css/landing.css',
     '/css/portal.css',
     '/css/sportshub.css',

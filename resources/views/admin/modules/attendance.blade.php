@@ -16,143 +16,357 @@
 	];
 @endphp
 
-<div class="grid grid-4">
-	<div class="card stat"><small>Today's Sessions</small><strong>{{ $summary['todaySessions'] ?? 0 }}</strong><small class="meta">{{ \Illuminate\Support\Carbon::parse($summary['date'] ?? today())->format('M j, Y') }}</small></div>
-	<div class="card stat"><small>Open Sessions</small><strong>{{ $summary['openSessions'] ?? 0 }}</strong><small class="meta">Athletes can check in</small></div>
-	<div class="card stat"><small>Present Today</small><strong>{{ $summary['presentToday'] ?? 0 }}</strong><small class="meta">{{ $summary['lateToday'] ?? 0 }} late</small></div>
-	<div class="card stat"><small>Pending Today</small><strong>{{ $summary['pendingToday'] ?? 0 }}</strong><small class="meta">Awaiting check-in</small></div>
-</div>
+<!-- Page header ------------------------------------------------------------- -->
+<header class="attendance-page-head">
+	<div class="attendance-page-head-copy">
+		<span class="attendance-page-kicker">Admin &middot; Attendance</span>
+		<h1 class="attendance-page-title">Attendance Management</h1>
+		<p class="attendance-page-subtitle">Track and manage athlete attendance across sports sessions.</p>
+	</div>
+</header>
 
-<div class="grid grid-4" style="margin-top:16px">
-	<div class="card stat"><small>Total Athletes</small><strong>{{ $summary['totalAthletes'] ?? 0 }}</strong><small class="meta">Registered student accounts</small></div>
-	<div class="card stat"><small>Absent</small><strong>{{ $summary['absentToday'] ?? 0 }}</strong><small class="meta">Manually marked</small></div>
-	<div class="card stat"><small>Attendance Rate</small><strong>{{ $summary['attendanceRate'] ?? 0 }}%</strong><small class="meta">Pending excluded</small></div>
-	<div class="card stat"><small>Sessions Listed</small><strong>{{ $sessions->count() }}</strong><small class="meta">Matching current filters</small></div>
-</div>
+@if (session('success'))
+	<div class="notice">{{ session('success') }}</div>
+@endif
 
-<section class="card" style="margin-top:18px;padding:18px;">
-	<div class="section-heading">
-		<div>
-			<h2>Create Attendance Session</h2>
-			<p class="meta">Choose the sport. Athletes are assigned automatically from their assigned sport. There is no manual student selection.</p>
+@if ($errors->any())
+	<div class="notice notice-error">Please correct the highlighted form fields.</div>
+@endif
+
+<!-- Summary metrics --------------------------------------------------------- -->
+<section class="attendance-summary" aria-label="Attendance summary">
+	<div class="attendance-summary-kpis">
+		<div class="attendance-kpi-card">
+			<div class="attendance-kpi-icon"><svg aria-hidden="true"><use href="#icon-calendar"></use></svg></div>
+			<div class="attendance-kpi-body">
+				<span class="attendance-kpi-label">Today&rsquo;s Sessions</span>
+				<strong class="attendance-kpi-value">{{ $summary['todaySessions'] ?? 0 }}</strong>
+			</div>
+		</div>
+		<div class="attendance-kpi-card">
+			<div class="attendance-kpi-icon"><svg aria-hidden="true"><use href="#icon-clipboard"></use></svg></div>
+			<div class="attendance-kpi-body">
+				<span class="attendance-kpi-label">Open Sessions</span>
+				<strong class="attendance-kpi-value">{{ $summary['openSessions'] ?? 0 }}</strong>
+			</div>
+		</div>
+		<div class="attendance-kpi-card">
+			<div class="attendance-kpi-icon"><svg aria-hidden="true"><use href="#icon-user"></use></svg></div>
+			<div class="attendance-kpi-body">
+				<span class="attendance-kpi-label">Present Today</span>
+				<strong class="attendance-kpi-value">{{ $summary['presentToday'] ?? 0 }}</strong>
+			</div>
+		</div>
+		<div class="attendance-kpi-card">
+			<div class="attendance-kpi-icon"><svg aria-hidden="true"><use href="#icon-bell"></use></svg></div>
+			<div class="attendance-kpi-body">
+				<span class="attendance-kpi-label">Pending Today</span>
+				<strong class="attendance-kpi-value">{{ $summary['pendingToday'] ?? 0 }}</strong>
+			</div>
+		</div>
+		<div class="attendance-kpi-card">
+			<div class="attendance-kpi-icon"><svg aria-hidden="true"><use href="#icon-users"></use></svg></div>
+			<div class="attendance-kpi-body">
+				<span class="attendance-kpi-label">Total Athletes</span>
+				<strong class="attendance-kpi-value">{{ $summary['totalAthletes'] ?? 0 }}</strong>
+			</div>
+		</div>
+		<div class="attendance-kpi-card">
+			<div class="attendance-kpi-icon"><svg aria-hidden="true"><use href="#icon-x"></use></svg></div>
+			<div class="attendance-kpi-body">
+				<span class="attendance-kpi-label">Absent</span>
+				<strong class="attendance-kpi-value">{{ $summary['absentToday'] ?? 0 }}</strong>
+			</div>
+		</div>
+		<div class="attendance-kpi-card">
+			<div class="attendance-kpi-icon"><svg aria-hidden="true"><use href="#icon-chart"></use></svg></div>
+			<div class="attendance-kpi-body">
+				<span class="attendance-kpi-label">Attendance Rate</span>
+				<strong class="attendance-kpi-value">{{ $summary['attendanceRate'] ?? 0 }}%</strong>
+			</div>
+		</div>
+		<div class="attendance-kpi-card">
+			<div class="attendance-kpi-icon"><svg aria-hidden="true"><use href="#icon-file"></use></svg></div>
+			<div class="attendance-kpi-body">
+				<span class="attendance-kpi-label">Sessions Listed</span>
+				<strong class="attendance-kpi-value">{{ $sessions->count() }}</strong>
+			</div>
 		</div>
 	</div>
+</section>
 
+<!-- Create attendance session form ------------------------------------------ -->
+<section class="attendance-form-card" id="create-session" aria-labelledby="create-session-heading">
 	<form method="POST" action="{{ route('admin.attendance.sessions.store') }}">
 		@csrf
-		<div class="form-grid">
-			<div class="form-group"><label>Attendance Title</label><input class="form-control" name="title" placeholder="Session title" required></div>
-			<div class="form-group">
-				<label for="attendance-sport">Sport</label>
-				<select class="form-control" id="attendance-sport" name="sport_id">
-					<option value="">All Sports (every active athlete)</option>
-					@foreach ($sports ?? [] as $sport)
-						<option value="{{ $sport->id }}">{{ $sport->name }} ({{ $sport->athletes_count ?? 0 }} athletes)</option>
-					@endforeach
-				</select>
-				<small class="meta"><label for="sport-required" style="display:inline;font-weight:400"><input type="checkbox" id="sport-required" name="sport_required" value="1" style="width:auto;margin-right:6px">Require a specific sport</label></small>
-				@error('sport_id')<small class="form-error">{{ $message }}</small>@enderror
+
+		<div class="attendance-form-grid">
+				<!-- Session information -->
+				<div class="attendance-form-group">
+					<div class="attendance-form-group-head">
+						<svg class="attendance-form-group-icon" aria-hidden="true"><use href="#icon-clipboard"></use></svg>
+						<span class="attendance-form-group-title">Session information</span>
+					</div>
+					<div class="attendance-form-fields">
+						<div class="attendance-form-field">
+							<label>Attendance Title</label>
+							<input class="form-control" name="title" placeholder="Session title" required>
+						</div>
+						<div class="attendance-form-field">
+							<label for="attendance-sport">Sport</label>
+							<select class="form-control" id="attendance-sport" name="sport_id">
+								<option value="">All Sports (every active athlete)</option>
+								@foreach ($sports ?? [] as $sport)
+									<option value="{{ $sport->id }}">{{ $sport->name }} ({{ $sport->athletes_count ?? 0 }} athletes)</option>
+								@endforeach
+							</select>
+							<small class="form-hint"><label for="sport-required" style="display:inline;font-weight:400"><input type="checkbox" id="sport-required" name="sport_required" value="1" style="width:auto;margin-right:6px">Require a specific sport</label></small>
+							@error('sport_id')<small class="form-error">{{ $message }}</small>@enderror
+						</div>
+						<div class="attendance-form-field">
+							<label>Date</label>
+							<input class="form-control" type="date" name="session_date" value="{{ today()->toDateString() }}" required>
+						</div>
+						<div class="attendance-form-field">
+							<label>Status</label>
+							<select class="form-control" name="status">
+								<option value="Open">Open</option>
+								<option value="Closed">Closed</option>
+								<option value="Cancelled">Cancelled</option>
+							</select>
+						</div>
+					</div>
+				</div>
+
+				<!-- Schedule and location -->
+				<div class="attendance-form-group">
+					<div class="attendance-form-group-head">
+						<svg class="attendance-form-group-icon" aria-hidden="true"><use href="#icon-calendar"></use></svg>
+						<span class="attendance-form-group-title">Schedule and location</span>
+					</div>
+					<div class="attendance-form-fields">
+						<div class="attendance-form-field">
+							<label>Start Time</label>
+							<input class="form-control" type="time" name="start_time">
+						</div>
+						<div class="attendance-form-field">
+							<label>End Time</label>
+							<input class="form-control" type="time" name="end_time">
+						</div>
+						<div class="attendance-form-field">
+							<label>Late Grace (minutes)</label>
+							<input class="form-control" type="number" name="late_grace_minutes" min="0" max="120" value="{{ config('attendance.late_grace_minutes') }}">
+						</div>
+						<div class="attendance-form-field">
+							<label>Venue</label>
+							<input class="form-control" name="venue" placeholder="SNNHS Gymnasium">
+						</div>
+					</div>
+				</div>
+
+				<!-- Additional information -->
+				<div class="attendance-form-group attendance-form-group-full">
+					<div class="attendance-form-group-head">
+						<svg class="attendance-form-group-icon" aria-hidden="true"><use href="#icon-file"></use></svg>
+						<span class="attendance-form-group-title">Additional information</span>
+					</div>
+					<div class="attendance-form-fields">
+						<div class="attendance-form-field attendance-form-field-full">
+							<label>Description</label>
+							<textarea class="form-control" name="description" rows="2" placeholder="Regular basketball training session"></textarea>
+						</div>
+					</div>
+				</div>
 			</div>
-			<div class="form-group"><label>Date</label><input class="form-control" type="date" name="session_date" value="{{ today()->toDateString() }}" required></div>
-			<div class="form-group"><label>Status</label><select class="form-control" name="status"><option value="Open">Open</option><option value="Closed">Closed</option><option value="Cancelled">Cancelled</option></select></div>
-			<div class="form-group"><label>Start Time</label><input class="form-control" type="time" name="start_time"></div>
-			<div class="form-group"><label>End Time</label><input class="form-control" type="time" name="end_time"></div>
-			<div class="form-group"><label>Late Grace (minutes)</label><input class="form-control" type="number" name="late_grace_minutes" min="0" max="120" value="{{ config('attendance.late_grace_minutes') }}"></div>
-			<div class="form-group"><label>Venue</label><input class="form-control" name="venue" placeholder="SNNHS Gymnasium"></div>
+
+			<div class="attendance-form-actions">
+				<button class="button" type="submit">Create Attendance Session</button>
+			</div>
+
+			@foreach (['title', 'session_date', 'start_time', 'end_time', 'venue', 'status'] as $field) @error($field)<small class="form-error">{{ $message }}</small>@enderror @endforeach
+		</form>
+</section>
+
+<!-- Filters ----------------------------------------------------------------- -->
+<section class="attendance-filters-card" aria-label="Filters">
+	<header class="attendance-filters-head">
+		<svg class="attendance-filters-icon" aria-hidden="true"><use href="#icon-filter"></use></svg>
+		<div>
+			<span class="attendance-filters-kicker">Filters</span>
+			<h2 class="attendance-filters-title">Refine sessions</h2>
 		</div>
-		<div class="form-group" style="margin-top:12px"><label>Description</label><textarea class="form-control" name="description" rows="2" placeholder="Regular basketball training session"></textarea></div>
-		<button class="button" type="submit">Create Attendance Session</button>
+	</header>
+	<form method="GET" action="{{ route('admin.attendance') }}" class="attendance-filters-form">
+		<div class="attendance-filters-grid">
+			<div class="attendance-filter-field">
+				<label>Sport</label>
+				<select class="form-control" name="sport_id">
+					<option value="">All Sports</option>
+					@foreach ($sports ?? [] as $sport)<option value="{{ $sport->id }}" @selected(($filters['sport_id'] ?? null) == $sport->id)>{{ $sport->name }}</option>@endforeach
+				</select>
+			</div>
+			<div class="attendance-filter-field">
+				<label>Date</label>
+				<input class="form-control" type="date" name="date" value="{{ $filters['date'] ?? '' }}">
+			</div>
+			<div class="attendance-filter-field">
+				<label>Session Status</label>
+				<select class="form-control" name="status">
+					<option value="">All Status</option>
+					@foreach ($statuses as $status)<option value="{{ $status }}" @selected(($filters['status'] ?? null) === $status)>{{ $status }}</option>@endforeach
+				</select>
+			</div>
+			<div class="attendance-filter-field">
+				<label>Record Status</label>
+				<select class="form-control" name="record_status">
+					<option value="">All Record Status</option>
+					<option value="Pending" @selected(($filters['record_status'] ?? null) === 'Pending')>Pending</option>
+					@foreach ($recordStatuses as $status)<option value="{{ $status }}" @selected(($filters['record_status'] ?? null) === $status)>{{ $status }}</option>@endforeach
+				</select>
+			</div>
+			<div class="attendance-filter-field attendance-filter-field-full">
+				<label>Search</label>
+				<input class="form-control" type="search" name="search" placeholder="Search session or athlete..." value="{{ $filters['search'] ?? '' }}">
+			</div>
+		</div>
+		<div class="attendance-filter-actions">
+			<button class="button" type="submit">Apply</button>
+			<a class="button button-muted" href="{{ route('admin.attendance') }}">Reset</a>
+		</div>
 	</form>
-	@foreach (['title', 'session_date', 'start_time', 'end_time', 'venue', 'status'] as $field) @error($field)<small class="form-error">{{ $message }}</small>@enderror @endforeach
 </section>
 
-<section class="card" style="margin-top:18px;padding:18px;">
-	<h2>Filters</h2>
-	<form method="GET" action="{{ route('admin.attendance') }}" class="filters">
-		<select class="form-control" name="sport_id">
-			<option value="">All Sports</option>
-			@foreach ($sports ?? [] as $sport)<option value="{{ $sport->id }}" @selected(($filters['sport_id'] ?? null) == $sport->id)>{{ $sport->name }}</option>@endforeach
-		</select>
-		<input class="form-control" type="date" name="date" value="{{ $filters['date'] ?? '' }}">
-		<select class="form-control" name="status">
-			<option value="">All Status</option>
-			@foreach ($statuses as $status)<option value="{{ $status }}" @selected(($filters['status'] ?? null) === $status)>{{ $status }}</option>@endforeach
-		</select>
-		<select class="form-control" name="record_status">
-			<option value="">All Record Status</option>
-			<option value="Pending" @selected(($filters['record_status'] ?? null) === 'Pending')>Pending</option>
-			@foreach ($recordStatuses as $status)<option value="{{ $status }}" @selected(($filters['record_status'] ?? null) === $status)>{{ $status }}</option>@endforeach
-		</select>
-		<input class="form-control" type="search" name="search" placeholder="Search session or athlete..." value="{{ $filters['search'] ?? '' }}">
-		<button class="button" type="submit">Apply</button>
-		<a class="button button-muted" href="{{ route('admin.attendance') }}">Reset</a>
-	</form>
-</section>
+<!-- Attendance sessions table ----------------------------------------------- >
+<section class="attendance-sessions-card" aria-label="Attendance sessions">
+	<header class="attendance-sessions-head">
+		<div>
+			<span class="attendance-sessions-kicker">Sessions</span>
+			<h2 class="attendance-sessions-title">Attendance Sessions</h2>
+			<p class="attendance-sessions-subtitle">Sessions reference a sport; rosters follow the athlete sport assignment.</p>
+		</div>
+	</header>
 
-<section class="card" style="margin-top:18px;padding:18px;">
-	<div class="section-heading">
-		<div><h2>Attendance Sessions</h2><p class="meta">Sessions reference a sport; rosters follow the athlete sport assignment.</p></div>
-	</div>
-	<div class="table-wrap" style="margin-top:12px">
-		<table class="data-table">
-			<thead><tr><th>Date</th><th>Session</th><th>Sport</th><th>Venue</th><th>Total Athletes</th><th>Present</th><th>Pending</th><th>Status</th><th>Actions</th></tr></thead>
+	<div class="table-wrap attendance-table-wrap">
+		<table class="data-table attendance-table">
+			<thead>
+				<tr>
+					<th style="width:16%">Date &amp; Time</th>
+					<th style="width:20%">Session</th>
+					<th style="width:12%">Sport</th>
+					<th style="width:14%">Venue</th>
+					<th style="width:8%" class="num">Total</th>
+					<th style="width:8%" class="num">Present</th>
+					<th style="width:8%" class="num">Pending</th>
+					<th style="width:10%">Status</th>
+					<th style="width:12%" class="actions-col">Actions</th>
+				</tr>
+			</thead>
 			<tbody>
 				@forelse ($sessions as $session)
 					@php($counts = $tally($session))
 					<tr>
-						<td>{{ $session->session_date?->format('M j, Y') }}<br><small class="meta">{{ $session->start_time ? \Illuminate\Support\Carbon::parse($session->start_time)->format('g:i A') : 'Time not set' }}{{ $session->end_time ? ' - '.\Illuminate\Support\Carbon::parse($session->end_time)->format('g:i A') : '' }}</small></td>
-						<td><strong>{{ $session->displayName() }}</strong></td>
-						<td>{{ $session->effectiveSportName() }}</td>
-						<td>{{ $session->venue ?: '--' }}</td>
-						<td>{{ $counts['total'] }}</td>
-						<td>{{ $counts['present'] }}@if ($counts['late'])<small class="meta">+{{ $counts['late'] }} late</small>@endif</td>
-						<td>{{ $counts['pending'] }}</td>
-						<td><span class="badge {{ $session->status === 'Open' ? 'status-present' : ($session->status === 'Cancelled' ? 'status-absent' : 'status-pending') }}">{{ $session->status }}</span></td>
 						<td>
-							<a class="text-link" href="{{ route('admin.attendance', array_merge(request()->query(), ['session_id' => $session->id])) }}">View Attendance</a>
-							@if ($session->status !== 'Open' && $session->status !== 'Cancelled')
-								<form method="POST" action="{{ route('admin.attendance.sessions.open', $session) }}" style="display:inline">@csrf @method('PATCH')<button class="text-link" type="submit">Open</button></form>
-							@elseif ($session->status === 'Open')
-								<form method="POST" action="{{ route('admin.attendance.sessions.close', $session) }}" style="display:inline">@csrf @method('PATCH')<button class="text-link" type="submit">Close Attendance</button></form>
-							@endif
-							<form method="POST" action="{{ route('admin.attendance.sessions.sync', $session) }}" style="display:inline">@csrf @method('PATCH')<button class="text-link" type="submit">Sync Roster</button></form>
+							<strong>{{ $session->session_date?->format('M j, Y') }}</strong><br>
+							<span class="attendance-session-time">
+								{{ $session->start_time ? \Illuminate\Support\Carbon::parse($session->start_time)->format('g:i A') : 'Time not set' }}
+								{{ $session->end_time ? ' &middot; '.\Illuminate\Support\Carbon::parse($session->end_time)->format('g:i A') : '' }}
+							</span>
+						</td>
+						<td>
+							<strong class="attendance-session-title">{{ $session->displayName() }}</strong>
+						</td>
+						<td>{{ $session->effectiveSportName() }}</td>
+						<td>{{ $session->venue ?: '&ndash;' }}</td>
+						<td class="num">{{ $counts['total'] }}</td>
+						<td class="num">{{ $counts['present'] }}@if ($counts['late'])<span class="attendance-session-late">+{{ $counts['late'] }} late</span>@endif</td>
+						<td class="num">{{ $counts['pending'] }}</td>
+						<td>
+							<span class="badge {{ $session->status === 'Open' ? 'status-present' : ($session->status === 'Cancelled' ? 'status-absent' : 'status-pending') }}">{{ $session->status }}</span>
+						</td>
+						<td class="actions-col">
+							<div class="attendance-actions">
+								<a class="attendance-action view" href="{{ route('admin.attendance', array_merge(request()->query(), ['session_id' => $session->id])) }}">
+									<svg class="attendance-action-icon" aria-hidden="true"><use href="#icon-eye"></use></svg>
+									View
+								</a>
+								<form method="POST" action="{{ route('admin.attendance.sessions.sync', $session) }}" @csrf @method('PATCH')>
+									<button class="attendance-action sync" type="submit">
+										<svg class="attendance-action-icon" aria-hidden="true"><use href="#icon-clipboard"></use></svg>
+										Sync Roster
+									</button>
+								</form>
+								@if ($session->status === 'Open')
+									<form method="POST" action="{{ route('admin.attendance.sessions.close', $session) }}" @csrf @method('PATCH')>
+										<button class="attendance-action close" type="submit">Close Attendance</button>
+									</form>
+								@elseif ($session->status !== 'Open' && $session->status !== 'Cancelled')
+									<form method="POST" action="{{ route('admin.attendance.sessions.open', $session) }}" @csrf @method('PATCH')>
+										<button class="attendance-action view" type="submit">Open</button>
+									</form>
+								@endif
+								<a class="attendance-action export" href="{{ route('admin.attendance.sessions.export', $session) }}">
+									<svg class="attendance-action-icon" aria-hidden="true"><use href="#icon-download"></use></svg>
+									Export CSV
+								</a>
+							</div>
 						</td>
 					</tr>
 				@empty
-					<tr><td colspan="9" class="empty-cell">No attendance sessions match your filters.</td></tr>
+					<tr>
+						<td colspan="9" class="empty-cell">No attendance sessions match your filters.</td>
+					</tr>
 				@endforelse
 			</tbody>
 		</table>
 	</div>
 </section>
 
+<!-- Selected session detail ------------------------------------------------- -->
 @if ($selected)
-	<section class="card" style="margin-top:18px;padding:18px;">
-		<div class="section-heading">
-			<div>
-				<h2>{{ $selected->displayName() }}</h2>
-				<p class="meta">
+	<section class="attendance-session-detail-card" aria-labelledby="session-detail-heading">
+		<header class="attendance-session-detail-head">
+			<div class="attendance-session-detail-copy">
+				<h2 class="attendance-session-detail-title" id="session-detail-heading">{{ $selected->displayName() }}</h2>
+				<p class="attendance-session-detail-meta">
 					{{ $selected->session_date?->format('F j, Y') }} &middot;
 					{{ $selected->start_time ? \Illuminate\Support\Carbon::parse($selected->start_time)->format('g:i A') : 'Time not set' }}
 					@if ($selected->end_time) - {{ \Illuminate\Support\Carbon::parse($selected->end_time)->format('g:i A') }} @endif
 					&middot; {{ $selected->venue ?: 'Venue not set' }} &middot; {{ $selected->effectiveSportName() }}
 				</p>
-				@if ($selected->description)<p class="meta">{{ $selected->description }}</p>@endif
+				@if ($selected->description)<p class="attendance-session-detail-desc">{{ $selected->description }}</p>@endif
 			</div>
 			<span class="badge {{ $selected->status === 'Open' ? 'status-present' : ($selected->status === 'Cancelled' ? 'status-absent' : 'status-pending') }}">{{ $selected->status }}</span>
-		</div>
+		</header>
 
-		<div class="grid grid-4" style="margin-top:12px">
+		<div class="attendance-session-detail-stats">
 			@php($selectedTally = ['total' => $records->count(), 'present' => $records->where('status', 'Present')->count(), 'late' => $records->where('status', 'Late')->count(), 'pending' => $records->where('status', 'Pending')->count(), 'absent' => $records->where('status', 'Absent')->count(), 'excused' => $records->where('status', 'Excused')->count()])
-			<div class="card stat"><small>Total</small><strong>{{ $selectedTally['total'] }}</strong></div>
-			<div class="card stat"><small>Present</small><strong>{{ $selectedTally['present'] }}</strong></div>
-			<div class="card stat"><small>Late</small><strong>{{ $selectedTally['late'] }}</strong></div>
-			<div class="card stat"><small>Pending</small><strong>{{ $selectedTally['pending'] }}</strong></div>
-			<div class="card stat"><small>Absent</small><strong>{{ $selectedTally['absent'] }}</strong></div>
-			<div class="card stat"><small>Excused</small><strong>{{ $selectedTally['excused'] }}</strong></div>
+			<div class="attendance-session-stat">
+				<span class="attendance-session-stat-label">Total</span>
+				<strong class="attendance-session-stat-value">{{ $selectedTally['total'] }}</strong>
+			</div>
+			<div class="attendance-session-stat">
+				<span class="attendance-session-stat-label">Present</span>
+				<strong class="attendance-session-stat-value">{{ $selectedTally['present'] }}</strong>
+			</div>
+			<div class="attendance-session-stat">
+				<span class="attendance-session-stat-label">Late</span>
+				<strong class="attendance-session-stat-value">{{ $selectedTally['late'] }}</strong>
+			</div>
+			<div class="attendance-session-stat">
+				<span class="attendance-session-stat-label">Pending</span>
+				<strong class="attendance-session-stat-value">{{ $selectedTally['pending'] }}</strong>
+			</div>
+			<div class="attendance-session-stat">
+				<span class="attendance-session-stat-label">Absent</span>
+				<strong class="attendance-session-stat-value">{{ $selectedTally['absent'] }}</strong>
+			</div>
+			<div class="attendance-session-stat">
+				<span class="attendance-session-stat-label">Excused</span>
+				<strong class="attendance-session-stat-value">{{ $selectedTally['excused'] }}</strong>
+			</div>
 		</div>
 
-		<div class="event-actions" style="margin-top:14px">
+		<div class="attendance-session-detail-actions">
 			@if ($selected->status === 'Open')
 				<form method="POST" action="{{ route('admin.attendance.sessions.close', $selected) }}">@csrf @method('PATCH')<button class="button" type="submit">Close Attendance</button></form>
 			@elseif ($selected->status === 'Closed')
@@ -161,13 +375,23 @@
 			@if ($selected->status !== 'Cancelled')
 				<form method="POST" action="{{ route('admin.attendance.sessions.cancel', $selected) }}">@csrf @method('PATCH')<button class="button button-muted" type="submit">Cancel Session</button></form>
 			@endif
-			<a class="button button-secondary" href="{{ route('admin.attendance.sessions.export', $selected) }}">Export Report</a>
+			<a class="button button-secondary" href="{{ route('admin.attendance.sessions.export.pdf', $selected) }}">Download PDF</a>
+			<a class="button button-secondary" href="{{ route('admin.attendance.sessions.export', $selected) }}">Export CSV</a>
 			<button class="button button-danger" type="button" data-confirm-dialog data-confirm-title="Delete Attendance Session?" data-confirm-message="Delete this attendance session and all of its records?" data-confirm-label="Delete Session" data-confirm-method="DELETE" data-confirm-url="{{ route('admin.attendance.sessions.destroy', $selected) }}">Delete Session</button>
 		</div>
 
-		<div class="table-wrap" style="margin-top:16px">
-			<table class="data-table">
-				<thead><tr><th>Athlete</th><th>Student ID</th><th>Sport</th><th>Status</th><th>Check-in</th><th>Correct</th></tr></thead>
+		<div class="table-wrap attendance-roster-wrap">
+			<table class="data-table attendance-roster-table">
+				<thead>
+					<tr>
+						<th style="width:26%">Athlete</th>
+						<th style="width:14%">Student ID</th>
+						<th style="width:14%">Sport</th>
+						<th style="width:14%">Status</th>
+						<th style="width:14%">Check-in</th>
+						<th>Correct</th>
+					</tr>
+				</thead>
 				<tbody>
 					@forelse ($records as $record)
 						<tr>
@@ -175,7 +399,7 @@
 							<td>{{ $record->athlete?->student_id ?: 'No ID' }}</td>
 							<td>{{ $record->athlete?->sport?->name ?? 'Unassigned' }}</td>
 							<td><span class="badge {{ $record->status === 'Present' ? 'status-present' : ($record->status === 'Absent' ? 'status-absent' : ($record->status === 'Pending' ? 'status-pending' : 'status-cleared')) }}">{{ $record->status }}</span></td>
-							<td>{{ $record->check_in_time?->format('g:i A') ?? '--' }}</td>
+							<td>{{ $record->check_in_time?->format('g:i A') ?? '&ndash;' }}</td>
 							<td>
 								<form method="POST" action="{{ route('admin.attendance.records.update', $record) }}" style="display:flex;gap:6px;align-items:center">
 									@csrf @method('PUT')
@@ -188,7 +412,7 @@
 							</td>
 						</tr>
 					@empty
-						<tr><td colspan="6" class="empty-cell">No athletes are assigned to this session's sport yet.</td></tr>
+						<tr><td colspan="6" class="empty-cell">No athletes are assigned to this session&rsquo;s sport yet.</td></tr>
 					@endforelse
 				</tbody>
 			</table>
@@ -196,12 +420,29 @@
 	</section>
 @endif
 
-<section class="card" style="margin-top:18px;padding:18px;">
-	<h2>Attendance History</h2>
-	<p class="meta">All session and event attendance records matching your filters.</p>
-	<div class="table-wrap" style="margin-top:12px">
-		<table class="data-table">
-			<thead><tr><th>Date</th><th>Session</th><th>Athlete</th><th>Sport</th><th>Venue</th><th>Status</th><th>Check-in</th></tr></thead>
+<!-- Attendance history ------------------------------------------------------ >
+<section class="attendance-history-card" aria-label="Attendance history">
+	<header class="attendance-history-head">
+		<div>
+			<span class="attendance-history-kicker">History</span>
+			<h2 class="attendance-history-title">Attendance History</h2>
+			<p class="attendance-history-subtitle">All session and event attendance records matching your filters.</p>
+		</div>
+	</header>
+
+	<div class="table-wrap attendance-history-wrap">
+		<table class="data-table attendance-history-table">
+			<thead>
+				<tr>
+					<th style="width:14%">Date</th>
+					<th style="width:22%">Session</th>
+					<th style="width:20%">Athlete</th>
+					<th style="width:14%">Sport</th>
+					<th style="width:16%">Venue</th>
+					<th style="width:12%">Status</th>
+					<th style="width:12%">Check-in</th>
+				</tr>
+			</thead>
 			<tbody>
 				@forelse ($attendance ?? [] as $row)
 					<tr>
@@ -209,9 +450,9 @@
 						<td>{{ $row->displayName() }}</td>
 						<td>{{ $row->athlete?->name }}</td>
 						<td>{{ $row->sportName() }}</td>
-						<td>{{ $row->venue() ?: '--' }}</td>
+						<td>{{ $row->venue() ?: '&ndash;' }}</td>
 						<td><span class="badge">{{ $row->status }}</span></td>
-						<td>{{ $row->check_in_time?->format('g:i A') ?? '--' }}</td>
+						<td>{{ $row->check_in_time?->format('g:i A') ?? '&ndash;' }}</td>
 					</tr>
 				@empty
 					<tr><td colspan="7" class="empty-cell">No attendance records match your filters.</td></tr>
@@ -219,4 +460,10 @@
 			</tbody>
 		</table>
 	</div>
+
+	@if ($attendance instanceof \Illuminate\Contracts\Pagination\LengthAwarePaginator && $attendance->total() > 0)
+		<div class="attendance-history-pagination">
+			{{ $attendance->appends(request()->except('history_page'))->links() }}
+		</div>
+	@endif
 </section>

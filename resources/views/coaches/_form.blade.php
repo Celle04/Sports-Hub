@@ -2,7 +2,7 @@
     <div>
         <span class="admin-dashboard-kicker">COACH RECORD</span>
         <h2>Coach Details</h2>
-        <p class="meta">Contact details, specialty and the sport this coach manages.</p>
+        <p class="meta">Contact details, specialty and the program this coach is assigned to.</p>
     </div>
 </div>
 
@@ -30,12 +30,13 @@
     </div>
     <div class="form-group">
         <label for="sport_id">Assigned Sport</label>
-        <select class="form-control @error('sport_id') is-invalid @enderror" id="sport_id" name="sport_id" required>
-            <option value="">Select sport</option>
-            @foreach ($sports as $sport)
+        <select class="form-control @error('sport_id') is-invalid @enderror" id="sport_id" name="sport_id">
+            <option value="">Unassigned</option>
+            @foreach ($sports ?? [] as $sport)
                 <option value="{{ $sport->id }}" @selected((string) old('sport_id', $coach->sport_id ?? '') === (string) $sport->id)>{{ $sport->name }}</option>
             @endforeach
         </select>
+        <small class="form-hint">The program this coach handles. Coaches can also be assigned from the Sports Management module.</small>
         @error('sport_id')<small class="form-error">{{ $message }}</small>@enderror
     </div>
     <div class="form-group">

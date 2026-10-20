@@ -1,6 +1,6 @@
 :root {
     font-family: Arial, Helvetica, sans-serif;
-    color: #1d1d28;
+    color: #17182B;
 }
 
 /* Base layout */
@@ -10,7 +10,7 @@
 
 body {
     margin: 0;
-    background: linear-gradient(135deg, #fafafd 0%, #f2eef9 55%, #e9edf5 100%);
+    background: linear-gradient(135deg, #F5F6FA 0%, #F5F6FA 55%, #F5F6FA 100%);
     background-attachment: fixed;
 }
 
@@ -26,7 +26,7 @@ body {
     width: 200px;
     flex: 0 0 220px;
     color: #fff;
-    background: linear-gradient(180deg, #3e2fab, #2a1d83);
+    background: linear-gradient(180deg, #10069F, #0d057f);
 }
 
 .brand {
@@ -35,7 +35,7 @@ body {
     align-items: center;
     gap: 12px;
     padding: 0 16px;
-    background: rgba(16, 10, 76, .2);
+    background: rgba(16, 6, 159, .2);
 }
 
 .brand-logo {
@@ -58,7 +58,7 @@ body {
 .brand small {
     display: block;
     margin-top: 4px;
-    color: #c7c2ff;
+    color: #A5A0FF;
     font-size: 10px;
 }
 
@@ -79,7 +79,7 @@ body {
 }
 
 .nav a.active {
-    background: #4d37d0;
+    background: #10069F;
     box-shadow: 0 3px 10px rgba(27, 16, 118, .22);
 }
 
@@ -111,7 +111,7 @@ h1 {
 .subtitle,
 .sub {
     margin: 6px 0 24px;
-    color: #777785;
+    color: #6B7280;
     font-size: 13px;
 }
 
@@ -133,8 +133,8 @@ h1 {
     padding: 0 16px;
     border: 0;
     border-radius: 4px;
-    background: #08021a;
-    color: #fff;
+    background: #FF6900;
+    color: #17182B;
     font-size: 12px;
     font-weight: 700;
     text-decoration: none;
@@ -152,7 +152,7 @@ h1 {
     position: relative;
     min-height: 108px;
     padding: 20px;
-    border: 1px solid #f0eff5;
+    border: 1px solid #E5E7EB;
     border-radius: 4px;
     background: rgba(255, 255, 255, .7);
     box-shadow: 0 8px 22px rgba(39, 29, 89, .08);
@@ -162,7 +162,7 @@ h1 {
 
 .stat-label,
 .stat small {
-    color: #85858f;
+    color: #6B7280;
     font-size: 12px;
 }
 
@@ -189,19 +189,19 @@ h1 {
 }
 
 .blue {
-    background: #1683f9;
+    background: #10069F;
 }
 
 .green {
-    background: #09bd59;
+    background: #177A42;
 }
 
 .purple {
-    background: #a03bea;
+    background: #6A4CCA;
 }
 
 .orange {
-    background: #f37020;
+    background: #FF6900;
 }
 
 /* Panels and events */
@@ -211,7 +211,7 @@ h1 {
     width: 100%;
     margin-top: 24px;
     padding: 20px;
-    border: 1px solid #f0eff5;
+    border: 1px solid #E5E7EB;
     border-radius: 4px;
     background: rgba(255, 255, 255, .7);
     box-shadow: 0 8px 22px rgba(39, 29, 89, .08);
@@ -232,7 +232,7 @@ h1 {
     grid-template-columns: 1fr auto;
     align-items: center;
     min-height: 58px;
-    border-top: 1px solid #f2f1f5;
+    border-top: 1px solid #E5E7EB;
 }
 
 .event:first-of-type {
@@ -246,12 +246,12 @@ h1 {
 
 .event-venue {
     margin-top: 3px;
-    color: #777785;
+    color: #6B7280;
     font-size: 11px;
 }
 
 .event-date {
-    color: #4c35d2;
+    color: #10069F;
     font-size: 11px;
     font-weight: 700;
 }
@@ -265,15 +265,15 @@ table {
 
 th {
     padding: 12px 8px;
-    color: #373742;
-    border-bottom: 1px solid #f0eff5;
+    color: #17182B;
+    border-bottom: 1px solid #E5E7EB;
     font-size: 11px;
     text-align: left;
 }
 
 td {
     padding: 14px 8px;
-    border-bottom: 1px solid #f3f2f6;
+    border-bottom: 1px solid #E5E7EB;
 }
 
 tbody tr:last-child td,
@@ -290,7 +290,7 @@ td:last-child {
 .actions {
     display: inline-flex;
     gap: 10px;
-    color: #36353e;
+    color: #17182B;
 }
 
 .actions a {
@@ -302,7 +302,7 @@ td:last-child {
 .status {
     padding: 4px 7px;
     border-radius: 3px;
-    background: #08021a;
+    background: #10069F;
     color: #fff;
     font-size: 10px;
     font-weight: 700;
@@ -315,8 +315,8 @@ td:last-child {
     align-items: flex-end;
     gap: 28px;
     padding: 10px 20px 22px;
-    border-top: 1px dashed #e8e7ed;
-    background: repeating-linear-gradient(to top, transparent 0, transparent 45px, #eeeeF3 46px);
+    border-top: 1px dashed #E5E7EB;
+    background: repeating-linear-gradient(to top, transparent 0, transparent 45px, #E5E7EB 46px);
 }
 
 .bar-item {
@@ -331,12 +331,12 @@ td:last-child {
 .column {
     width: 100%;
     max-width: 74px;
-    background: #5141e4;
+    background: #10069F;
 }
 
 .label {
     margin-top: 6px;
-    color: #74747d;
+    color: #6B7280;
     font-size: 11px;
 }
 

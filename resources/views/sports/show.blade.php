@@ -45,6 +45,7 @@
             <p>
                 <span class="badge sport-status-{{ strtolower($sport->status) }}">{{ $sport->status }}</span>
                 &middot; {{ $sport->classification }}
+                @if ($sport->gender)&middot; {{ $sport->gender }}@endif
                 @if ($createdAt)&middot; Added {{ $createdAt }}@endif
             </p>
         </div>
@@ -60,7 +61,9 @@
         </div>
         <div class="medical-fact-grid">
             <div class="medical-fact"><span>Classification</span><strong>{{ $sport->classification }}</strong></div>
+            <div class="medical-fact"><span>Gender</span><strong>{{ $sport->gender ?? 'Not set' }}</strong></div>
             <div class="medical-fact"><span>Status</span><strong>{{ $sport->status }}</strong></div>
+            <div class="medical-fact"><span>Assigned Coach</span><strong>{{ $sport->assignedCoach()?->name ?? 'Unassigned' }}</strong></div>
             <div class="medical-fact"><span>Date created</span><strong>{{ $createdAt ?? 'Not recorded' }}</strong></div>
             <div class="medical-fact"><span>Description</span><strong>{{ $sport->description }}</strong></div>
         </div>
@@ -121,12 +124,13 @@
                 <a class="text-link" href="{{ route('coaches.index') }}">View all</a>
             </div>
             @forelse ($sport->coaches as $coach)
-                <div class="related-row">
+                <a class="related-row" href="{{ route('coaches.show', $coach) }}">
                     <span>
                         <strong>{{ $coach->name }}</strong>
-                        <small>{{ $coach->specialty }}</small>
+                        <small>{{ $coach->specialty }}{{ $coach->coach_type ? ' &middot; '.$coach->coach_type : '' }}</small>
                     </span>
-                </div>
+                    <span class="badge coach-status-{{ strtolower($coach->status) }}">{{ $coach->status }}</span>
+                </a>
             @empty
                 <p class="empty-state">No coaches are assigned to this sport.</p>
             @endforelse

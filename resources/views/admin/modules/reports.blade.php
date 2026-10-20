@@ -99,7 +99,7 @@
 					</select>
 				</div>
 				<div class="form-group">
-					<label for="report-gender">Sex</label>
+					<label for="report-gender">Gender</label>
 					<select class="form-control" id="report-gender" name="gender">
 						<option value="">All</option>
 						@foreach (($options['genders'] ?? collect()) as $gender)

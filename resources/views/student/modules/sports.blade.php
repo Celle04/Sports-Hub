@@ -24,6 +24,9 @@
                     <span class="student-sport-classification">{{ $sport->classification ?? 'Sports program' }}</span>
                 </div>
                 <h3>{{ $sport->name }}</h3>
+                @if ($sport->gender)
+                    <span class="student-sport-gender">{{ $sport->gender }}</span>
+                @endif
                 <p class="student-sport-description">{{ $sport->description ?: 'Program details will be available soon.' }}</p>
                 <div class="student-sport-details">
                     <span class="student-sport-detail">
@@ -51,6 +54,7 @@
                         <h2 id="student-sport-modal-title">Sports program</h2>
                         <p class="student-sport-modal-description"></p>
                         <span class="student-sport-modal-classification"></span>
+                        <span class="student-sport-modal-gender"></span>
                     </div>
                     <button class="student-sport-modal-close" type="button" aria-label="Close sports program details">&times;</button>
                 </header>
@@ -156,8 +160,8 @@
     .student-sport-card:hover,
     .student-sport-card:focus-visible {
         transform: translateY(-2px);
-        border-color: #8b1e2d;
-        box-shadow: 0 10px 22px rgba(50, 15, 21, 0.12);
+        border-color: var(--color-primary);
+        box-shadow: 0 10px 22px rgba(16, 6, 159, 0.12);
         outline: none;
     }
 
@@ -175,7 +179,7 @@
         place-items: center;
         overflow-y: auto;
         padding: 1rem;
-        background: rgba(19, 17, 18, 0.62);
+        background: rgba(12, 10, 30, 0.62);
         animation: student-sport-fade-in 160ms ease-out;
     }
 
@@ -184,7 +188,7 @@
         max-height: min(90vh, 900px);
         overflow-y: auto;
         border-radius: 1rem;
-        background: #fff;
+        background: var(--color-surface);
         box-shadow: 0 24px 70px rgba(0, 0, 0, 0.24);
         animation: student-sport-slide-in 180ms ease-out;
     }
@@ -195,11 +199,11 @@
         justify-content: space-between;
         gap: 1rem;
         padding: 1.5rem;
-        border-bottom: 1px solid #eee7e8;
+        border-bottom: 1px solid var(--color-border);
     }
 
     .student-sport-modal-kicker {
-        color: #8b1e2d;
+        color: var(--color-primary);
         font-size: 0.72rem;
         font-weight: 800;
         letter-spacing: 0.1em;
@@ -207,14 +211,14 @@
 
     .student-sport-modal-header h2 {
         margin: 0.3rem 0;
-        color: #251c1e;
+        color: var(--color-text);
         font-size: clamp(1.35rem, 4vw, 1.8rem);
     }
 
     .student-sport-modal-description,
     .student-sport-roster-heading p {
         margin: 0.3rem 0 0;
-        color: #6b6264;
+        color: var(--color-muted);
     }
 
     .student-sport-modal-classification {
@@ -222,8 +226,8 @@
         margin-top: 0.8rem;
         border-radius: 99px;
         padding: 0.3rem 0.65rem;
-        background: #f8ecee;
-        color: #7f1d2d;
+        background: var(--color-primary-soft);
+        color: var(--color-primary);
         font-size: 0.78rem;
         font-weight: 700;
     }
@@ -234,8 +238,8 @@
         height: 2.4rem;
         border: 0;
         border-radius: 50%;
-        background: #f5f1f2;
-        color: #3a3032;
+        background: var(--color-surface-raised);
+        color: var(--color-text);
         font-size: 1.6rem;
         line-height: 1;
         cursor: pointer;
@@ -246,7 +250,7 @@
         grid-template-columns: repeat(2, minmax(0, 1fr));
         gap: 0.75rem;
         padding: 1rem 1.5rem;
-        background: #fcf9fa;
+        background: var(--color-surface-muted);
     }
 
     .student-sport-summary > div {
@@ -255,7 +259,7 @@
     }
 
     .student-sport-summary small {
-        color: #766c6e;
+        color: var(--color-muted);
         font-size: 0.68rem;
         font-weight: 700;
         letter-spacing: 0.04em;
@@ -263,7 +267,7 @@
 
     .student-sport-summary strong {
         overflow-wrap: anywhere;
-        color: #302528;
+        color: var(--color-text);
     }
 
     .student-sport-coaches {
@@ -272,12 +276,12 @@
 
     .student-sport-coaches-heading h3 {
         margin: 0;
-        color: #302528;
+        color: var(--color-text);
     }
 
     .student-sport-coaches-heading p {
         margin: 0.3rem 0 0;
-        color: #6b6264;
+        color: var(--color-muted);
     }
 
     .student-sport-coach-list {
@@ -292,9 +296,9 @@
         align-items: center;
         gap: 0.85rem;
         padding: 0.85rem;
-        border: 1px solid #eee7e8;
+        border: 1px solid var(--color-border);
         border-radius: 0.75rem;
-        background: #fcf9fa;
+        background: var(--color-surface-muted);
     }
 
     .student-sport-coach-photo {
@@ -305,8 +309,8 @@
         place-items: center;
         overflow: hidden;
         border-radius: 50%;
-        background: #f2e6e8;
-        color: #7f1d2d;
+        background: var(--color-primary-soft);
+        color: var(--color-primary);
         font-size: 1.15rem;
         font-weight: 800;
         object-fit: cover;
@@ -319,19 +323,19 @@
     }
 
     .student-sport-coach-eyebrow {
-        color: #8b1e2d;
+        color: var(--color-primary);
         font-size: 0.62rem;
         font-weight: 800;
         letter-spacing: 0.08em;
     }
 
     .student-sport-coach-person {
-        color: #302528;
+        color: var(--color-text);
         overflow-wrap: anywhere;
     }
 
     .student-sport-coach-role {
-        color: #6b6264;
+        color: var(--color-muted);
         font-size: 0.82rem;
     }
 
@@ -344,7 +348,7 @@
     }
 
     .student-sport-coach-contact a {
-        color: #7f1d2d;
+        color: var(--color-primary);
         font-weight: 700;
         text-decoration: none;
         overflow-wrap: anywhere;
@@ -357,7 +361,7 @@
 
     .student-sport-coach-empty {
         margin: 0;
-        color: #6b6264;
+        color: var(--color-muted);
     }
 
     .student-sport-roster {
@@ -366,7 +370,7 @@
 
     .student-sport-roster-heading h3 {
         margin: 0;
-        color: #302528;
+        color: var(--color-text);
     }
 
     .student-sport-filters {
@@ -380,26 +384,26 @@
     .student-sport-filters select {
         width: 100%;
         min-height: 2.65rem;
-        border: 1px solid #ddd4d6;
+        border: 1px solid var(--color-border);
         border-radius: 0.55rem;
         padding: 0.55rem 0.7rem;
-        background: #fff;
-        color: #302528;
+        background: var(--color-surface);
+        color: var(--color-text);
         font: inherit;
     }
 
     .student-sport-message {
         margin: 1rem 0;
-        color: #64595b;
+        color: var(--color-muted);
     }
 
     .student-sport-message.is-error {
-        color: #a11d2c;
+        color: var(--color-danger);
     }
 
     .student-sport-table-wrap {
         overflow-x: auto;
-        border: 1px solid #eee7e8;
+        border: 1px solid var(--color-border);
         border-radius: 0.65rem;
     }
 
@@ -412,13 +416,13 @@
     .student-sport-table th,
     .student-sport-table td {
         padding: 0.7rem 0.75rem;
-        border-bottom: 1px solid #f0ebec;
+        border-bottom: 1px solid var(--color-border);
         white-space: nowrap;
     }
 
     .student-sport-table th {
-        background: #fcf9fa;
-        color: #6b6264;
+        background: var(--color-surface-muted);
+        color: var(--color-muted);
         font-size: 0.74rem;
         text-transform: uppercase;
     }
@@ -442,8 +446,8 @@
         place-items: center;
         overflow: hidden;
         border-radius: 50%;
-        background: #f2e6e8;
-        color: #7f1d2d;
+        background: var(--color-primary-soft);
+        color: var(--color-primary);
         font-weight: 700;
         object-fit: cover;
     }
@@ -452,8 +456,8 @@
         display: inline-block;
         border-radius: 99px;
         padding: 0.25rem 0.55rem;
-        background: #edf7ef;
-        color: #256239;
+        background: var(--color-success-soft);
+        color: var(--color-success);
         font-size: 0.75rem;
         font-weight: 700;
     }
@@ -464,16 +468,16 @@
         justify-content: space-between;
         gap: 0.75rem;
         margin-top: 1rem;
-        color: #64595b;
+        color: var(--color-muted);
         font-size: 0.85rem;
     }
 
     .student-sport-pagination button {
-        border: 1px solid #ddd4d6;
+        border: 1px solid var(--color-border);
         border-radius: 0.5rem;
         padding: 0.45rem 0.7rem;
-        background: #fff;
-        color: #7f1d2d;
+        background: var(--color-surface);
+        color: var(--color-primary);
         font: inherit;
         font-weight: 700;
         cursor: pointer;
@@ -488,7 +492,7 @@
         border: 0;
         padding: 0;
         background: transparent;
-        color: #33282a;
+        color: var(--color-text);
         font: inherit;
         font-weight: 700;
         text-align: left;
@@ -497,7 +501,7 @@
 
     .student-sport-member-profile:hover,
     .student-sport-member-profile:focus-visible {
-        color: #8b1e2d;
+        color: var(--color-primary);
         text-decoration: underline;
         text-underline-offset: 0.15em;
     }
@@ -514,11 +518,11 @@
 
     .student-athlete-back,
     .student-athlete-close {
-        border: 1px solid #e5dcde;
+        border: 1px solid var(--color-border);
         border-radius: 0.55rem;
         padding: 0.55rem 0.75rem;
-        background: #fff;
-        color: #7f1d2d;
+        background: var(--color-surface);
+        color: var(--color-primary);
         font: inherit;
         font-weight: 700;
         cursor: pointer;
@@ -529,18 +533,18 @@
         height: 2.4rem;
         padding: 0;
         border-radius: 50%;
-        color: #3a3032;
+        color: var(--color-text);
         font-size: 1.5rem;
         line-height: 1;
     }
 
     .student-athlete-profile-message {
         margin: 1.5rem 0;
-        color: #64595b;
+        color: var(--color-muted);
     }
 
     .student-athlete-profile-message.is-error {
-        color: #a11d2c;
+        color: var(--color-danger);
     }
 
     .student-athlete-profile-identity {
@@ -549,9 +553,9 @@
         gap: 1rem;
         margin: 1.25rem 0;
         padding: 1rem;
-        border: 1px solid #eee7e8;
+        border: 1px solid var(--color-border);
         border-radius: 0.8rem;
-        background: #fcf9fa;
+        background: var(--color-surface-muted);
     }
 
     .student-athlete-profile-photo,
@@ -563,8 +567,8 @@
         place-items: center;
         overflow: hidden;
         border-radius: 50%;
-        background: #f2e6e8;
-        color: #7f1d2d;
+        background: var(--color-primary-soft);
+        color: var(--color-primary);
         font-size: 1.8rem;
         font-weight: 800;
         object-fit: cover;
@@ -572,22 +576,22 @@
 
     .student-athlete-profile-identity h2 {
         margin: 0.2rem 0;
-        color: #302528;
+        color: var(--color-text);
         font-size: clamp(1.25rem, 4vw, 1.7rem);
         overflow-wrap: anywhere;
     }
 
     .student-athlete-profile-id {
         margin: 0.2rem 0 0.5rem;
-        color: #64595b;
+        color: var(--color-muted);
     }
 
     .student-athlete-profile-status {
         display: inline-block;
         border-radius: 99px;
         padding: 0.25rem 0.6rem;
-        background: #edf7ef;
-        color: #256239;
+        background: var(--color-success-soft);
+        color: var(--color-success);
         font-size: 0.75rem;
         font-weight: 700;
     }
@@ -598,14 +602,14 @@
     }
 
     .student-athlete-profile-fields section {
-        border: 1px solid #eee7e8;
+        border: 1px solid var(--color-border);
         border-radius: 0.75rem;
         padding: 1rem;
     }
 
     .student-athlete-profile-fields h3 {
         margin: 0 0 0.75rem;
-        color: #7f1d2d;
+        color: var(--color-primary);
         font-size: 1rem;
     }
 
@@ -622,7 +626,7 @@
 
     .student-athlete-profile-fields dt {
         margin-bottom: 0.2rem;
-        color: #766c6e;
+        color: var(--color-muted);
         font-size: 0.76rem;
         font-weight: 700;
         text-transform: uppercase;
@@ -630,7 +634,7 @@
 
     .student-athlete-profile-fields dd {
         margin: 0;
-        color: #302528;
+        color: var(--color-text);
         overflow-wrap: anywhere;
     }
 
@@ -680,6 +684,7 @@
         const title = modal.querySelector('#student-sport-modal-title');
         const description = modal.querySelector('.student-sport-modal-description');
         const classification = modal.querySelector('.student-sport-modal-classification');
+        const gender = modal.querySelector('.student-sport-modal-gender');
         const total = modal.querySelector('.student-sport-total');
         const coach = modal.querySelector('.student-sport-coach-name');
         const coachList = modal.querySelector('.student-sport-coach-list');
@@ -878,6 +883,8 @@
                 title.textContent = data.program.name;
                 description.textContent = data.program.description || 'Program details will be available soon.';
                 classification.textContent = data.program.classification || 'Sports program';
+                gender.textContent = data.program.gender || '';
+                gender.hidden = !data.program.gender;
                 total.textContent = String(data.total_members);
                 coach.textContent = data.program.coaches.length ? data.program.coaches.map((item) => item.name).join(', ') : 'Not assigned';
                 renderCoaches(data.program.coaches);

@@ -15,21 +15,6 @@
 		<a class="card student-dashboard-link" href="{{ route('student.achievements') }}"><span class="student-dashboard-icon student-dashboard-icon-green"><svg aria-hidden="true"><use href="#icon-trophy"></use></svg></span><span><small>YOUR WINS</small><strong>Achievements</strong><span>{{ $dashboardAchievementCount }} earned{{ $dashboardMedalCount ? ', '.$dashboardMedalCount.' medal'.($dashboardMedalCount === 1 ? '' : 's') : '' }}</span></span></a>
 	</nav>
 
-	<section class="card student-dashboard-announcements">
-		<div class="student-dashboard-heading"><div><span class="student-dashboard-kicker">FROM THE SPORTSHUB</span><h2>Latest announcements</h2></div><a class="text-link" href="{{ route('student.announcements') }}">All announcements</a></div>
-		<div class="student-announcement-list">
-			@forelse ($announcements->take(3) as $announcement)
-				<a class="student-announcement" href="{{ route('student.announcements', ['announcement' => $announcement->id]) }}">
-					<div class="meta">{{ $announcement->published_at?->format('M j, Y') ?? 'Published' }}@if ($announcement->sport) &middot; {{ $announcement->sport->name }}@endif</div>
-					<h3>{{ $announcement->title }}</h3>
-					<p>{{ \Illuminate\Support\Str::limit($announcement->body, 150) }}</p>
-					<small class="meta relative-time" data-posted-at="{{ \App\Support\RelativeTime::machine($announcement->postedAt()) }}" data-posted-prefix="Posted ">Posted {{ $announcement->postedForHumans() }}</small>
-				</a>
-			@empty
-				<p class="empty-state">No announcements yet.</p>
-			@endforelse
-		</div>
-	</section>
 
 	<div class="student-dashboard-panels">
 		<section class="card student-dashboard-events">

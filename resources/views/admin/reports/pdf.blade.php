@@ -6,9 +6,9 @@
 	<style>
 		* { box-sizing: border-box; }
 		body { font-family: DejaVu Sans, sans-serif; font-size: 11px; color: #1a1a1a; margin: 0; padding: 24px; }
-		.header { text-align: center; border-bottom: 2px solid #8f1238; padding-bottom: 12px; margin-bottom: 14px; }
+		.header { text-align: center; border-bottom: 2px solid #10069F; padding-bottom: 12px; margin-bottom: 14px; }
 		.header .school { font-size: 12px; font-weight: bold; letter-spacing: 1px; margin: 0; }
-		.header h1 { font-size: 20px; color: #8f1238; margin: 4px 0; letter-spacing: 2px; }
+		.header h1 { font-size: 20px; color: #10069F; margin: 4px 0; letter-spacing: 2px; }
 		.header h2 { font-size: 14px; margin: 6px 0 2px; text-transform: uppercase; }
 		.header .meta { font-size: 10px; color: #555; margin: 4px 0 0; }
 		.summary { width: 100%; border-collapse: collapse; margin-bottom: 14px; }
@@ -18,7 +18,7 @@
 		table.data { width: 100%; border-collapse: collapse; }
 		table.data thead { display: table-header-group; }
 		table.data tr { page-break-inside: avoid; }
-		table.data th { background: #8f1238; color: #fff; font-size: 9.5px; text-align: left; padding: 6px 6px; border: 1px solid #7a0f30; }
+		table.data th { background: #10069F; color: #fff; font-size: 9.5px; text-align: left; padding: 6px 6px; border: 1px solid #0C0480; }
 		table.data td { border: 1px solid #d9d9d9; padding: 5px 6px; font-size: 10px; vertical-align: top; }
 		table.data tbody tr:nth-child(even) td { background: #fafafa; }
 		.empty { padding: 18px; text-align: center; color: #777; border: 1px dashed #d9d9d9; }

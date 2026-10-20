@@ -134,7 +134,7 @@
                             <div class="athlete-actions">
                                 <a class="text-link" href="{{ route('athletes.show', $athlete) }}">View</a>
                                 <a class="text-link" href="{{ route('athletes.edit', $athlete) }}">Edit</a>
-                                <button class="button button-secondary" type="button" data-confirm-dialog data-confirm-title="Assist with Password Reset?" data-confirm-message="Send a secure password reset link to this athlete's registered email address?" data-confirm-label="Send Reset Link" data-confirm-busy-label="Sending..." data-confirm-icon="mail" data-confirm-variant="info" data-confirm-method="POST" data-confirm-url="{{ route('athletes.password.reset', $athlete) }}">Assist with Password Reset</button>
+                                <button class="button button-secondary" type="button" data-password-reset data-confirm-title="Reset Athlete Password" data-confirm-message="You are about to reset this athlete's password. A temporary password will be generated for the athlete to use when logging in. The athlete must change this password after their next successful login." data-confirm-label="Reset Password" data-confirm-busy-label="Resetting..." data-confirm-icon="lock" data-confirm-variant="warning" data-confirm-method="POST" data-confirm-url="{{ route('athletes.password.reset', $athlete) }}">Reset Password</button>
                                 <button class="row-action row-action-danger" type="button" data-confirm-dialog data-confirm-title="Delete Athlete?" data-confirm-message="Are you sure you want to delete this athlete? Athletes with related records will be set to inactive instead of deleted." data-confirm-label="Delete Athlete" data-confirm-method="DELETE" data-confirm-url="{{ route('athletes.destroy', $athlete) }}">Delete</button>
                             </div>
                         </td>
@@ -164,3 +164,5 @@
         </table>
     </div>
 @endsection
+
+@include('partials.password-reset-modal')

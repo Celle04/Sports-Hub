@@ -3,7 +3,7 @@
 @php($medalTotal = array_sum([$sportsStats['gold'], $sportsStats['silver'], $sportsStats['bronze']]))
 
 <div class="admin-dashboard">
-
+	<h1>ADMIN DASHBOARD</h1>
 	@if (($attentionItems ?? collect())->isNotEmpty())
 		<section class="card dashboard-attention">
 			<div class="section-heading">
@@ -31,7 +31,7 @@
 	<section class="dashboard-overview">
 		<div class="section-heading">
 			<div>
-				<span class="admin-dashboard-kicker">AT A GLANCE</span>
+				{{--<span class="admin-dashboard-kicker">AT A GLANCE</span>--}}
 				<h2>Key Metrics</h2>
 				<p>Live status across programs, athletes, attendance and requests</p>
 			</div>
@@ -154,58 +154,6 @@
 					<p class="empty-state">No achievements have been recorded yet.</p>
 				@endif
 			</section>
-
-			{{-- ================= Recent activity ================= --}}
-			<section class="card">
-				<div class="section-heading">
-					<div>
-						<span class="admin-dashboard-kicker">LATEST CHANGES</span>
-						<h2>Recent Activity</h2>
-						<p>The most recent updates across the hub</p>
-					</div>
-				</div>
-				@forelse ($recentActivity as $activity)
-					<div class="admin-dashboard-activity">
-						<span></span>
-						<div>
-							<p>{{ $activity['label'] }}</p>
-							<small>{{ $activity['date']?->diffForHumans() ?? 'Recently' }}</small>
-						</div>
-					</div>
-				@empty
-					<p class="empty-state">No activity has been recorded yet.</p>
-				@endforelse
-			</section>
-
-			{{-- ================= Quick actions ================= --}}
-			<section class="card">
-				<div class="section-heading">
-					<div>
-						<span class="admin-dashboard-kicker">SHORTCUTS</span>
-						<h2>Quick Actions</h2>
-						<p>Jump straight into the module you need</p>
-					</div>
-				</div>
-				<div class="admin-dashboard-quick-actions">
-					@php($quickActions = [
-						['label' => 'Create Event', 'hint' => 'Schedule a session or competition', 'route' => 'events.create', 'icon' => 'calendar', 'tone' => 'red'],
-						['label' => 'Review Applications', 'hint' => 'Decide on submitted applications', 'route' => 'admin.applications', 'icon' => 'clipboard', 'tone' => 'gold'],
-						['label' => 'Manage Athletes', 'hint' => 'View and edit athlete accounts', 'route' => 'athletes.index', 'icon' => 'users', 'tone' => 'green'],
-						['label' => 'Take Attendance', 'hint' => 'Open sessions and record attendance', 'route' => 'admin.attendance', 'icon' => 'activity', 'tone' => 'red'],
-						['label' => 'Post Announcement', 'hint' => 'Notify athletes and coaches', 'route' => 'admin.announcements', 'icon' => 'megaphone', 'tone' => 'green'],
-						['label' => 'Record Achievement', 'hint' => 'Award a medal or certificate', 'route' => 'admin.achievements', 'icon' => 'trophy', 'tone' => 'gold'],
-						['label' => 'Medical Records', 'hint' => 'Manage clearances and checkups', 'route' => 'admin.medical', 'icon' => 'medical', 'tone' => 'gold'],
-						['label' => 'Manage Sports', 'hint' => 'Add or edit sports programs', 'route' => 'sports.create', 'icon' => 'trophy', 'tone' => 'green'],
-						['label' => 'Reports', 'hint' => 'Generate attendance and roster reports', 'route' => 'reports.index', 'icon' => 'chart', 'tone' => 'red'],
-					])
-					@foreach ($quickActions as $action)
-						<a class="admin-dashboard-action" href="{{ route($action['route']) }}">
-							<span class="admin-dashboard-icon admin-dashboard-icon-{{ $action['tone'] }}"><svg aria-hidden="true"><use href="#icon-{{ $action['icon'] }}"></use></svg></span>
-							<span><strong>{{ $action['label'] }}</strong><small>{{ $action['hint'] }}</small></span>
-						</a>
-					@endforeach
-				</div>
-			</section>
 		</div>
 
 		<aside class="dashboard-side">
@@ -305,5 +253,60 @@
 				@endif
 			</section>
 		</aside>
+
+		{{-- ================= Recent activity + quick actions ================= --}}
+		<div class="dashboard-activity-shortcuts">
+
+			{{-- ================= Recent activity ================= --}}
+			<section class="card">
+				<div class="section-heading">
+					<div>
+						<span class="admin-dashboard-kicker">LATEST CHANGES</span>
+						<h2>Recent Activity</h2>
+						<p>The most recent updates across the hub</p>
+					</div>
+				</div>
+				@forelse ($recentActivity as $activity)
+					<div class="admin-dashboard-activity">
+						<span></span>
+						<div>
+							<p>{{ $activity['label'] }}</p>
+							<small>{{ $activity['date']?->diffForHumans() ?? 'Recently' }}</small>
+						</div>
+					</div>
+				@empty
+					<p class="empty-state">No activity has been recorded yet.</p>
+				@endforelse
+			</section>
+
+			{{-- ================= Quick actions ================= --}}
+			<section class="card admin-dashboard-shortcuts">
+				<div class="section-heading">
+					<div>
+						<span class="admin-dashboard-kicker">SHORTCUTS</span>
+						<h2>Quick Actions</h2>
+					</div>
+				</div>
+				<div class="admin-dashboard-quick-actions">
+					@php($quickActions = [
+						['label' => 'Create Event', 'hint' => 'Schedule a session or competition', 'route' => 'events.create', 'icon' => 'calendar', 'tone' => 'red'],
+						['label' => 'Review Applications', 'hint' => 'Decide on submitted applications', 'route' => 'admin.applications', 'icon' => 'clipboard', 'tone' => 'gold'],
+						['label' => 'Manage Athletes', 'hint' => 'View and edit athlete accounts', 'route' => 'athletes.index', 'icon' => 'users', 'tone' => 'green'],
+						['label' => 'Take Attendance', 'hint' => 'Open sessions and record attendance', 'route' => 'admin.attendance', 'icon' => 'activity', 'tone' => 'red'],
+						['label' => 'Record Achievement', 'hint' => 'Award a medal or certificate', 'route' => 'admin.achievements', 'icon' => 'trophy', 'tone' => 'gold'],
+						['label' => 'Medical Records', 'hint' => 'Manage clearances and checkups', 'route' => 'admin.medical', 'icon' => 'medical', 'tone' => 'gold'],
+						['label' => 'Manage Sports', 'hint' => 'Add or edit sports programs', 'route' => 'sports.create', 'icon' => 'trophy', 'tone' => 'green'],
+						['label' => 'Reports', 'hint' => 'Generate attendance and roster reports', 'route' => 'reports.index', 'icon' => 'chart', 'tone' => 'red'],
+					])
+					@foreach ($quickActions as $action)
+						<a class="admin-dashboard-action" href="{{ route($action['route']) }}" title="{{ $action['hint'] }}">
+							<span class="admin-dashboard-icon admin-dashboard-icon-{{ $action['tone'] }}"><svg aria-hidden="true"><use href="#icon-{{ $action['icon'] }}"></use></svg></span>
+							<span><strong>{{ $action['label'] }}</strong><small>{{ $action['hint'] }}</small></span>
+						</a>
+					@endforeach
+				</div>
+			</section>
+
+		</div>
 	</div>
 </div>

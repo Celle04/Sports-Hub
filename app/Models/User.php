@@ -14,9 +14,13 @@ class User extends Authenticatable
 {
     use HasFactory, Notifiable;
 
-    protected $fillable = ['name', 'email', 'username', 'role', 'status', 'sport_id', 'student_id', 'phone', 'grade_level', 'emergency_contact_name', 'emergency_contact_relationship', 'emergency_contact_phone', 'profile_photo_path', 'password'];
+    protected $fillable = ['name', 'email', 'username', 'role', 'status', 'sport_id', 'student_id', 'phone', 'grade_level', 'emergency_contact_name', 'emergency_contact_relationship', 'emergency_contact_phone', 'profile_photo_path', 'password', 'must_change_password'];
 
     protected $hidden = ['password', 'remember_token'];
+
+    protected $casts = [
+        'must_change_password' => 'boolean',
+    ];
 
     public function sport()
     {
@@ -181,6 +185,32 @@ class User extends Authenticatable
         }
 
         return 'Pending';
+    }
+
+    /**
+     * Whether the athlete must choose a new password before using the portal,
+     * e.g. after an administrator-assisted reset issued a temporary password.
+     */
+    public function needsPasswordChange(): bool
+    {
+        return (bool) $this->must_change_password;
+    }
+
+    /**
+     * Mark the account as requiring a password change on the next login.
+     */
+    public function markPasswordChangeRequired(): void
+    {
+        $this->forceFill(['must_change_password' => true])->save();
+    }
+
+    /**
+     * Clear the forced password-change requirement after the athlete has
+     * chosen a new password.
+     */
+    public function clearPasswordChangeRequirement(): void
+    {
+        $this->forceFill(['must_change_password' => false])->save();
     }
 
     /**

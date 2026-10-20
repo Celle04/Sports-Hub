@@ -1,6 +1,6 @@
 <div class="grid form-grid">
     <div class="form-group"><label for="title">Event name</label><input class="form-control" id="title" name="title" value="{{ old('title', $event->title ?? '') }}" required></div>
-    <div class="form-group"><label for="sport_id">Sport</label><select class="form-control" id="sport_id" name="sport_id" required><option value="">Select sport</option>@foreach($sports as $sport)<option value="{{ $sport->id }}" @selected((string) old('sport_id', $event->sport_id ?? '') === (string) $sport->id)>{{ $sport->name }}</option>@endforeach</select></div>
+    <div class="form-group"><label for="sport_id">Sport</label><select class="form-control" id="sport_id" name="sport_id"><option value="">All</option>@foreach($sports as $sport)<option value="{{ $sport->id }}" @selected((string) old('sport_id', $event->sport_id ?? '') === (string) $sport->id)>{{ $sport->name }}</option>@endforeach</select></div>
     <div class="form-group"><label for="event_type">Event type</label><select class="form-control" id="event_type" name="event_type" required>@foreach($eventTypes as $eventType)<option value="{{ $eventType }}" @selected(old('event_type', $event->event_type ?? 'Other') === $eventType)>{{ $eventType }}</option>@endforeach</select></div>
     <div class="form-group"><label for="venue">Venue</label><input class="form-control" id="venue" name="venue" value="{{ old('venue', $event->venue ?? '') }}" required></div>
 </div>

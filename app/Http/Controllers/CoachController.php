@@ -67,6 +67,7 @@ class CoachController extends Controller
     public function edit(Coach $coach): View
     {
         $this->ensureAdministrator();
+        $coach->load('sport');
         return view('coaches.edit', $this->portalData(['coach' => $coach, 'sports' => Sport::where('status', 'Active')->orderBy('name')->get(), 'coachTypes' => self::coachTypes(), 'statuses' => self::statuses()]));
     }
 
@@ -107,17 +108,25 @@ class CoachController extends Controller
 
     private function validated(Request $request): array
     {
-        return $request->validate([
+        $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'max:255'],
             'phone' => ['nullable', 'string', 'max:50'],
             'specialty' => ['required', 'string', 'max:255'],
-            'sport_id' => ['required', 'exists:sports,id'],
+            'sport_id' => ['nullable', 'integer', 'exists:sports,id'],
             'coach_type' => ['nullable', 'in:'.implode(',', self::coachTypes())],
             'status' => ['required', 'in:'.implode(',', self::statuses())],
             'profile_picture' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
             'remove_profile_picture' => ['nullable', 'boolean'],
+        ], [
+            'sport_id.exists' => 'The selected sport is invalid. Please choose a sport from the list.',
         ]);
+
+        // The profile picture is handled separately, and the coach-to-sport link
+        // is left untouched when the form does not submit one.
+        unset($validated['profile_picture'], $validated['remove_profile_picture']);
+
+        return $validated;
     }
 
     private function portalData(array $data = []): array
@@ -134,7 +143,6 @@ class CoachController extends Controller
                 ['key' => 'medical', 'label' => 'Medical', 'icon' => 'medical', 'route' => 'admin.medical'],
                 ['key' => 'coaches', 'label' => 'Coaches', 'icon' => 'users', 'route' => 'coaches.index'],
                 ['key' => 'attendance', 'label' => 'Attendance', 'icon' => 'clipboard', 'route' => 'admin.attendance'],
-                ['key' => 'announcements', 'label' => 'Announcements', 'icon' => 'megaphone', 'route' => 'admin.announcements'],
                 ['key' => 'achievements', 'label' => 'Achievements', 'icon' => 'trophy', 'route' => 'admin.achievements'],
                 ['key' => 'reports', 'label' => 'Reports', 'icon' => 'chart', 'route' => 'reports.index'],
             ],

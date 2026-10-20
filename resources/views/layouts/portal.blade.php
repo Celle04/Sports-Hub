@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ $title ?? 'SNNHS SportsHub' }}</title>
     <link rel="manifest" href="{{ asset('manifest.webmanifest') }}">
+    <link rel="stylesheet" href="{{ asset('css/theme.css') }}?v={{ filemtime(public_path('css/theme.css')) }}">
     <link rel="stylesheet" href="{{ asset('css/portal.css') }}?v={{ filemtime(public_path('css/portal.css')) }}">
     <script>
         (function () {
@@ -44,6 +45,7 @@
         <symbol id="icon-arrow-left" viewBox="0 0 24 24"><path d="M20 12H4M11 19l-7-7 7-7" /></symbol>
         <symbol id="icon-chevron-right" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7" /></symbol>
 <symbol id="icon-certificate" viewBox="0 0 24 24"><path d="M6 3h12a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z" /><path d="M12 16.5l-1.4.9.5-1.7-1.4-1 1.7-.1.6-1.7.6 1.7 1.7.1-1.4 1 .5 1.7-1.4-.9Z" /></symbol>
+        <symbol id="icon-download" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></symbol>
         <symbol id="icon-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></symbol>
         <symbol id="icon-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" /></symbol>
         <symbol id="icon-filter" viewBox="0 0 24 24"><path d="M4 5h16M7 12h10M10 19h4" /></symbol>
@@ -125,49 +127,74 @@
                 @php
                     $notificationUser = auth()->user();
                     $unreadNotificationCount = $notificationUser->unreadNotifications()->count();
+                    $badgeCount = $unreadNotificationCount > 99 ? '99+' : (string) $unreadNotificationCount;
                     $recentNotifications = $notificationUser->notifications()->latest()->limit(10)->get();
                 @endphp
-                <details class="dashboard-notification-dropdown portal-notifications">
-                    <summary class="dashboard-notification-link" aria-label="Show notifications, {{ $unreadNotificationCount }} unread">
-                        <svg class="dashboard-notification-icon" aria-hidden="true"><use href="#icon-bell"></use></svg>
-                        <span>Notifications</span>
+                <div class="portal-notifications" aria-label="Notifications">
+                    <button type="button" class="portal-notification-trigger" aria-haspopup="true" aria-expanded="false" aria-controls="portal-notification-menu" data-notification-toggle>
+                        <svg class="portal-notification-icon" aria-hidden="true"><use href="#icon-bell"></use></svg>
+                        <span class="portal-notification-label">Notifications</span>
                         @if ($unreadNotificationCount > 0)
-                            <strong>{{ $unreadNotificationCount }}</strong>
+                            <span class="portal-notification-badge" aria-label="{{ $badgeCount }} unread notifications">{{ $badgeCount }}</span>
                         @endif
-                    </summary>
-                    <section class="dashboard-notification-panel" aria-label="All received updates">
-                        <header class="dashboard-notification-panel-heading">
-                            <strong>All updates</strong>
-                            <div>
-                                <a class="text-link" href="{{ route('notifications.index') }}">View all notifications</a>
+                    </button>
+                    <div id="portal-notification-menu" class="portal-notification-menu" role="menu" aria-labelledby="portal-notification-trigger" hidden>
+                        <header class="portal-notification-header">
+                            <div class="portal-notification-header-info">
+                                <h2 class="portal-notification-header-title">Notifications</h2>
                                 @if ($unreadNotificationCount > 0)
-                                    <form method="POST" action="{{ route('notifications.read-all') }}">@csrf<button class="text-link" type="submit">Mark all read</button></form>
+                                    <span class="portal-notification-header-count">{{ $unreadNotificationCount }} unread</span>
                                 @endif
                             </div>
+                            <div class="portal-notification-header-actions">
+                                @if ($unreadNotificationCount > 0)
+                                    <form method="POST" action="{{ route('notifications.read-all') }}" class="portal-notification-mark-all">
+                                        @csrf
+                                        <button class="portal-notification-mark-all-btn" type="submit" title="Mark all as read"><svg class="portal-notification-mark-all-icon" aria-hidden="true"><use href="#icon-check"></use></svg><span class="portal-notification-mark-all-label">Mark all as read</span></button>
+                                    </form>
+                                @endif
+                                <button type="button" class="portal-notification-close" data-notification-close aria-label="Close notifications"><svg aria-hidden="true"><use href="#icon-x"></use></svg></button>
+                            </div>
                         </header>
-                        <div class="dashboard-notification-list">
+                        <div class="portal-notification-list" role="menu">
                             @forelse ($recentNotifications as $notification)
-                                <article class="dashboard-notification-item {{ $notification->read_at ? 'is-read' : 'is-unread' }}">
-                                    <div>
-                                        <strong>{{ data_get($notification->data, 'title', 'SportsHub update') }}</strong>
-                                        <span>{{ data_get($notification->data, 'message', 'You have a new update.') }}</span>
-                                        <small class="relative-time" data-posted-at="{{ \App\Support\RelativeTime::machine($notification->created_at) }}">{{ \App\Support\RelativeTime::of($notification->created_at) }}</small>
+                                <article class="portal-notification-item {{ $notification->read_at ? 'is-read' : 'is-unread' }}" role="menuitem">
+                                    <div class="portal-notification-icon-wrap"><svg aria-hidden="true"><use href="#icon-bell"></use></svg></div>
+                                    <div class="portal-notification-copy">
+                                        <div class="portal-notification-title-row">
+                                            <strong class="portal-notification-title">{{ data_get($notification->data, 'title', 'SportsHub update') }}</strong>
+                                            @if (! $notification->read_at)
+                                                <span class="portal-notification-unread-dot" aria-hidden="true"></span>
+                                            @endif
+                                        </div>
+                                        <p class="portal-notification-message">{{ data_get($notification->data, 'message', 'You have a new update.') }}</p>
+                                        <small class="portal-notification-time relative-time" data-posted-at="{{ \App\Support\RelativeTime::machine($notification->created_at) }}">{{ \App\Support\RelativeTime::of($notification->created_at) }}</small>
                                     </div>
-                                    <div class="dashboard-notification-actions">
+                                    <div class="portal-notification-actions">
                                         @if (data_get($notification->data, 'url'))
-                                            <a class="text-link" href="{{ route('notifications.open', $notification->id) }}">Open</a>
+                                            <a class="text-link portal-notification-open" href="{{ route('notifications.open', $notification->id) }}">Open</a>
                                         @endif
                                         @if (! $notification->read_at)
-                                            <form method="POST" action="{{ route('notifications.read', $notification->id) }}">@csrf<button class="text-link" type="submit">Mark read</button></form>
+                                            <form method="POST" action="{{ route('notifications.read', $notification->id) }}" class="portal-notification-mark-read">
+                                                @csrf
+                                                <button class="text-link" type="submit">Mark as read</button>
+                                            </form>
                                         @endif
                                     </div>
                                 </article>
                             @empty
-                                <p class="dashboard-notification-empty">You're all caught up.</p>
+                                <div class="portal-notification-empty">
+                                    <span class="portal-notification-empty-icon" aria-hidden="true"><svg><use href="#icon-bell"></use></svg></span>
+                                    <strong class="portal-notification-empty-title">You're all caught up.</strong>
+                                    <p class="portal-notification-empty-subtitle">New updates will appear here.</p>
+                                </div>
                             @endforelse
                         </div>
-                    </section>
-                </details>
+                        <footer class="portal-notification-footer">
+                            <a class="text-link" href="{{ route('notifications.index') }}">View all notifications</a>
+                        </footer>
+                    </div>
+                </div>
             @endauth
                 </div>
             </header>
@@ -182,6 +209,7 @@
     <script src="{{ asset('js/relative-time.js') }}" defer></script>
     <script src="{{ asset('js/app-review.js') }}" defer></script>
     <script src="{{ asset('js/confirm-delete.js') }}" defer></script>
+    <script src="{{ asset('js/password-reset.js') }}" defer></script>
     <script src="{{ asset('js/portal-ui.js') }}" defer></script>
 </body>
 </html>

@@ -3,11 +3,13 @@
 namespace App\Http\Controllers;
 
 use App\Models\Application;
+use App\Models\Coach;
 use App\Models\Sport;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
 
@@ -23,15 +25,18 @@ class SportController extends Controller
             'events',
             'applications',
         ])
+            ->with('coaches')
             ->when($request->filled('search'), function ($query) use ($request) {
                 $search = trim($request->string('search')->toString());
                 $query->where(function ($sportQuery) use ($search) {
                     $sportQuery->where('name', 'like', "%{$search}%")
                         ->orWhere('classification', 'like', "%{$search}%")
+                        ->orWhere('gender', 'like', "%{$search}%")
                         ->orWhere('description', 'like', "%{$search}%");
                 });
             })
             ->when($request->filled('classification'), fn ($query) => $query->where('classification', $request->string('classification')->toString()))
+            ->when($request->filled('gender'), fn ($query) => $query->where('gender', $request->string('gender')->toString()))
             ->when($request->filled('status'), fn ($query) => $query->where('status', $request->string('status')->toString()))
             ->orderBy('name')
             ->get();
@@ -39,6 +44,7 @@ class SportController extends Controller
         return view('sports.index', $this->portalData([
             'sports' => $sports,
             'classifications' => self::classifications(),
+            'genders' => self::genders(),
             'statuses' => self::statuses(),
             'summary' => [
                 'total' => Sport::count(),
@@ -53,7 +59,13 @@ class SportController extends Controller
     {
         $this->ensureAdministrator();
 
-        return view('sports.create', $this->portalData(['classifications' => self::classifications(), 'statuses' => self::statuses()]));
+        return view('sports.create', $this->portalData([
+            'classifications' => self::classifications(),
+            'genders' => self::genders(),
+            'statuses' => self::statuses(),
+            'coaches' => $this->coachOptions(),
+            'assignedCoachId' => null,
+        ]));
     }
 
     public function store(Request $request): RedirectResponse
@@ -71,14 +83,30 @@ class SportController extends Controller
             $sport->save();
         }
 
-        return redirect()->route('sports.index')->with('success', 'Sport added successfully.');
+        $message = 'Sport added successfully.';
+        $note = $this->syncCoachAssignment($sport, $this->requestedCoachId($request));
+
+        if ($note) {
+            $message .= ' '.$note;
+        }
+
+        return redirect()->route('sports.index')->with('success', $message);
     }
 
     public function edit(Sport $sport): View
     {
         $this->ensureAdministrator();
 
-        return view('sports.edit', $this->portalData(['sport' => $sport, 'classifications' => self::classifications(), 'statuses' => self::statuses()]));
+        $sport->load('coaches');
+
+        return view('sports.edit', $this->portalData([
+            'sport' => $sport,
+            'classifications' => self::classifications(),
+            'genders' => self::genders(),
+            'statuses' => self::statuses(),
+            'coaches' => $this->coachOptions(),
+            'assignedCoachId' => $sport->assignedCoach()?->id,
+        ]));
     }
 
     public function show(Sport $sport): View
@@ -166,6 +194,7 @@ class SportController extends Controller
                 'name' => $sport->name,
                 'description' => $sport->description,
                 'classification' => $sport->classification,
+                'gender' => $sport->gender,
                 'coaches' => $sport->coaches()->orderBy('name')->get()->map(fn ($coach) => [
                     'name' => $coach->name,
                     'specialty' => $coach->specialty,
@@ -248,6 +277,8 @@ class SportController extends Controller
     {
         $this->ensureAdministrator();
 
+        $previousCoachId = $sport->assignedCoach()?->id;
+
         $data = $this->validated($request, $sport);
         $sport->update($data);
 
@@ -270,7 +301,14 @@ class SportController extends Controller
             }
         }
 
-        return redirect()->route('sports.index')->with('success', 'Sport updated successfully.');
+        $message = 'Sport updated successfully.';
+        $note = $this->syncCoachAssignment($sport, $this->requestedCoachId($request), $previousCoachId);
+
+        if ($note) {
+            $message .= ' '.$note;
+        }
+
+        return redirect()->route('sports.index')->with('success', $message);
     }
 
     public function destroy(Sport $sport): RedirectResponse
@@ -297,22 +335,100 @@ class SportController extends Controller
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:100', $uniqueName],
             'classification' => ['required', 'in:'.implode(',', self::classifications())],
+            'gender' => ['nullable', 'in:'.implode(',', self::genders())],
             'description' => ['required', 'string', 'max:1000'],
             'status' => ['nullable', 'in:'.implode(',', self::statuses())],
+            'coach_id' => ['nullable', 'integer', 'exists:coaches,id'],
             'logo' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
             'remove_logo' => ['nullable', 'boolean'],
+        ], [
+            'coach_id.exists' => 'The selected coach is invalid. Please choose a coach from the list.',
+            'coach_id.integer' => 'The selected coach is invalid. Please choose a coach from the list.',
         ]);
 
         $validated['status'] = $validated['status'] ?? 'Active';
+        $validated['gender'] = $validated['gender'] ?? 'Boys';
 
-        unset($validated['logo'], $validated['remove_logo']);
+        unset($validated['logo'], $validated['remove_logo'], $validated['coach_id']);
 
         return $validated;
+    }
+
+    /**
+     * The coach the administrator picked on the sport form, if any.
+     */
+    private function requestedCoachId(Request $request): ?int
+    {
+        $coachId = $request->input('coach_id');
+
+        return filled($coachId) ? (int) $coachId : null;
+    }
+
+    /**
+     * Coaches that can be assigned to a sport, listed with the sport or
+     * specialty they are currently recorded against.
+     *
+     * @return Collection<int, Coach>
+     */
+    private function coachOptions(): Collection
+    {
+        return Coach::with('sport')
+            ->orderBy('name')
+            ->get();
+    }
+
+    /**
+     * Keep the sport's coach assignment in step with the submitted selection.
+     *
+     * The coach-to-sport link lives on `coaches.sport_id`, so a coach belongs
+     * to a single sport while a sport may hold several coaches. Selecting a
+     * coach that is already recorded under another sport moves them here, and
+     * the coach previously held by this sport is only detached when the
+     * selection really changes. Coach records are never deleted.
+     */
+    private function syncCoachAssignment(Sport $sport, ?int $coachId, ?int $previousCoachId = null): ?string
+    {
+        if ($coachId === $previousCoachId) {
+            return null;
+        }
+
+        $notes = [];
+
+        if ($previousCoachId) {
+            $previousCoach = Coach::find($previousCoachId);
+
+            if ($previousCoach && (int) $previousCoach->sport_id === (int) $sport->id) {
+                $previousCoach->update(['sport_id' => null]);
+                $notes[] = sprintf('%s is no longer assigned to %s.', $previousCoach->name, $sport->name);
+            }
+        }
+
+        if (! $coachId) {
+            return $notes ? implode(' ', $notes) : null;
+        }
+
+        $coach = Coach::findOrFail($coachId);
+        $previousSport = $coach->sport;
+
+        $coach->update(['sport_id' => $sport->id]);
+
+        $notes[] = sprintf('%s is now assigned to %s.', $coach->name, $sport->name);
+
+        if ($previousSport && (int) $previousSport->id !== (int) $sport->id) {
+            $notes[] = sprintf('They were moved from %s.', $previousSport->name);
+        }
+
+        return implode(' ', $notes);
     }
 
     public static function classifications(): array
     {
         return ['Team Sport', 'Individual', 'Racket Sport', 'Athletics', 'Mind Sport', 'Combat Sport', 'Other'];
+    }
+
+    public static function genders(): array
+    {
+        return ['Boys', 'Girls'];
     }
 
     public static function statuses(): array
@@ -334,7 +450,6 @@ class SportController extends Controller
                 ['key' => 'medical', 'label' => 'Medical', 'icon' => 'medical', 'route' => 'admin.medical'],
                 ['key' => 'coaches', 'label' => 'Coaches', 'icon' => 'users', 'route' => 'coaches.index'],
                 ['key' => 'attendance', 'label' => 'Attendance', 'icon' => 'clipboard', 'route' => 'admin.attendance'],
-                ['key' => 'announcements', 'label' => 'Announcements', 'icon' => 'megaphone', 'route' => 'admin.announcements'],
                 ['key' => 'achievements', 'label' => 'Achievements', 'icon' => 'trophy', 'route' => 'admin.achievements'],
                 ['key' => 'reports', 'label' => 'Reports', 'icon' => 'chart', 'route' => 'reports.index'],
             ],

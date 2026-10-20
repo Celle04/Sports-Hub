@@ -248,6 +248,56 @@
         }
     }
 
+    /* ---- Notification dropdown ------------------------------------------------ */
+    (function initNotificationDropdown() {
+        var trigger = document.querySelector('[data-notification-toggle]');
+        var menu = document.getElementById('portal-notification-menu');
+        var closeButton = document.querySelector('[data-notification-close]');
+        if (!trigger || !menu) { return; }
+
+        function isOpen() { return !menu.hidden; }
+        function setOpen(open) {
+            if (open) {
+                menu.hidden = false;
+                trigger.setAttribute('aria-expanded', 'true');
+            } else {
+                menu.hidden = true;
+                trigger.setAttribute('aria-expanded', 'false');
+            }
+        }
+        function open() { setOpen(true); }
+        function close() { setOpen(false); }
+
+        trigger.addEventListener('click', function (event) {
+            event.preventDefault();
+            event.stopPropagation();
+            isOpen() ? close() : open();
+        });
+        if (closeButton) {
+            closeButton.addEventListener('click', function (event) {
+                event.preventDefault();
+                event.stopPropagation();
+                close();
+            });
+        }
+
+        // Close when clicking outside.
+        document.addEventListener('click', function (event) {
+            if (!isOpen()) { return; }
+            if (!menu.contains(event.target) && !trigger.contains(event.target)) {
+                close();
+            }
+        });
+
+        // Close on Escape.
+        document.addEventListener('keydown', function (event) {
+            if (event.key === 'Escape' && isOpen()) {
+                event.preventDefault();
+                close();
+            }
+        });
+    })();
+
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', init);
     } else {

@@ -6,6 +6,7 @@ use App\Http\Controllers\AthleteController;
 use App\Http\Controllers\AttendanceController;
 use App\Http\Controllers\Auth\PasswordResetController;
 use App\Http\Controllers\CertificateRequestController;
+use App\Http\Controllers\ChangePasswordController;
 use App\Http\Controllers\CoachController;
 use App\Http\Controllers\EventController;
 use App\Http\Controllers\MedicalController;
@@ -14,7 +15,6 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\SportController;
 use App\Models\Achievement;
-use App\Models\Announcement;
 use App\Models\Application;
 use App\Models\Attendance;
 use App\Models\AttendanceSession;
@@ -25,7 +25,6 @@ use App\Models\Sport;
 use App\Models\User;
 use App\Notifications\CertificateRequestNotification;
 use App\Services\AttendanceSessionService;
-use App\Services\StudentUpdateNotifier;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Route;
@@ -34,7 +33,7 @@ use Illuminate\Support\Facades\Storage;
 Route::get('/', function () {
     return view('landing', [
         'sports' => Sport::orderBy('name')->get(),
-        'announcements' => Announcement::with('sport')->published()->orderByDesc('published_at')->orderByDesc('id')->get(),
+        'announcements' => collect(),
     ]);
 });
 
@@ -61,6 +60,10 @@ Route::post('/login', function () {
     if ($user && Hash::check($credentials['password'], $user->password)) {
         auth()->login($user, request()->boolean('remember'));
         request()->session()->regenerate();
+
+        if ($credentials['role'] === 'Student' && $user->needsPasswordChange()) {
+            return redirect()->route('student.change-password');
+        }
 
         return redirect()->intended($credentials['role'] === 'Student' ? route('student.dashboard') : route('dashboard'));
     }
@@ -103,7 +106,6 @@ $studentNav = [
     ['key' => 'sports', 'label' => 'Sports', 'icon' => 'trophy', 'route' => 'student.sports'],
     ['key' => 'calendar', 'label' => 'Calendar', 'icon' => 'calendar', 'route' => 'student.calendar'],
     ['key' => 'schedule', 'label' => 'My Schedule', 'icon' => 'calendar', 'route' => 'student.schedule'],
-    ['key' => 'announcements', 'label' => 'Announcements', 'icon' => 'megaphone', 'route' => 'student.announcements'],
     ['key' => 'attendance', 'label' => 'Attendance', 'icon' => 'clipboard', 'route' => 'student.attendance'],
     ['key' => 'achievements', 'label' => 'Achievements', 'icon' => 'trophy', 'route' => 'student.achievements'],
     ['key' => 'application', 'label' => 'My Application', 'icon' => 'clipboard', 'route' => 'student.application'],
@@ -208,7 +210,6 @@ $calendarData = function (?string $month = null): array {
 $studentPage = function (string $page, array $data = []) use ($studentNav) {
     abort_unless(auth()->user()?->role === 'Student', 403);
     $athlete = auth()->user();
-    $publishedAnnouncements = Announcement::with('sport')->visibleTo($athlete)->orderByDesc('published_at')->orderByDesc('id')->get();
     $studentApplication = $athlete->applications()->with('sportCategory')->latest()->first();
     $studentSportIds = $athlete->sportIds();
     $upcomingStudentEventsQuery = Event::with(['sport', 'coach'])
@@ -299,7 +300,6 @@ $studentPage = function (string $page, array $data = []) use ($studentNav) {
         'sports' => ['Sports Programs', 'View sports programs managed by SNNHS', null],
         'calendar' => ['Calendar', 'View your sports activities and important dates', null],
         'schedule' => ['My Schedule', 'Your upcoming training sessions and events', null],
-        'announcements' => ['Announcements', 'Stay updated with the latest news and updates', null],
         'attendance' => ['Attendance Record', 'Track your attendance for training sessions and events', null],
         'achievements' => ['My Achievements', 'Your medals, awards and accomplishments', null],
         'application' => ['My Application', 'View your sports application status and feedback', null],
@@ -307,34 +307,7 @@ $studentPage = function (string $page, array $data = []) use ($studentNav) {
         'profile' => ['My Profile', 'Manage your personal information', ['label' => 'Edit Profile', 'url' => '#']],
     ][$page];
 
-    return view('student.page', array_merge(['page' => $page, 'heading' => $content[0], 'subtitle' => $content[1], 'action' => $content[2], 'active' => $page, 'navItems' => $studentNav,          'announcements' => $publishedAnnouncements, 'studentApplication' => $studentApplication, 'upcomingStudentEvents' => $upcomingStudentEvents, 'athlete' => $athlete, 'roleLabel' => 'Athlete/User Portal', 'userName' => $athlete->name, 'userRole' => $athlete->sport?->name ?? 'Unassigned sport'], $dashboardData, $data));
-};
-
-$announcementIsVisible = fn (Announcement $announcement): bool => $announcement->isVisible();
-
-/**
- * Push an announcement notification to the athletes it was aimed at.
- *
- * The send is idempotent: every notification is stamped with a dedupe key of
- * "<announcement id>|<reason>", so an athlete can never end up with two copies
- * of the same announcement event no matter how often the admin re-saves, opens
- * or re-publishes the post.
- */
-$notifyStudentsAboutAnnouncement = function (Announcement $announcement, string $title, string $message, string $reason = 'published', ?array $sportIds = null) {
-    $sportIds ??= $announcement->sport_id ? [$announcement->sport_id] : null;
-    $dedupeKey = $announcement->id.'|'.$reason;
-
-    app(StudentUpdateNotifier::class)->notifyStudents(
-        $sportIds,
-        $title,
-        $message,
-        route('student.announcements', ['announcement' => $announcement->id]),
-        [
-            'announcement_id' => $announcement->id,
-            'announcement_title' => $announcement->title,
-            'dedupe_key' => $dedupeKey,
-        ],
-    );
+    return view('student.page', array_merge(['page' => $page, 'heading' => $content[0], 'subtitle' => $content[1], 'action' => $content[2], 'active' => $page, 'navItems' => $studentNav,          'studentApplication' => $studentApplication, 'upcomingStudentEvents' => $upcomingStudentEvents, 'athlete' => $athlete, 'roleLabel' => 'Athlete/User Portal', 'userName' => $athlete->name, 'userRole' => $athlete->sport?->name ?? 'Unassigned sport'], $dashboardData, $data));
 };
 
 /**
@@ -393,7 +366,8 @@ $studentAchievementData = function (?int $selectedId = null) use ($studentPage) 
     ]);
 };
 
-Route::get('/student/achievements', fn () => $studentAchievementData())->middleware('auth')->name('student.achievements');
+Route::middleware(['force.password.change'])->group(function () use ($studentPage, $studentNav, $calendarData, $studentAchievementData) {
+    Route::get('/student/achievements', fn () => $studentAchievementData())->middleware('auth')->name('student.achievements');
 Route::get('/student/achievements/{achievement}', fn (int $achievement) => $studentAchievementData($achievement))->middleware('auth')->name('student.achievements.show');
 Route::get('/student/achievements/{achievement}/certificate', function (int $achievement) {
     $record = Achievement::query()->forAthlete(auth()->user())->with('sport')->findOrFail($achievement);
@@ -481,7 +455,6 @@ Route::get('/student/schedule', fn () => $studentPage('schedule', [
         ->orderBy('starts_at')
         ->get(),
 ]))->middleware('auth')->name('student.schedule');
-Route::get('/student/announcements', fn () => $studentPage('announcements'))->middleware('auth')->name('student.announcements');
 Route::get('/student/attendance', function () use ($studentPage) {
     $athlete = auth()->user();
     abort_unless($athlete?->role === 'Student', 403);
@@ -547,6 +520,9 @@ Route::get('/student/coach', fn () => $studentPage('coach', ['coachSports' => au
 Route::get('/student/profile', fn () => $studentPage('profile', ['athlete' => auth()->user()]))->middleware('auth')->name('student.profile');
 Route::patch('/student/profile', [ProfileController::class, 'update'])->middleware('auth')->name('student.profile.update');
 Route::patch('/student/profile/password', [ProfileController::class, 'updatePassword'])->middleware('auth')->name('student.profile.password');
+Route::get('/student/change-password', [ChangePasswordController::class, 'show'])->middleware('auth')->name('student.change-password');
+Route::post('/student/change-password', [ChangePasswordController::class, 'update'])->middleware('auth')->name('student.change-password.update');
+});
 
 Route::post('/notifications/{notification}/read', function (string $notification) {
     abort_unless(auth()->check(), 403);
@@ -587,7 +563,6 @@ $adminNav = [
     ['key' => 'medical', 'label' => 'Medical', 'icon' => 'medical', 'route' => 'admin.medical'],
     ['key' => 'coaches', 'label' => 'Coaches', 'icon' => 'users', 'route' => 'coaches.index'],
     ['key' => 'attendance', 'label' => 'Attendance', 'icon' => 'clipboard', 'route' => 'admin.attendance'],
-    ['key' => 'announcements', 'label' => 'Announcements', 'icon' => 'megaphone', 'route' => 'admin.announcements'],
     ['key' => 'achievements', 'label' => 'Achievements', 'icon' => 'trophy', 'route' => 'admin.achievements'],
     ['key' => 'certificate-requests', 'label' => 'Certificate Requests', 'icon' => 'certificate', 'route' => 'admin.certificate-requests'],
     ['key' => 'reports', 'label' => 'Reports', 'icon' => 'chart', 'route' => 'reports.index'],
@@ -618,10 +593,9 @@ $adminPage = function (string $page, array $data = []) use ($adminNav) {
         'sports' => ['Sports Management', 'Manage sports programs and categories', 'Add New Sport'],
         'athletes' => ['Athlete Management', 'Manage registered athlete accounts', null],
         'medical' => ['Medical Records', 'Manage athlete health information and clearances', 'Add Medical Record'],
-        'coaches' => ['Coach Management', 'Manage coach records and assignments', 'Add New Coach'],
+        'coaches' => ['Coach Management', 'Manage coach records and their sport assignments', 'Add New Coach'],
         'events' => ['Event Scheduling', 'Manage training sessions and competitions', 'Create Event'],
         'attendance' => ['Attendance Management', 'Track and record athlete attendance', null],
-        'announcements' => ['Announcement Management', 'Create and manage public announcements', 'Create Announcement'],
         'reports' => ['Reports', 'Generate and download reports', null],
     ][$page];
 
@@ -736,29 +710,9 @@ Route::get('/athletes/{athlete}/edit', [AthleteController::class, 'edit'])->midd
 Route::put('/athletes/{athlete}', [AthleteController::class, 'update'])->middleware('auth')->name('athletes.update');
 Route::delete('/athletes/{athlete}', [AthleteController::class, 'destroy'])->middleware('auth')->name('athletes.destroy');
 
-Route::middleware(['auth', 'throttle:5,1'])->group(function () {
-    Route::post('/athletes/{athlete}/password-reset', [AthleteController::class, 'assistPasswordReset'])->name('athletes.password.reset');
-    Route::post('/athletes/{athlete}/password-reset-link', [AthleteController::class, 'assistPasswordResetLink'])->name('athletes.password.reset.link');
-    Route::post('/athletes/{athlete}/reset-password', [AthleteController::class, 'resetPassword'])->name('athletes.reset-password');
-    Route::post('/athletes/{athlete}/reset_password', [AthleteController::class, 'resetPassword'])->name('athletes.reset_password');
-    Route::post('/athletes/{athlete}/assist-password-reset', [AthleteController::class, 'assistPasswordReset'])->name('athletes.assist-password-reset');
-    Route::post('/athletes/{athlete}/assist_password_reset', [AthleteController::class, 'assistPasswordReset'])->name('athletes.assist_password_reset');
-    Route::post('/athletes/{athlete}/assist-password-reset-link', [AthleteController::class, 'assistPasswordResetLink'])->name('athletes.assist-password-reset-link');
-    Route::post('/athletes/{athlete}/send-password-reset', [AthleteController::class, 'sendPasswordResetLink'])->name('athletes.send-password-reset');
-    Route::post('/athletes/{athlete}/send_password_reset', [AthleteController::class, 'sendPasswordResetLink'])->name('athletes.send_password_reset');
-    Route::post('/athletes/{athlete}/send-password-reset-link', [AthleteController::class, 'sendPasswordResetLink'])->name('athletes.send-password-reset-link');
-    Route::post('/athletes/{athlete}/password/reset', [AthleteController::class, 'assistPasswordReset'])->name('athletes.password.reset-alt');
-});
-Route::middleware(['auth', 'throttle:5,1'])->group(function () {
-    Route::post('/athletes/{athlete}/passwordReset', [AthleteController::class, 'assistPasswordReset'])->name('athletes.passwordReset');
-    Route::post('/athletes/{athlete}/password_reset', [AthleteController::class, 'assistPasswordReset'])->name('athletes.password_reset');
-    Route::post('/athletes/{athlete}/assistPasswordReset', [AthleteController::class, 'assistPasswordReset'])->name('athletes.assistPasswordReset');
-    Route::post('/athletes/{athlete}/assist_password_reset', [AthleteController::class, 'assistPasswordReset'])->name('athletes.assist_password_reset');
-    Route::post('/athletes/{athlete}/sendPasswordResetLink', [AthleteController::class, 'sendPasswordResetLink'])->name('athletes.sendPasswordResetLink');
-    Route::post('/athletes/{athlete}/send_password_reset', [AthleteController::class, 'sendPasswordResetLink'])->name('athletes.send_password_reset');
-    Route::post('/athletes/{athlete}/resetPassword', [AthleteController::class, 'resetPassword'])->name('athletes.resetPassword');
-    Route::post('/athletes/{athlete}/reset_password', [AthleteController::class, 'resetPassword'])->name('athletes.reset_password');
-});
+Route::post('/athletes/{athlete}/password-reset', [AthleteController::class, 'resetPassword'])
+    ->middleware('auth')->name('athletes.password.reset');
+
 Route::get('/admin/medical', [MedicalController::class, 'index'])->middleware('auth')->name('admin.medical');
 Route::get('/admin/medical/create', [MedicalController::class, 'create'])->middleware('auth')->name('admin.medical.create');
 Route::post('/admin/medical', [MedicalController::class, 'store'])->middleware('auth')->name('admin.medical.store');
@@ -801,136 +755,9 @@ Route::patch('/admin/attendance/sessions/{session}/cancel', [AttendanceControlle
 Route::patch('/admin/attendance/sessions/{session}/sync', [AttendanceController::class, 'sync'])->middleware('auth')->name('admin.attendance.sessions.sync');
 Route::delete('/admin/attendance/sessions/{session}', [AttendanceController::class, 'destroy'])->middleware('auth')->name('admin.attendance.sessions.destroy');
 Route::get('/admin/attendance/sessions/{session}/export', [AttendanceController::class, 'export'])->middleware('auth')->name('admin.attendance.sessions.export');
+Route::get('/admin/attendance/sessions/{session}/export/pdf', [AttendanceController::class, 'exportPdf'])->middleware('auth')->name('admin.attendance.sessions.export.pdf');
 Route::put('/admin/attendance/records/{attendance}', [AttendanceController::class, 'updateRecord'])->middleware('auth')->name('admin.attendance.records.update');
 
-Route::get('/admin/announcements', function () use ($adminPage) {
-    abort_unless(auth()->user()?->role === 'Administrator', 403);
-
-    $announcements = Announcement::with('sport')
-        ->when(request('search'), fn ($query, $search) => $query->where(function ($announcementQuery) use ($search) {
-            $announcementQuery->where('title', 'like', "%{$search}%")
-                ->orWhere('body', 'like', "%{$search}%");
-        }))
-        ->when(request('sport_id'), fn ($query, $sportId) => $query->where('sport_id', $sportId))
-        ->when(request('status'), fn ($query, $status) => $query->where('status', $status))
-        ->when(request('date'), fn ($query, $date) => $query->whereDate('published_at', $date))
-        ->orderByRaw("CASE WHEN status = 'Published' THEN 0 WHEN status = 'Scheduled' THEN 1 WHEN status = 'Draft' THEN 2 WHEN status = 'Archived' THEN 3 ELSE 4 END")
-        ->latest('published_at')
-        ->get();
-
-    return $adminPage('announcements', [
-        'announcements' => $announcements,
-        'announcement' => request('announcement_id') ? Announcement::find(request('announcement_id')) : null,
-        'summary' => [
-            'total' => Announcement::count(),
-            'published' => Announcement::where('status', 'Published')->count(),
-            'scheduled' => Announcement::where('status', 'Scheduled')->count(),
-            'drafts' => Announcement::where('status', 'Draft')->count(),
-        ],
-        'sports' => Sport::orderBy('name')->get(),
-        'statuses' => ['Draft', 'Published', 'Scheduled', 'Archived'],
-    ]);
-})->middleware('auth')->name('admin.announcements');
-
-Route::post('/admin/announcements', function () use ($announcementIsVisible, $notifyStudentsAboutAnnouncement) {
-    abort_unless(auth()->user()?->role === 'Administrator', 403);
-    $validated = request()->validate([
-        'title' => ['required', 'string', 'max:255'],
-        'body' => ['required', 'string'],
-        'sport_id' => ['nullable', 'exists:sports,id'],
-        'published_at' => ['nullable', 'date'],
-        'status' => ['required', 'in:Draft,Published,Scheduled,Archived'],
-    ]);
-
-    $announcement = Announcement::create($validated);
-    if ($announcementIsVisible($announcement)) {
-        $notifyStudentsAboutAnnouncement($announcement, 'New announcement', $announcement->title.' was published.');
-    }
-
-    return redirect()->route('admin.announcements')->with('success', 'Announcement created successfully.');
-})->middleware('auth')->name('admin.announcements.store');
-
-Route::put('/admin/announcements/{announcement}', function (Announcement $announcement) use ($announcementIsVisible, $notifyStudentsAboutAnnouncement) {
-    abort_unless(auth()->user()?->role === 'Administrator', 403);
-    $validated = request()->validate([
-        'title' => ['required', 'string', 'max:255'],
-        'body' => ['required', 'string'],
-        'sport_id' => ['nullable', 'exists:sports,id'],
-        'published_at' => ['nullable', 'date'],
-        'status' => ['required', 'in:Draft,Published,Scheduled,Archived'],
-    ]);
-
-    $wasVisible = $announcementIsVisible($announcement);
-    $previousSportId = $announcement->sport_id;
-    $announcement->update($validated);
-    $isVisible = $announcementIsVisible($announcement);
-
-    if (! $wasVisible && $isVisible) {
-        $notifyStudentsAboutAnnouncement($announcement, 'New announcement', $announcement->title.' was published.');
-    } elseif ($wasVisible && ! $isVisible) {
-        $notifyStudentsAboutAnnouncement(
-            $announcement,
-            'Announcement update',
-            $announcement->title.' is no longer available.',
-            'withdrawn',
-            $previousSportId ? [$previousSportId] : null,
-        );
-    } elseif ($wasVisible && $previousSportId !== $announcement->sport_id) {
-        // The audience was retargeted while live: welcome the athletes who can
-        // now read it and let the previous audience know it left their feed.
-        if ($announcement->sport_id) {
-            $notifyStudentsAboutAnnouncement($announcement, 'New announcement', $announcement->title.' was published.');
-        }
-
-        if ($previousSportId) {
-            $notifyStudentsAboutAnnouncement(
-                $announcement,
-                'Announcement update',
-                $announcement->title.' is no longer available.',
-                'withdrawn',
-                [$previousSportId],
-            );
-        }
-    }
-
-    return redirect()->route('admin.announcements', ['announcement_id' => $announcement->id])->with('success', 'Announcement updated successfully.');
-})->middleware('auth')->name('admin.announcements.update');
-
-Route::delete('/admin/announcements/{announcement}', function (Announcement $announcement) use ($announcementIsVisible, $notifyStudentsAboutAnnouncement) {
-    abort_unless(auth()->user()?->role === 'Administrator', 403);
-
-    if ($announcementIsVisible($announcement)) {
-        $notifyStudentsAboutAnnouncement($announcement, 'Announcement update', $announcement->title.' is no longer available.', 'withdrawn');
-    }
-
-    $announcement->delete();
-
-    return redirect()->route('admin.announcements')->with('success', 'Announcement deleted successfully.');
-})->middleware('auth')->name('admin.announcements.destroy');
-
-Route::post('/admin/announcements/{announcement}/publish', function (Announcement $announcement) use ($announcementIsVisible, $notifyStudentsAboutAnnouncement) {
-    abort_unless(auth()->user()?->role === 'Administrator', 403);
-    $wasVisible = $announcementIsVisible($announcement);
-    $announcement->update(['status' => 'Published']);
-
-    if (! $wasVisible && $announcementIsVisible($announcement)) {
-        $notifyStudentsAboutAnnouncement($announcement, 'New announcement', $announcement->title.' was published.');
-    }
-
-    return back()->with('success', 'Announcement published successfully.');
-})->middleware('auth')->name('admin.announcements.publish');
-
-Route::post('/admin/announcements/{announcement}/archive', function (Announcement $announcement) use ($announcementIsVisible, $notifyStudentsAboutAnnouncement) {
-    abort_unless(auth()->user()?->role === 'Administrator', 403);
-    $wasVisible = $announcementIsVisible($announcement);
-    $announcement->update(['status' => 'Archived']);
-
-    if ($wasVisible) {
-        $notifyStudentsAboutAnnouncement($announcement, 'Announcement update', $announcement->title.' has been archived.', 'withdrawn');
-    }
-
-    return back()->with('success', 'Announcement archived successfully.');
-})->middleware('auth')->name('admin.announcements.archive');
 Route::get('/reports', [ReportController::class, 'index'])->middleware('auth')->name('reports.index');
 
 Route::get('/reports/export', [ReportController::class, 'export'])->middleware('auth')->name('reports.export');

@@ -8,9 +8,8 @@ use App\Models\Sport;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Password;
+use Illuminate\Support\Str;
 use Illuminate\View\View;
 use Throwable;
 
@@ -158,46 +157,59 @@ class AthleteController extends Controller
         return redirect()->route('athletes.show', $athlete)->with('success', 'Athlete updated successfully.');
     }
 
-    public function assistPasswordReset(Request $request, User $athlete): RedirectResponse
+    public function resetPassword(Request $request, User $athlete): RedirectResponse|\Illuminate\Http\JsonResponse
     {
         $this->ensureAdministrator();
 
         abort_unless($athlete->role === 'Student', 403);
 
-        if (! filter_var((string) $athlete->email, FILTER_VALIDATE_EMAIL)) {
-            return $this->redirectToPreviousAthletePage()->withErrors(['password' => 'This athlete does not have a valid email address on file. Update the account before attempting a reset.']);
+        // An admin must never lock themselves out through the athlete action.
+        abort_if($athlete->id === $request->user()->id, 403, 'You cannot reset your own account from Athlete Management.');
+
+        $temporaryPassword = self::generateTemporaryPassword();
+
+        $athlete->forceFill([
+            'password' => $temporaryPassword,
+            'must_change_password' => true,
+        ])->setRememberToken(Str::random(60));
+        $athlete->save();
+
+        Log::info('Administrator '.($request->user()->name ?? $request->user()->id).' reset the password for athlete '.$athlete->name.' (id '.$athlete->id.').');
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'temporary_password' => $temporaryPassword,
+                'athlete_name' => $athlete->name,
+            ]);
         }
 
-        try {
-            $status = Password::broker()->sendResetLink(['email' => $athlete->email]);
-        } catch (Throwable $exception) {
-            DB::table($this->passwordResetTokenTable())->where('email', $athlete->email)->delete();
+        return $this->redirectToPreviousAthletePage()->with('success', 'A temporary password has been generated for '.$athlete->name.'. Share it with the athlete through a non-electronic channel.');
+    }
 
-            Log::error('Admin-assisted password reset email delivery failed for '.self::maskEmail($athlete->email).': '.$exception->getMessage());
+    /**
+     * Generate a cryptographically secure random temporary password.
+     *
+     * @return string
+     */
+    private static function generateTemporaryPassword(): string
+    {
+        $uppercase = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+        $lowercase = 'abcdefghijkmnopqrstuvwxyz';
+        $digits = '23456789';
+        $alphabet = $uppercase.$lowercase.$digits;
 
-            return $this->redirectToPreviousAthletePage()->withErrors(['password' => 'Unable to send the password reset email. Please try again later.']);
+        $password = '';
+        // Guarantee at least one character from each class so the result is
+        // never trivially predictable.
+        $password .= $uppercase[random_int(0, strlen($uppercase) - 1)];
+        $password .= $lowercase[random_int(0, strlen($lowercase) - 1)];
+        $password .= $digits[random_int(0, strlen($digits) - 1)];
+
+        for ($i = strlen($password); $i < 16; $i++) {
+            $password .= $alphabet[random_int(0, strlen($alphabet) - 1)];
         }
 
-        if ($status !== Password::RESET_LINK_SENT) {
-            return $this->redirectToPreviousAthletePage()->withErrors(['password' => 'Unable to send the password reset link. Please try again.']);
-        }
-
-        return $this->redirectToPreviousAthletePage()->with('success', "A password reset link has been sent to the athlete's registered email address.");
-    }
-
-    public function resetPassword(Request $request, User $athlete): RedirectResponse
-    {
-        return $this->assistPasswordReset($request, $athlete);
-    }
-
-    public function sendPasswordResetLink(Request $request, User $athlete): RedirectResponse
-    {
-        return $this->assistPasswordReset($request, $athlete);
-    }
-
-    public function assistPasswordResetLink(Request $request, User $athlete): RedirectResponse
-    {
-        return $this->assistPasswordReset($request, $athlete);
+        return str_shuffle($password);
     }
 
     public function destroy(User $athlete): RedirectResponse
@@ -233,7 +245,6 @@ class AthleteController extends Controller
                 ['key' => 'medical', 'label' => 'Medical', 'icon' => 'medical', 'route' => 'admin.medical'],
                 ['key' => 'coaches', 'label' => 'Coaches', 'icon' => 'users', 'route' => 'coaches.index'],
                 ['key' => 'attendance', 'label' => 'Attendance', 'icon' => 'clipboard', 'route' => 'admin.attendance'],
-                ['key' => 'announcements', 'label' => 'Announcements', 'icon' => 'megaphone', 'route' => 'admin.announcements'],
                 ['key' => 'achievements', 'label' => 'Achievements', 'icon' => 'trophy', 'route' => 'admin.achievements'],
                 ['key' => 'reports', 'label' => 'Reports', 'icon' => 'chart', 'route' => 'reports.index'],
             ],
@@ -253,30 +264,6 @@ class AthleteController extends Controller
         }
 
         return redirect()->to($previous);
-    }
-
-    private function passwordResetTokenTable(): string
-    {
-        $broker = (string) config('auth.defaults.passwords');
-
-        return (string) config("auth.passwords.{$broker}.table", 'password_reset_tokens');
-    }
-
-    private static function maskEmail(string $email): string
-    {
-        [$name, $domain] = array_pad(explode('@', $email, 2), 2, '');
-
-        if ($name === '') {
-            return '***@'.$domain;
-        }
-
-        $stars = match (true) {
-            strlen($name) >= 3 => 3,
-            strlen($name) === 2 => 2,
-            default => 1,
-        };
-
-        return substr($name, 0, 1).str_repeat('*', $stars).'@'.$domain;
     }
 
     private function ensureAdministrator(): void

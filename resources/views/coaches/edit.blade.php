@@ -4,7 +4,7 @@
     <div class="module-header">
         <div>
             <h1>Edit Coach</h1>
-            <p class="page-subtitle">Update coach information and assignment</p>
+            <p class="page-subtitle">Update coach information</p>
         </div>
         <a class="button button-secondary button-icon-only" href="{{ route('coaches.show', $coach) }}" aria-label="Back to Coach" title="Back to Coach">
             <svg class="button-icon" aria-hidden="true"><use href="#icon-arrow-left"></use></svg>
