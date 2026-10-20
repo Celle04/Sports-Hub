@@ -38,7 +38,7 @@
         </div>
         <div class="card stat medical-kpi">
             <span class="medical-kpi-icon tone-gold"><svg aria-hidden="true"><use href="#icon-user"></use></svg></span>
-            <div class="medical-kpi-body"><small>Individual Sport Athletes</small><strong>{{ $summary['individual'] }}</strong></div>
+            <div class="medical-kpi-body"><small>Individual Athletes</small><strong>{{ $summary['individual'] }}</strong></div>
         </div>
     </div>
 
