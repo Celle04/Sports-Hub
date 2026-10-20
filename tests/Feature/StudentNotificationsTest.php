@@ -2,7 +2,6 @@
 
 namespace Tests\Feature;
 
-use App\Models\Announcement;
 use App\Models\Application;
 use App\Models\Attendance;
 use App\Models\AttendanceSession;
@@ -66,28 +65,6 @@ class StudentNotificationsTest extends TestCase
         $student->notify(new StudentUpdateNotification('Another update', 'A new schedule is ready.', route('student.schedule')));
         $this->post(route('notifications.read-all'))->assertRedirect();
         $this->assertSame(0, $student->unreadNotifications()->count());
-    }
-
-    public function test_published_announcements_notify_only_students_in_their_sport(): void
-    {
-        $admin = User::factory()->create(['role' => 'Administrator']);
-        $basketball = Sport::create(['name' => 'Basketball', 'classification' => 'Team Sport', 'description' => 'Court sport']);
-        $volleyball = Sport::create(['name' => 'Volleyball', 'classification' => 'Team Sport', 'description' => 'Net sport']);
-        $basketballStudent = User::factory()->create(['role' => 'Student', 'sport_id' => $basketball->id]);
-        $volleyballStudent = User::factory()->create(['role' => 'Student', 'sport_id' => $volleyball->id]);
-
-        $this->actingAs($admin)->post(route('admin.announcements.store'), [
-            'title' => 'Basketball tryouts',
-            'body' => 'Tryouts begin next week.',
-            'sport_id' => $basketball->id,
-            'published_at' => today()->toDateString(),
-            'status' => 'Published',
-        ])->assertRedirect();
-
-        $notification = $basketballStudent->notifications()->firstOrFail();
-        $this->assertSame('New announcement', $notification->data['title']);
-        $this->assertSame('Basketball tryouts was published.', $notification->data['message']);
-        $this->assertSame(0, $volleyballStudent->notifications()->count());
     }
 
     public function test_upcoming_event_updates_notify_students_in_the_affected_sports(): void

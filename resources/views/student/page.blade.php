@@ -21,7 +21,7 @@
     <div class="notice">Please correct the highlighted form fields.</div>
 @endif
 
-@if (in_array($page, ['dashboard', 'sports', 'calendar', 'schedule', 'announcements', 'attendance', 'achievements', 'application', 'coach', 'profile'], true))
+@if (in_array($page, ['dashboard', 'sports', 'calendar', 'schedule', 'attendance', 'achievements', 'application', 'coach', 'profile'], true))
     @include('student.modules.'.$page)
 @else
     <div class="card"><p>Use the navigation to access this section.</p></div>

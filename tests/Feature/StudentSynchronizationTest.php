@@ -3,7 +3,6 @@
 namespace Tests\Feature;
 
 use App\Models\Application;
-use App\Models\Announcement;
 use App\Models\Attendance;
 use App\Models\AttendanceSession;
 use App\Models\Event;
@@ -122,20 +121,6 @@ class StudentSynchronizationTest extends TestCase
             'status' => 'Pending',
             'attended_on' => today(),
         ]);
-        $announcement = Announcement::create([
-            'title' => 'Basketball Team Update',
-            'body' => 'Training begins this week.',
-            'sport_id' => $sport->id,
-            'published_at' => today(),
-            'status' => 'Published',
-        ]);
-        Announcement::create([
-            'title' => 'Volleyball Only Update',
-            'body' => 'This message is for another sport.',
-            'sport_id' => $otherSport->id,
-            'published_at' => today(),
-            'status' => 'Published',
-        ]);
         $student->notify(new AttendanceNotification('Your SportsHub account has an unread update.', route('student.attendance')));
 
         $this->actingAs($student)->get(route('student.dashboard'))
@@ -147,21 +132,17 @@ class StudentSynchronizationTest extends TestCase
             ->assertSee('ATTENDANCE IS OPEN')
             ->assertSee('Open Basketball Check-in')
             ->assertSee('Check In')
-            ->assertSee('Basketball Team Update')
-            ->assertDontSee('Volleyball Only Update')
             ->assertSee('Incomplete')
             ->assertSee('1 unread');
 
         $event->update(['status' => 'Cancelled']);
         $session->update(['status' => 'Closed']);
-        $announcement->update(['status' => 'Draft']);
         $application->update(['status' => 'Approved']);
 
         $this->get(route('student.dashboard'))
             ->assertOk()
             ->assertDontSee('Basketball Training')
             ->assertDontSee('ATTENDANCE IS OPEN')
-            ->assertDontSee('Basketball Team Update')
             ->assertSee('Approved');
     }
 }

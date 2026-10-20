@@ -5,7 +5,6 @@ namespace Database\Seeders;
 use App\Models\User;
 use App\Models\Sport;
 use App\Models\Event;
-use App\Models\Announcement;
 use App\Models\Attendance;
 use App\Models\Application;
 use App\Models\Coach;
@@ -108,15 +107,6 @@ class DatabaseSeeder extends Seeder
         Attendance::updateOrCreate(['event_id' => $event->id, 'user_id' => $student->id], [
             'status' => 'Present', 'attended_on' => $event->starts_at->toDateString(),
         ]);
-
-        foreach ([
-            ['Basketball Tryouts This Friday', 'Basketball team tryouts will be held at the main court this Friday at 3:00 PM.'],
-            ['Regional Sports Meet - June 2026', 'Athletes are encouraged to intensify their training sessions for the regional meet.'],
-        ] as [$title, $body]) {
-            Announcement::updateOrCreate(['title' => $title], [
-                'body' => $body, 'published_at' => now()->toDateString(), 'status' => 'Published',
-            ]);
-        }
     }
 }
 
