@@ -15,6 +15,7 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\SportController;
 use App\Models\Achievement;
+use App\Models\Announcement;
 use App\Models\Application;
 use App\Models\Attendance;
 use App\Models\AttendanceSession;
@@ -34,9 +35,16 @@ use Illuminate\Support\Facades\Storage;
 Route::get('/', function () {
     return view('landing', [
         'sports' => Sport::orderBy('name')->get(),
-        'announcements' => collect(),
+        // The announcements the portal published, newest first.
+        'announcements' => Announcement::query()
+            ->published()
+            ->with(['event.sport'])
+            ->orderByDesc('published_at')
+            ->orderByDesc('id')
+            ->limit(6)
+            ->get(),
     ]);
-});
+})->name('landing');
 
 Route::get('/login', function () {
     return view('auth.login');

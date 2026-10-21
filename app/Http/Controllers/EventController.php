@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Announcement;
 use App\Models\AttendanceSession;
 use App\Models\Event;
 use App\Models\Coach;
@@ -77,6 +78,8 @@ class EventController extends Controller
 
         $session = $this->createAttendanceSession($event, $validated['attendance'] ?? []);
 
+        $this->announce($event);
+
         if ($event->status === 'Scheduled' && $event->starts_at?->isFuture()) {
             app(StudentUpdateNotifier::class)->notifyStudents(
                 $event->sport_id ? [$event->sport_id] : null,
@@ -101,6 +104,22 @@ class EventController extends Controller
      * The session is optional: when no attendance title was entered the event
      * is simply saved on its own.
      */
+    /**
+     * Publish the new event on the public landing page.
+     *
+     * Only a scheduled event is announced, and the announcement follows the
+     * event: it disappears from the page when the event is called off.
+     */
+    private function announce(Event $event): void
+    {
+        if ($event->status !== 'Scheduled') {
+            return;
+        }
+
+        $event->loadMissing('sport');
+
+        Announcement::forEvent($event);
+    }
     private function createAttendanceSession(Event $event, array $data): ?AttendanceSession
     {
         if (! filled($data['title'] ?? null)) {
