@@ -220,7 +220,7 @@ class CertificateRequestTest extends TestCase
         $this->actingAs($athlete)
             ->get(route('student.achievements.show', $achievement))
             ->assertOk()
-            ->assertSee('Certificate issued');
+            ->assertSee('Certificate available');
     }
 
     public function test_an_administrator_can_reject_a_request_with_remarks(): void

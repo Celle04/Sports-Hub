@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\AttendanceSession;
 use App\Models\Coach;
 use App\Models\Event;
 use App\Models\Sport;
@@ -84,5 +85,82 @@ class EventSchedulingTest extends TestCase
         $response = $this->actingAs($admin)->get(route('events.index', ['search' => 'Tournament', 'status' => 'Completed']));
 
         $response->assertOk()->assertSee('Chess Tournament')->assertDontSee('Chess Training');
+    }
+
+    public function test_the_event_form_offers_the_attendance_pop_out_card(): void
+    {
+        $admin = User::factory()->create(['role' => 'Administrator']);
+
+        $this->actingAs($admin)->get(route('events.create'))
+            ->assertOk()
+            ->assertSee('data-app-modal-open="event-attendance-dialog"', false)
+            ->assertSee('id="event-attendance-dialog"', false)
+            ->assertSee('name="attendance[title]"', false);
+    }
+
+    public function test_creating_an_event_can_attach_its_attendance_session(): void
+    {
+        $admin = User::factory()->create(['role' => 'Administrator']);
+        $sport = Sport::create(['name' => 'Basketball', 'classification' => 'Team Sport', 'description' => 'School basketball program']);
+        $athlete = User::factory()->create(['role' => 'Student', 'sport_id' => $sport->id, 'student_id' => '2026-2001']);
+
+        $this->actingAs($admin)->post(route('events.store'), [
+            'title' => 'Basketball Practice',
+            'sport_id' => $sport->id,
+            'event_type' => 'Practice',
+            'starts_at' => '2026-10-02T15:00',
+            'ends_at' => '2026-10-02T17:00',
+            'venue' => 'Main Court',
+            'status' => 'Scheduled',
+            'attendance' => [
+                'title' => 'Basketball Practice Attendance',
+                'session_date' => '2026-10-02',
+                'start_time' => '15:00',
+                'end_time' => '17:00',
+                'status' => 'Open',
+            ],
+        ])->assertSessionHas('success');
+
+        $event = Event::firstOrFail();
+        $session = AttendanceSession::firstOrFail();
+
+        $this->assertSame($event->id, $session->event_id);
+        $this->assertSame($sport->id, $session->sport_id);
+        $this->assertSame('2026-10-02', $session->session_date->toDateString());
+        $this->assertDatabaseHas('attendances', [
+            'attendance_session_id' => $session->id,
+            'user_id' => $athlete->id,
+            'status' => 'Pending',
+        ]);
+    }
+
+    public function test_an_event_can_receive_another_attendance_session_from_the_edit_screen(): void
+    {
+        $admin = User::factory()->create(['role' => 'Administrator']);
+        $sport = Sport::create(['name' => 'Volleyball', 'classification' => 'Team Sport', 'description' => 'School volleyball program']);
+        $event = Event::create([
+            'title' => 'Volleyball Training',
+            'sport_id' => $sport->id,
+            'venue' => 'Gym',
+            'starts_at' => now()->addDay(),
+            'ends_at' => now()->addDay()->addHours(2),
+            'status' => 'Scheduled',
+        ]);
+
+        $this->actingAs($admin)->get(route('events.edit', $event))
+            ->assertOk()
+            ->assertSee('id="event-attendance-form"', false)
+            ->assertSee('name="event_id"', false);
+
+        $this->actingAs($admin)->post(route('admin.attendance.sessions.store'), [
+            'title' => 'Volleyball Set 1',
+            'event_id' => $event->id,
+            'session_date' => today()->toDateString(),
+            'status' => 'Open',
+        ])->assertSessionHas('success');
+
+        $session = AttendanceSession::firstOrFail();
+        $this->assertSame($event->id, $session->event_id);
+        $this->assertSame($sport->id, $session->sport_id);
     }
 }

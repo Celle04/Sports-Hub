@@ -7,6 +7,14 @@
     $achievementTypes = $achievementTypes ?? \App\Models\Achievement::TYPES;
 @endphp
 
+@if (session('success'))
+    <div class="notice">{{ session('success') }}</div>
+@endif
+
+@if ($errors->any())
+    <div class="notice notice-error">Please correct the highlighted form fields.</div>
+@endif
+
 <div class="grid achievement-summary-grid">
     <div class="card stat"><small>Total Achievements</small><strong>{{ $achievementSummary['total'] }}</strong></div>
     <div class="card stat"><small>Gold Medals</small><strong>{{ $achievementSummary['gold'] }}</strong></div>
@@ -28,7 +36,7 @@
         </div>
 
         <div class="achievement-detail-grid">
-            <div><span>Athlete</span><strong>{{ $selectedAchievement->athlete?->name ?? 'Unknown athlete' }}</strong>@if ($selectedAchievement->athlete?->student_id)<small>Student ID {{ $selectedAchievement->athlete->student_id }}</small>@endif</div>
+            <div><span>{{ $selectedAchievement->recipientLabel() }}</span><strong>{{ $selectedAchievement->recipientName() }}</strong>@if ($selectedAchievement->athlete?->student_id)<small>Student ID {{ $selectedAchievement->athlete->student_id }}</small>@endif</div>
             <div><span>Type</span><strong><span class="badge {{ $selectedAchievement->isMedal() ? 'achievement-medal-'.strtolower(str_replace(' ', '-', $selectedAchievement->achievement_type)) : '' }}">{{ $selectedAchievement->achievement_type }}</span></strong></div>
             <div><span>Sport</span><strong>{{ $selectedAchievement->sportLabel() }}</strong></div>
             <div><span>Place</span><strong>{{ $selectedAchievement->place ?: 'Not recorded' }}</strong></div>
@@ -45,11 +53,22 @@
 
         <div class="achievement-detail-actions">
             @if ($selectedAchievement->hasCertificate())
-                <a class="button button-secondary" href="{{ route('admin.achievements.certificate', $selectedAchievement) }}">View Certificate</a>
+                <a class="button button-secondary" href="{{ route('admin.achievements.certificate', $selectedAchievement) }}">Download Certificate</a>
             @else
-                <span class="meta">No certificate attached.</span>
+                <span class="meta">No certificate has been issued yet.</span>
             @endif
-            <a class="button" href="{{ route('admin.achievements.certificate.generate', ['achievement' => $selectedAchievement->id]) }}">Generate Certificate</a>
+            @if ($selectedAchievement->isTeam())
+                @if (($achievementCertificateRequests[$selectedAchievement->id] ?? null)?->status === 'Issued')
+                    <span class="badge status-issued">Certificate issued</span>
+                @else
+                    <form method="POST" action="{{ route('admin.achievements.certificate.issue', $selectedAchievement) }}" class="achievement-action-form">
+                        @csrf
+                        <button class="button" type="submit">Generate Certificate</button>
+                    </form>
+                @endif
+            @else
+                <a class="button button-secondary" href="{{ route('admin.achievements.certificate.print', $selectedAchievement) }}">Preview Certificate</a>
+            @endif
             <a class="button button-secondary" href="{{ route('admin.achievements.edit', $selectedAchievement) }}">Edit</a>
             <button class="button button-danger" type="button" data-confirm-dialog data-confirm-title="Delete Achievement?" data-confirm-message="Delete this achievement? This action cannot be undone." data-confirm-label="Delete" data-confirm-method="DELETE" data-confirm-url="{{ route('admin.achievements.destroy', $selectedAchievement) }}">Delete</button>
         </div>
@@ -60,21 +79,23 @@
             <div>
                 <span class="admin-dashboard-kicker">{{ $achievementFormMode === 'edit' ? 'UPDATE RECORD' : 'NEW RECORD' }}</span>
                 <h2>{{ $achievementFormMode === 'edit' ? 'Edit Achievement' : 'Add Achievement' }}</h2>
-                <p>Record an accomplishment for an athlete. The athlete sees it immediately on their dashboard.</p>
+                <p>Record an accomplishment for an athlete or a team. The athlete sees their own record immediately on their dashboard.</p>
             </div>
             @if ($achievementFormMode === 'edit')
                 <a class="text-link" href="{{ route('admin.achievements') }}">Cancel</a>
             @endif
         </div>
 
-        <form method="POST" action="{{ $achievementFormMode === 'edit' ? route('admin.achievements.update', $achievementFormRecord) : route('admin.achievements.store') }}" enctype="multipart/form-data">
+        <form id="achievement-form" method="POST" action="{{ $achievementFormMode === 'edit' ? route('admin.achievements.update', $achievementFormRecord) : route('admin.achievements.store') }}">
             @csrf
             @if ($achievementFormMode === 'edit') @method('PUT') @endif
+
+            <input type="hidden" name="is_team" id="achievement-is-team" value="{{ ($achievementFormRecord?->isTeam() ?? false) ? '1' : '0' }}">
 
             <div class="grid grid-2">
                 <div class="form-group">
                     <label for="achievement-athlete">Athlete</label>
-                    <select class="form-control @error('athlete_id') is-invalid @enderror" id="achievement-athlete" name="athlete_id" required>
+                    <select class="form-control @error('athlete_id') is-invalid @enderror" id="achievement-athlete" name="athlete_id" @disabled(($achievementFormRecord?->isTeam() ?? false))>
                         <option value="">Select athlete</option>
                         @foreach ($achievementAthletes ?? [] as $option)
                             <option value="{{ $option->id }}" @selected((string) old('athlete_id', $achievementFormRecord?->athlete_id ?? '') === (string) $option->id)>
@@ -84,6 +105,21 @@
                     </select>
                     <small class="form-hint">Name, student ID and current sport are shown so the right athlete is picked.</small>
                     @error('athlete_id')<small class="form-error">{{ $message }}</small>@enderror
+                </div>
+
+                <div class="form-group">
+                    <label for="achievement-team-name">Team name</label>
+                    <input class="form-control @error('team_name') is-invalid @enderror" id="achievement-team-name" name="team_name" type="text" value="{{ old('team_name', $achievementFormRecord?->team_name ?? '') }}" placeholder="e.g. Varsity Badminton Girls" maxlength="150">
+                    <small class="form-hint">Fill this in for a team achievement; the athlete field is then left blank.</small>
+                    @error('team_name')<small class="form-error">{{ $message }}</small>@enderror
+                </div>
+            </div>
+
+            <div class="grid grid-2" style="margin-top:12px">
+                <div class="form-group">
+                    <label for="achievement-title">Achievement Title</label>
+                    <input class="form-control @error('title') is-invalid @enderror" id="achievement-title" name="title" type="text" value="{{ old('title', $achievementFormRecord?->title ?? '') }}" placeholder="e.g. Basketball Championship 2026" maxlength="150" required>
+                    @error('title')<small class="form-error">{{ $message }}</small>@enderror
                 </div>
 
                 <div class="form-group">
@@ -101,12 +137,6 @@
 
             <div class="grid grid-2" style="margin-top:12px">
                 <div class="form-group">
-                    <label for="achievement-title">Achievement Title</label>
-                    <input class="form-control @error('title') is-invalid @enderror" id="achievement-title" name="title" type="text" value="{{ old('title', $achievementFormRecord?->title ?? '') }}" placeholder="e.g. Basketball Championship 2026" maxlength="150" required>
-                    @error('title')<small class="form-error">{{ $message }}</small>@enderror
-                </div>
-
-                <div class="form-group">
                     <label for="achievement-type">Achievement Type</label>
                     <input class="form-control @error('achievement_type') is-invalid @enderror" id="achievement-type" name="achievement_type" type="text" list="achievement-type-options" value="{{ old('achievement_type', $achievementFormRecord?->achievement_type ?? '') }}" placeholder="Select or type a custom type" maxlength="60" required>
                     <datalist id="achievement-type-options">
@@ -114,6 +144,12 @@
                     </datalist>
                     <small class="form-hint">Pick one of the standard categories or type your own.</small>
                     @error('achievement_type')<small class="form-error">{{ $message }}</small>@enderror
+                </div>
+
+                <div class="form-group">
+                    <label for="achievement-place">Place / Rank</label>
+                    <input class="form-control @error('place') is-invalid @enderror" id="achievement-place" name="place" type="text" value="{{ old('place', $achievementFormRecord?->place ?? '') }}" placeholder="e.g. 1st Place" maxlength="60">
+                    @error('place')<small class="form-error">{{ $message }}</small>@enderror
                 </div>
             </div>
 
@@ -145,26 +181,13 @@
                 </div>
             </div>
 
-            <div class="grid grid-2" style="margin-top:12px">
-                <div class="form-group">
-                    <label for="achievement-place">Place / Rank</label>
-                    <input class="form-control @error('place') is-invalid @enderror" id="achievement-place" name="place" type="text" value="{{ old('place', $achievementFormRecord?->place ?? '') }}" placeholder="e.g. 1st Place" maxlength="60">
-                    @error('place')<small class="form-error">{{ $message }}</small>@enderror
-                </div>
-
-                <div class="form-group">
-                    <label for="achievement-certificate">Certificate / Image</label>
-                    <input class="form-control @error('certificate') is-invalid @enderror" id="achievement-certificate" name="certificate" type="file" accept=".jpg,.jpeg,.png,.webp,.pdf,image/jpeg,image/png,image/webp,application/pdf">
-                    <small class="form-hint">JPG, JPEG, PNG, WEBP or PDF &middot; maximum 2 MB.@if ($achievementFormRecord?->hasCertificate()) A certificate is already attached and will be replaced.@endif</small>
-                    @error('certificate')<small class="form-error">{{ $message }}</small>@enderror
-                </div>
-            </div>
-
             <div class="form-group" style="margin-top:12px">
                 <label for="achievement-description">Description</label>
                 <textarea class="form-control @error('description') is-invalid @enderror" id="achievement-description" name="description" rows="3" maxlength="2000" placeholder="Optional details about the accomplishment">{{ old('description', $achievementFormRecord?->description ?? '') }}</textarea>
                 @error('description')<small class="form-error">{{ $message }}</small>@enderror
             </div>
+
+            <p class="form-hint" style="margin-top:10px">The certificate is generated by SportsHub as a PDF. Nothing is attached to the record when the achievement is saved.</p>
 
             <button class="button" type="submit">{{ $achievementFormMode === 'edit' ? 'Update Achievement' : 'Save Achievement' }}</button>
         </form>
@@ -177,7 +200,7 @@
                 <h2>Achievements</h2>
                 <p>{{ count($achievements ?? []) }} record{{ count($achievements ?? []) === 1 ? '' : 's' }} matching the current filters</p>
             </div>
-            <a class="button button-secondary" href="{{ route('admin.achievements.certificate.generate') }}">Generate Certificate</a>
+            <a class="button button-secondary" href="{{ route('admin.achievements.certificate.generate') }}">Preview Certificate</a>
         </div>
 
         <form method="GET" action="{{ route('admin.achievements') }}" class="filters achievement-filters">
@@ -218,8 +241,12 @@
                     @forelse ($achievements ?? [] as $record)
                         <tr>
                             <td>
-                                <strong>{{ $record->athlete?->name ?? 'Unknown athlete' }}</strong>
-                                @if ($record->athlete?->student_id)<br><small class="meta">{{ $record->athlete->student_id }}</small>@endif
+                                <strong>{{ $record->recipientName() }}</strong>
+                                @if ($record->isTeam())
+                                    <br><small class="meta">Team</small>
+                                @elseif ($record->athlete?->student_id)
+                                    <br><small class="meta">{{ $record->athlete->student_id }}</small>
+                                @endif
                             </td>
                             <td>{{ $record->sportLabel() }}</td>
                             <td>{{ $record->title }}@if ($record->certificate_path)<span class="badge achievement-cert-badge">Certificate</span>@endif</td>
@@ -230,7 +257,23 @@
                                 <div class="achievement-actions">
                                     <a class="text-link" href="{{ route('admin.achievements.show', $record) }}">View</a>
                                     <a class="text-link" href="{{ route('admin.achievements.edit', $record) }}">Edit</a>
-                                    <a class="text-link" href="{{ route('admin.achievements.certificate.generate', ['achievement' => $record->id]) }}">Certificate</a>
+                                    @if ($record->isTeam())
+                                        @if (($achievementCertificateRequests[$record->id] ?? null)?->status === 'Issued')
+                                            <a class="text-link" href="{{ route('admin.achievements.certificate', $record) }}">Certificate</a>
+                                        @else
+                                            <form method="POST" action="{{ route('admin.achievements.certificate.issue', $record) }}" class="achievement-action-form">
+                                                @csrf
+                                                <button class="text-link" type="submit">Generate Certificate</button>
+                                            </form>
+                                        @endif
+                                    @else
+                                        @php($certificateRequest = $achievementCertificateRequests[$record->id] ?? null)
+                                        @if ($certificateRequest)
+                                            <span class="badge status-{{ strtolower($certificateRequest->status) }}">{{ $certificateRequest->status }}</span>
+                                        @else
+                                            <a class="text-link" href="{{ route('admin.achievements.certificate.print', $record) }}">Preview</a>
+                                        @endif
+                                    @endif
                                     <button class="row-action row-action-danger" type="button" data-confirm-dialog data-confirm-title="Delete Achievement?" data-confirm-message="Delete this achievement? This action cannot be undone." data-confirm-label="Delete" data-confirm-method="DELETE" data-confirm-url="{{ route('admin.achievements.destroy', $record) }}">Delete</button>
                                 </div>
                             </td>

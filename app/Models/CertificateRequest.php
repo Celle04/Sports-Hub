@@ -31,12 +31,15 @@ class CertificateRequest extends Model
         'handled_by',
         'handled_at',
         'certificate_path',
+        'certificate_generated_at',
+        'certificate_reference',
     ];
 
     protected function casts(): array
     {
         return [
             'handled_at' => 'datetime',
+            'certificate_generated_at' => 'datetime',
         ];
     }
 
@@ -73,6 +76,39 @@ class CertificateRequest extends Model
     public function isOpen(): bool
     {
         return in_array($this->status, self::OPEN_STATUSES, true);
+    }
+
+    /**
+     * The PDF has been generated and stored for this request.
+     */
+    public function isGenerated(): bool
+    {
+        return filled($this->certificate_path) && $this->certificate_generated_at !== null;
+    }
+
+    /**
+     * The certificate has been marked ready for release, so the student may
+     * download it.
+     */
+    public function isReleased(): bool
+    {
+        return $this->status === self::STATUS_ISSUED && $this->isGenerated();
+    }
+
+    /**
+     * The reference printed on the certificate, for example
+     * "SNNHS-ACH-2026-0001".
+     */
+    public function certificateReference(): string
+    {
+        if (filled($this->certificate_reference)) {
+            return (string) $this->certificate_reference;
+        }
+
+        $achievement = $this->achievement;
+        $year = $achievement?->date_achieved?->year ?? now()->year;
+
+        return config('certificate.reference_prefix', 'SNNHS-ACH').'-'.$year.'-'.str_pad((string) ($achievement?->id ?? 0), 4, '0', STR_PAD_LEFT);
     }
 
     public function issuedCertificateName(): string

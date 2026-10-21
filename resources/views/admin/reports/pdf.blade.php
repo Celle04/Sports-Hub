@@ -21,6 +21,7 @@
 		table.data th { background: #10069F; color: #fff; font-size: 9.5px; text-align: left; padding: 6px 6px; border: 1px solid #0C0480; }
 		table.data td { border: 1px solid #d9d9d9; padding: 5px 6px; font-size: 10px; vertical-align: top; }
 		table.data tbody tr:nth-child(even) td { background: #fafafa; }
+		table.data tr.group td { background: #E8E7FF; color: #10069F; font-weight: bold; font-size: 9.5px; letter-spacing: .5px; text-transform: uppercase; }
 		.empty { padding: 18px; text-align: center; color: #777; border: 1px dashed #d9d9d9; }
 		.footer { margin-top: 16px; font-size: 9px; color: #777; border-top: 1px solid #d9d9d9; padding-top: 8px; }
 	</style>
@@ -57,7 +58,12 @@
 				</tr>
 			</thead>
 			<tbody>
+				@php($group = null)
 				@foreach ($payload['rows'] as $row)
+					@if ($payload['grouped'] && ($row['group'] ?? null) !== $group)
+						@php($group = $row['group'] ?? null)
+						<tr class="group"><td colspan="{{ count($payload['columns']) }}">{{ strtoupper((string) $group) }}</td></tr>
+					@endif
 					<tr>
 						@foreach ($payload['columns'] as $column)
 							<td>{{ $column['key'] === 'rate' ? ($row[$column['key']] ?? 0).'%' : ($row[$column['key']] ?? '—') }}</td>

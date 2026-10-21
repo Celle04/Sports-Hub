@@ -99,6 +99,10 @@
             return;
         }
         dialog._opener = opener || null;
+        /* Opening a card must never move the page: the position is kept and
+           restored around the focus that the dialog applies to its first
+           control. */
+        dialog._scrollY = window.scrollY || window.pageYOffset || 0;
         if (typeof dialog.showModal === 'function') {
             dialog.showModal();
         } else {
@@ -108,7 +112,14 @@
         window.requestAnimationFrame(function () {
             var target = dialog.querySelector('[data-app-modal-autofocus]')
                 || dialog.querySelector('input, select, textarea, button:not([data-app-modal-close])');
-            if (target) { target.focus(); }
+            if (target) {
+                try {
+                    target.focus({ preventScroll: true });
+                } catch (e) {
+                    target.focus();
+                }
+            }
+            window.scrollTo(0, dialog._scrollY);
         });
     }
 
@@ -116,14 +127,20 @@
         if (!dialog.open) {
             return;
         }
+        var scrollY = dialog._scrollY || window.scrollY || window.pageYOffset || 0;
         if (typeof dialog.close === 'function') {
             dialog.close();
         } else {
             dialog.removeAttribute('open');
         }
         if (dialog._opener && typeof dialog._opener.focus === 'function') {
-            dialog._opener.focus();
+            try {
+                dialog._opener.focus({ preventScroll: true });
+            } catch (e) {
+                dialog._opener.focus();
+            }
         }
+        window.scrollTo(0, scrollY);
     }
 
     function isBusy(dialog) {

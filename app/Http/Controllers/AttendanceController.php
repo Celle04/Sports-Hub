@@ -9,6 +9,7 @@ use App\Models\Sport;
 use App\Models\User;
 use App\Services\AttendanceSessionService;
 use App\Services\StudentUpdateNotifier;
+use App\Support\PortalNavigation;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
@@ -75,36 +76,18 @@ class AttendanceController extends Controller
         }
 
         $event = ! empty($validated['event_id']) ? Event::findOrFail($validated['event_id']) : null;
-        $validated['sport_id'] = $validated['sport_id'] ?? $event?->sport_id;
 
-        $status = $validated['status'] ?? 'Open';
+        $session = $this->attendance->createSession($validated, $event);
 
-        $session = AttendanceSession::create([
-            'title' => $validated['title'],
-            'event_id' => $event?->id,
-            'sport_id' => $validated['sport_id'],
-            'session_date' => $validated['session_date'],
-            'start_time' => $validated['start_time'] ?? null,
-            'end_time' => $validated['end_time'] ?? null,
-            'late_grace_minutes' => $validated['late_grace_minutes'] ?? config('attendance.late_grace_minutes'),
-            'venue' => $validated['venue'] ?? null,
-            'description' => $validated['description'] ?? null,
-            'status' => $status,
-            'created_by' => auth()->id(),
-            'opened_at' => $status === 'Open' ? now() : null,
-            'closed_at' => in_array($status, ['Closed', 'Cancelled'], true) ? now() : null,
-        ]);
-
-        $rosterSize = $this->attendance->syncRoster($session);
+        $rosterSize = $session->attendanceRecords()->where('status', 'Pending')->count();
 
         $message = $rosterSize > 0
             ? "Attendance session created. {$rosterSize} athlete(s) assigned to {$session->effectiveSportName()} were added as Pending."
             : 'Attendance session created. No active athletes are currently assigned to that sport.';
 
         return redirect()
-            ->route('admin.attendance', ['session_id' => $session->id])
-            ->with('success', $message);
-    }
+            ->to(route('admin.attendance', ['session_id' => $session->id]).'#attendance-session-detail')
+            ->with('success', $message);    }
 
     public function open(AttendanceSession $session): RedirectResponse
     {
@@ -180,7 +163,7 @@ class AttendanceController extends Controller
         }
 
         return redirect()
-            ->route('admin.attendance', ['session_id' => $attendance->attendance_session_id])
+            ->to(route('admin.attendance', ['session_id' => $attendance->attendance_session_id]).'#attendance-session-detail')
             ->with('success', 'Attendance status updated.');
     }
 
@@ -342,8 +325,7 @@ class AttendanceController extends Controller
                         ->where('name', 'like', $search)
                         ->orWhere('student_id', 'like', $search));
             }))
-            ->orderByDesc('session_date')
-            ->orderByDesc('start_time')
+            ->orderByDesc('created_at')
             ->orderByDesc('id')
             ->get();
     }
@@ -360,6 +342,7 @@ class AttendanceController extends Controller
             ->when($filters['record_status'] ?? null, fn ($query, $status) => $query->where('status', $status))
             ->when($filters['date'] ?? null, fn ($query, $date) => $query->whereDate('attended_on', $date))
             ->orderByDesc('attended_on')
+            ->orderByDesc('created_at')
             ->orderByDesc('id')
             ->paginate(25, ['*'], 'history_page');
     }
@@ -416,19 +399,7 @@ class AttendanceController extends Controller
     {
         return [
             'title' => 'Attendance Management',
-            'navItems' => [
-                ['key' => 'dashboard', 'label' => 'Dashboard', 'icon' => 'dashboard', 'route' => 'dashboard'],
-                ['key' => 'events', 'label' => 'Events', 'icon' => 'calendar', 'route' => 'events.index'],
-                ['key' => 'calendar', 'label' => 'Calendar', 'icon' => 'calendar', 'route' => 'admin.calendar'],
-                ['key' => 'applications', 'label' => 'Applications', 'icon' => 'clipboard', 'route' => 'admin.applications'],
-                ['key' => 'sports', 'label' => 'Sports', 'icon' => 'trophy', 'route' => 'sports.index'],
-                ['key' => 'athletes', 'label' => 'Athletes', 'icon' => 'activity', 'route' => 'athletes.index'],
-                ['key' => 'medical', 'label' => 'Medical', 'icon' => 'medical', 'route' => 'admin.medical'],
-                ['key' => 'coaches', 'label' => 'Coaches', 'icon' => 'users', 'route' => 'coaches.index'],
-                ['key' => 'attendance', 'label' => 'Attendance', 'icon' => 'clipboard', 'route' => 'admin.attendance'],
-                ['key' => 'achievements', 'label' => 'Achievements', 'icon' => 'trophy', 'route' => 'admin.achievements'],
-                ['key' => 'reports', 'label' => 'Reports', 'icon' => 'chart', 'route' => 'reports.index'],
-            ],
+            'navItems' => PortalNavigation::admin(),
             'active' => 'attendance',
             'roleLabel' => 'Admin Portal',
             'userName' => auth()->user()->name,

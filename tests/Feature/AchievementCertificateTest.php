@@ -63,7 +63,7 @@ class AchievementCertificateTest extends TestCase
         $this->actingAs($admin)
             ->get(route('admin.achievements.certificate.generate'))
             ->assertOk()
-            ->assertSee('Generate Achievement Certificate')
+            ->assertSee('Preview Achievement Certificate')
             ->assertSee($achievement->title);
     }
 
@@ -114,7 +114,7 @@ class AchievementCertificateTest extends TestCase
         $disposition = $response->headers->get('content-disposition');
 
         $this->assertStringContainsString('attachment', $disposition);
-        $this->assertStringContainsString('Certificate_of_Achievement_maria-santos_'.$achievement->id.'.pdf', $disposition);
+        $this->assertStringContainsString('certificate-achievement-'.$achievement->date_achieved->year.'-'.str_pad((string) $achievement->id, 4, '0', STR_PAD_LEFT).'.pdf', $disposition);
     }
 
     public function test_the_generator_and_certificate_routes_are_admin_only(): void

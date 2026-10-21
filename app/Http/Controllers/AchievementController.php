@@ -3,11 +3,13 @@
 namespace App\Http\Controllers;
 
 use App\Models\Achievement;
+use App\Models\CertificateRequest;
 use App\Models\Event;
 use App\Models\Sport;
 use App\Models\User;
 use App\Services\StudentUpdateNotifier;
 use App\Services\AchievementCertificateService;
+use App\Support\PortalNavigation;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -53,12 +55,8 @@ class AchievementController extends Controller
         $this->ensureAdministrator();
 
         $validated = $this->validateAchievement($request);
-        $athlete = User::where('role', 'Student')->findOrFail($validated['athlete_id']);
 
-        $achievement = Achievement::create($this->achievementAttributes(
-            $validated,
-            $this->storeCertificate($request),
-        ));
+        $achievement = Achievement::create($this->achievementAttributes($validated));
 
         $this->notifyAthlete($achievement);
 
@@ -109,11 +107,7 @@ class AchievementController extends Controller
 
         $validated = $this->validateAchievement($request, $achievement);
 
-        if ($request->hasFile('certificate')) {
-            $this->deleteCertificate($achievement);
-        }
-
-        $achievement->update($this->achievementAttributes($validated, $this->storeCertificate($request), $achievement));
+        $achievement->update($this->achievementAttributes($validated, $achievement));
 
         return redirect()->route('admin.achievements')->with('success', 'Achievement updated successfully.');
     }
@@ -138,7 +132,7 @@ class AchievementController extends Controller
 
         abort_unless($achievement->hasCertificate(), 404, 'No certificate is attached to this achievement.');
 
-        return Storage::disk('private')->download($achievement->certificate_path, $achievement->certificateDiskName());
+        return Storage::disk('private')->download($achievement->certificate_path, $achievement->certificateFileName());
     }
 
     /**
@@ -195,6 +189,47 @@ class AchievementController extends Controller
             ->download($data['filename']);
     }
 
+    /**
+     * Issue the certificate of a team achievement.
+     *
+     * A team achievement has no athlete who could request a certificate, so
+     * the coordinator opens the request on the team's behalf and issues it in
+     * one explicit action. The certificate is still stored against a request,
+     * so the history of the record stays complete.
+     */
+    public function issueCertificate(Achievement $achievement): RedirectResponse
+    {
+        $this->ensureAdministrator();
+
+        abort_unless($achievement->isTeam(), 422, 'Only a team achievement can be issued this way. An athlete requests their own certificate.');
+        abort_if($achievement->certificateRequests()->where('status', CertificateRequest::STATUS_ISSUED)->exists(), 422, 'This certificate has already been issued.');
+
+        $request = CertificateRequest::create([
+            'achievement_id' => $achievement->id,
+            'student_id' => $achievement->athlete_id,
+            'status' => CertificateRequest::STATUS_APPROVED,
+            'remarks' => 'Issued by the Sports Coordinator for a team achievement.',
+            'handled_by' => auth()->id(),
+            'handled_at' => now(),
+        ]);
+
+        $service = app(AchievementCertificateService::class);
+        $path = self::CERTIFICATE_FOLDER.'/'.Str::uuid().'.pdf';
+
+        Storage::disk('private')->put($path, $service->outputPdf($achievement, $request));
+
+        $request->update([
+            'status' => CertificateRequest::STATUS_ISSUED,
+            'certificate_path' => $path,
+            'certificate_generated_at' => now(),
+            'certificate_reference' => $service->referenceFor($achievement),
+        ]);
+
+        $achievement->update(['certificate_path' => $path]);
+
+        return back()->with('success', 'Certificate generated for '.$achievement->team_name.'.');
+    }
+
 /**
      * Everything the module list needs, filtered through the query builder.
      *
@@ -211,8 +246,7 @@ class AchievementController extends Controller
         $sort = in_array($request->input('sort'), ['oldest', 'title'], true) ? $request->input('sort') : 'newest';
 
         $achievements = Achievement::query()
-            ->with(['athlete.sport', 'sport', 'event'])
-            ->when($search, fn ($query, $value) => $query->where(function ($searchQuery) use ($value) {
+            ->with(['athlete.sport', 'sport', 'event'])            ->when($search, fn ($query, $value) => $query->where(function ($searchQuery) use ($value) {
                 $searchQuery->where('title', 'like', "%{$value}%")
                     ->orWhere('competition', 'like', "%{$value}%")
                     ->orWhere('place', 'like', "%{$value}%")
@@ -233,6 +267,12 @@ class AchievementController extends Controller
 
         return [
             'achievements' => $achievements,
+            'achievementCertificateRequests' => CertificateRequest::query()
+                ->whereIn('achievement_id', $achievements->pluck('id'))
+                ->orderByDesc('handled_at')
+                ->orderByDesc('id')
+                ->get()
+                ->keyBy('achievement_id'),
             'achievementAthletes' => User::where('role', 'Student')->orderBy('name')->get(),
             'achievementSports' => Sport::orderBy('name')->get(),
             'achievementEvents' => Event::with('sport')->orderByDesc('starts_at')->get(),
@@ -276,11 +316,15 @@ class AchievementController extends Controller
      */
     private function validateAchievement(Request $request, ?Achievement $achievement = null): array
     {
+        $isTeam = $request->boolean('is_team');
+
         $validator = Validator::make($request->all(), [
+            'is_team' => ['nullable', 'boolean'],
             'athlete_id' => [
-                'required',
+                $isTeam ? 'nullable' : 'required',
                 Rule::exists('users', 'id')->where(fn ($query) => $query->where('role', 'Student')),
             ],
+            'team_name' => [$isTeam ? 'required' : 'nullable', 'string', 'max:150'],
             'sport_id' => ['nullable', 'exists:sports,id'],
             'event_id' => ['nullable', 'exists:events,id'],
             'title' => ['required', 'string', 'max:150'],
@@ -289,15 +333,13 @@ class AchievementController extends Controller
             'place' => ['nullable', 'string', 'max:60'],
             'date_achieved' => ['required', 'date'],
             'description' => ['nullable', 'string', 'max:2000'],
-            'certificate' => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp,pdf', 'max:2048'],
         ], [
             'athlete_id.required' => 'Select the athlete who earned this achievement.',
             'athlete_id.exists' => 'The selected athlete no longer exists.',
+            'team_name.required' => 'Enter the name of the team that earned this achievement.',
             'title.required' => 'Enter an achievement title.',
             'achievement_type.required' => 'Enter an achievement type.',
             'date_achieved.required' => 'Enter the date the achievement was earned.',
-            'certificate.mimes' => 'The certificate must be a JPG, JPEG, PNG, WEBP or PDF file.',
-            'certificate.max' => 'The certificate may not be larger than 2 MB.',
         ]);
 
         $validator->after(function ($validator) use ($request) {
@@ -315,6 +357,10 @@ class AchievementController extends Controller
      */
     private function validateRelationships($validator, Request $request): void
     {
+        if ($request->boolean('is_team')) {
+            return;
+        }
+
         $athlete = User::where('role', 'Student')->find($request->input('athlete_id'));
 
         if (! $athlete) {
@@ -344,12 +390,14 @@ class AchievementController extends Controller
      * @param  array<string, mixed>  $validated
      * @return array<string, mixed>
      */
-    private function achievementAttributes(array $validated, ?string $storedCertificate = null, ?Achievement $achievement = null): array
+    private function achievementAttributes(array $validated, ?Achievement $achievement = null): array
     {
         $event = filled($validated['event_id'] ?? null) ? Event::find($validated['event_id']) : null;
+        $isTeam = (bool) ($validated['is_team'] ?? false);
 
         return [
-            'athlete_id' => $validated['athlete_id'],
+            'athlete_id' => $isTeam ? null : $validated['athlete_id'],
+            'team_name' => $isTeam ? ($validated['team_name'] ?? null) : null,
             'sport_id' => $validated['sport_id'] ?? ($event?->sport_id ?: null),
             'event_id' => $validated['event_id'] ?? null,
             'title' => $validated['title'],
@@ -385,25 +433,21 @@ class AchievementController extends Controller
         );
     }
 
-    private function storeCertificate(Request $request): ?string
-    {
-        if (! $request->hasFile('certificate')) {
-            return null;
-        }
-
-        $file = $request->file('certificate');
-
-        return $file->storeAs(
-            self::CERTIFICATE_FOLDER,
-            Str::uuid().'.'.strtolower($file->getClientOriginalExtension() ?: 'pdf'),
-            'private',
-        );
-    }
-
+    /**
+     * Remove the generated certificate files of an achievement, including the
+     * ones that belong to its certificate requests.
+     */
     private function deleteCertificate(Achievement $achievement): void
     {
-        if ($achievement->certificate_path && Storage::disk('private')->exists($achievement->certificate_path)) {
-            Storage::disk('private')->delete($achievement->certificate_path);
+        $paths = collect([$achievement->certificate_path])
+            ->merge($achievement->certificateRequests()->pluck('certificate_path'))
+            ->filter()
+            ->unique();
+
+        foreach ($paths as $path) {
+            if (Storage::disk('private')->exists($path)) {
+                Storage::disk('private')->delete($path);
+            }
         }
     }
 
@@ -411,20 +455,7 @@ class AchievementController extends Controller
     {
         return array_merge([
             'title' => 'Achievements',
-            'navItems' => [
-                ['key' => 'dashboard', 'label' => 'Dashboard', 'icon' => 'dashboard', 'route' => 'dashboard'],
-                ['key' => 'events', 'label' => 'Events', 'icon' => 'calendar', 'route' => 'events.index'],
-                ['key' => 'calendar', 'label' => 'Calendar', 'icon' => 'calendar', 'route' => 'admin.calendar'],
-                ['key' => 'applications', 'label' => 'Applications', 'icon' => 'clipboard', 'route' => 'admin.applications'],
-                ['key' => 'sports', 'label' => 'Sports', 'icon' => 'trophy', 'route' => 'sports.index'],
-                ['key' => 'athletes', 'label' => 'Athletes', 'icon' => 'activity', 'route' => 'athletes.index'],
-                ['key' => 'medical', 'label' => 'Medical', 'icon' => 'medical', 'route' => 'admin.medical'],
-                ['key' => 'coaches', 'label' => 'Coaches', 'icon' => 'users', 'route' => 'coaches.index'],
-                ['key' => 'attendance', 'label' => 'Attendance', 'icon' => 'clipboard', 'route' => 'admin.attendance'],
-                ['key' => 'achievements', 'label' => 'Achievements', 'icon' => 'trophy', 'route' => 'admin.achievements'],
-                ['key' => 'certificate-requests', 'label' => 'Certificate Requests', 'icon' => 'certificate', 'route' => 'admin.certificate-requests'],
-                ['key' => 'reports', 'label' => 'Reports', 'icon' => 'chart', 'route' => 'reports.index'],
-            ],
+            'navItems' => PortalNavigation::admin(),
             'active' => 'achievements',
             'roleLabel' => 'Admin Portal',
             'userName' => auth()->user()->name,

@@ -365,9 +365,111 @@ class ReportsManagementTest extends TestCase
         $this->assertStringContainsString('Student ID', $csv);
     }
 
-    public function test_reports_never_expose_passwords_or_remember_tokens(): void
+    public function test_the_athlete_list_can_be_categorized_by_sport_boys_and_girls(): void
     {
         $admin = $this->admin();
+        $boysSport = Sport::create(['name' => 'Basketball', 'classification' => 'Team Sport', 'description' => 'Basketball', 'gender' => 'Boys']);
+        $girlsSport = Sport::create(['name' => 'Volleyball', 'classification' => 'Team Sport', 'description' => 'Volleyball', 'gender' => 'Girls']);
+
+        $boy = User::factory()->create(['role' => 'Student', 'name' => 'Category Boy', 'sport_id' => $boysSport->id, 'student_id' => '2026-9101']);
+        $girl = User::factory()->create(['role' => 'Student', 'name' => 'Category Girl', 'sport_id' => $girlsSport->id, 'student_id' => '2026-9102']);
+
+        Application::create(['name' => 'Category Boy', 'athlete_id' => $boy->id, 'student_id' => '2026-9101', 'grade' => 'Grade 10', 'gender' => 'Male', 'email' => 'boy@example.com', 'sport' => 'Basketball', 'sport_id' => $boysSport->id, 'status' => 'Pending']);
+        Application::create(['name' => 'Category Girl', 'athlete_id' => $girl->id, 'student_id' => '2026-9102', 'grade' => 'Grade 10', 'gender' => 'Female', 'email' => 'girl@example.com', 'sport' => 'Volleyball', 'sport_id' => $girlsSport->id, 'status' => 'Pending']);
+
+        // All athletes.
+        $this->actingAs($admin)->get(route('reports.index', ['report' => 'athletes']))
+            ->assertOk()
+            ->assertSee('Category Boy')
+            ->assertSee('Category Girl');
+
+        // Boys only.
+        $this->actingAs($admin)->get(route('reports.index', ['report' => 'athletes', 'category' => 'boys']))
+            ->assertOk()
+            ->assertSee('Category Boy')
+            ->assertDontSee('Category Girl');
+
+        // Girls only.
+        $this->actingAs($admin)->get(route('reports.index', ['report' => 'athletes', 'category' => 'girls']))
+            ->assertOk()
+            ->assertSee('Category Girl')
+            ->assertDontSee('Category Boy');
+
+        // By sport: every athlete is filed under the sport they play.
+        $this->actingAs($admin)->get(route('reports.index', ['report' => 'athletes', 'category' => 'sport']))
+            ->assertOk()
+            ->assertSee('Basketball')
+            ->assertSee('Volleyball');
+    }
+
+    public function test_the_athlete_list_download_follows_the_chosen_category(): void
+    {
+        $admin = $this->admin();
+        $boysSport = Sport::create(['name' => 'Basketball', 'classification' => 'Team Sport', 'description' => 'Basketball', 'gender' => 'Boys']);
+        $girlsSport = Sport::create(['name' => 'Volleyball', 'classification' => 'Team Sport', 'description' => 'Volleyball', 'gender' => 'Girls']);
+
+        $boy = User::factory()->create(['role' => 'Student', 'name' => 'Download Boy', 'sport_id' => $boysSport->id, 'student_id' => '2026-9201']);
+        $girl = User::factory()->create(['role' => 'Student', 'name' => 'Download Girl', 'sport_id' => $girlsSport->id, 'student_id' => '2026-9202']);
+
+        Application::create(['name' => 'Download Boy', 'athlete_id' => $boy->id, 'student_id' => '2026-9201', 'grade' => 'Grade 10', 'gender' => 'Male', 'email' => 'boy@example.com', 'sport' => 'Basketball', 'sport_id' => $boysSport->id, 'status' => 'Pending']);
+        Application::create(['name' => 'Download Girl', 'athlete_id' => $girl->id, 'student_id' => '2026-9202', 'grade' => 'Grade 10', 'gender' => 'Female', 'email' => 'girl@example.com', 'sport' => 'Volleyball', 'sport_id' => $girlsSport->id, 'status' => 'Pending']);
+
+        // The boys download only carries the boys.
+        $response = $this->actingAs($admin)
+            ->get(route('reports.export', ['format' => 'csv', 'report' => 'athletes', 'category' => 'boys']))
+            ->assertOk();
+
+        $csv = $response->streamedContent();
+        $this->assertStringContainsString('Download Boy', $csv);
+        $this->assertStringNotContainsString('Download Girl', $csv);
+        $this->assertStringContainsString('Category: Boys', $csv);
+        $this->assertStringContainsString('boys', $response->headers->get('content-disposition'));
+
+        // The by-sport download repeats a heading for every sport.
+        $response = $this->actingAs($admin)
+            ->get(route('reports.export', ['format' => 'csv', 'report' => 'athletes', 'category' => 'sport']))
+            ->assertOk();
+
+        $csv = $response->streamedContent();
+        $this->assertStringContainsString('BASKETBALL', $csv);
+        $this->assertStringContainsString('VOLLEYBALL', $csv);
+        $this->assertStringContainsString('Download Boy', $csv);
+        $this->assertStringContainsString('Download Girl', $csv);
+    }
+
+    public function test_the_attendance_summary_can_be_downloaded_for_a_single_event(): void
+    {
+        $admin = $this->admin();
+        $sport = $this->sport('Sepak Takraw');
+        $athlete = User::factory()->create(['role' => 'Student', 'name' => 'Event Athlete', 'sport_id' => $sport->id, 'student_id' => '2026-9301']);
+
+        $wanted = Event::create(['title' => 'Wanted Event', 'sport_id' => $sport->id, 'venue' => 'Gym', 'starts_at' => now(), 'ends_at' => now()->addHour(), 'status' => 'Scheduled']);
+        $other = Event::create(['title' => 'Other Event', 'sport_id' => $sport->id, 'venue' => 'Gym', 'starts_at' => now(), 'ends_at' => now()->addHour(), 'status' => 'Scheduled']);
+
+        Attendance::create(['event_id' => $wanted->id, 'user_id' => $athlete->id, 'status' => 'Present', 'attended_on' => today()->toDateString()]);
+        Attendance::create(['event_id' => $other->id, 'user_id' => $athlete->id, 'status' => 'Absent', 'attended_on' => today()->toDateString()]);
+
+        // The preview is filtered by the chosen event.
+        $this->actingAs($admin)
+            ->get(route('reports.index', ['report' => 'attendance', 'event_id' => $wanted->id]))
+            ->assertOk()
+            ->assertSee('Wanted Event')
+            ->assertSee('Event: Wanted Event');
+
+        // The download follows the same event.
+        $response = $this->actingAs($admin)
+            ->get(route('reports.export', ['format' => 'csv', 'report' => 'attendance', 'event_id' => $wanted->id]))
+            ->assertOk();
+
+        $csv = $response->streamedContent();
+        $this->assertStringContainsString('Wanted Event', $csv);
+        $this->assertStringNotContainsString('Other Event', $csv);
+        $this->assertStringContainsString('Event: Wanted Event', $csv);
+        $this->assertStringContainsString('wanted-event', $response->headers->get('content-disposition'));
+    }
+
+    public function test_reports_never_expose_passwords_or_remember_tokens(): void
+    {        $admin = $this->admin();
         $sport = $this->sport('Sepak Takraw');
         $athlete = User::factory()->create(['name' => 'Private Athlete', 'role' => 'Student', 'sport_id' => $sport->id]);
 

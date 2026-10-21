@@ -148,6 +148,8 @@
 
         dialog._opener = opener;
         dialog.setAttribute('aria-busy', 'false');
+        /* Opening the confirmation must never move the page. */
+        dialog._scrollY = window.scrollY || window.pageYOffset || 0;
         if (typeof dialog.showModal === 'function') {
             dialog.showModal();
         } else {
@@ -156,7 +158,14 @@
         window.requestAnimationFrame(function () {
             var target = dialog.querySelector('[data-app-modal-autofocus]')
                 || dialog.querySelector('input, select, textarea, button:not([data-app-modal-close])');
-            if (target) { target.focus(); }
+            if (target) {
+                try {
+                    target.focus({ preventScroll: true });
+                } catch (e) {
+                    target.focus();
+                }
+            }
+            window.scrollTo(0, dialog._scrollY);
         });
     }
 

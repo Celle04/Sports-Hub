@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;
 
@@ -43,6 +44,7 @@ class Achievement extends Model
 
     protected $fillable = [
         'athlete_id',
+        'team_name',
         'sport_id',
         'event_id',
         'title',
@@ -77,6 +79,14 @@ class Achievement extends Model
     }
 
     /**
+     * The certificate requests that were filed for this achievement.
+     */
+    public function certificateRequests(): HasMany
+    {
+        return $this->hasMany(CertificateRequest::class);
+    }
+
+    /**
      * Scope that keeps an athlete to their own record set.
      *
      * The athlete side of the module resolves records through this scope using
@@ -97,9 +107,75 @@ class Achievement extends Model
             && Storage::disk('private')->exists($this->certificate_path);
     }
 
-    public function certificateDiskName(): string
+    /**
+     * The file name the stored certificate is downloaded under, for example
+     * "certificate-achievement-2026-0001.pdf".
+     */
+    public function certificateFileName(): string
     {
-        return 'achievement-'.$this->id.'.'.pathinfo((string) $this->certificate_path, PATHINFO_EXTENSION);
+        // Older records still hold a file that was attached before the
+        // generated-PDF workflow existed, so the real extension is kept.
+        $extension = strtolower(pathinfo((string) $this->certificate_path, PATHINFO_EXTENSION) ?: 'pdf');
+
+        return 'certificate-achievement-'.$this->certificateYear().'-'.str_pad((string) $this->id, 4, '0', STR_PAD_LEFT).'.'.$extension;
+    }
+
+    /**
+     * The file name of a freshly generated PDF for this achievement.
+     */
+    public function certificatePdfName(): string
+    {
+        return 'certificate-achievement-'.$this->certificateYear().'-'.str_pad((string) $this->id, 4, '0', STR_PAD_LEFT).'.pdf';
+    }
+
+    /**
+     * The unique reference printed on the certificate, for example
+     * "SNNHS-ACH-2026-0001".
+     */
+    public function certificateReference(): string
+    {
+        return config('certificate.reference_prefix', 'SNNHS-ACH')
+            .'-'.$this->certificateYear()
+            .'-'.str_pad((string) $this->id, 4, '0', STR_PAD_LEFT);
+    }
+
+    /**
+     * The year the achievement was earned, which keeps the reference and the
+     * file name stable for the life of the certificate.
+     */
+    private function certificateYear(): int
+    {
+        return $this->date_achieved?->year ?? now()->year;
+    }
+
+    /**
+     * A team achievement is won by a team, so it has no single athlete
+     * account. The team name is what the certificate is issued to.
+     */
+    public function isTeam(): bool
+    {
+        return filled($this->team_name);
+    }
+
+    /**
+     * The name printed on the certificate: the team for a team achievement,
+     * the athlete otherwise.
+     */
+    public function recipientName(): string
+    {
+        if ($this->isTeam()) {
+            return (string) $this->team_name;
+        }
+
+        return $this->athlete?->name ?? 'Athlete';
+    }
+
+    /**
+     * How the recipient is described on the certificate and in the lists.
+     */
+    public function recipientLabel(): string
+    {
+        return $this->isTeam() ? 'Team' : 'Athlete';
     }
 
     public function isMedal(): bool

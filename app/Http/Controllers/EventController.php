@@ -2,10 +2,13 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AttendanceSession;
 use App\Models\Event;
 use App\Models\Coach;
 use App\Models\Sport;
+use App\Services\AttendanceSessionService;
 use App\Services\StudentUpdateNotifier;
+use App\Support\PortalNavigation;
 use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -13,6 +16,10 @@ use Illuminate\View\View;
 
 class EventController extends Controller
 {
+    public function __construct(private readonly AttendanceSessionService $attendance)
+    {
+    }
+
     public function index(Request $request): View
     {
         $this->ensureAdministrator();
@@ -68,6 +75,8 @@ class EventController extends Controller
         $this->ensureVenueAvailable($validated['venue'], $validated['starts_at'], $validated['ends_at']);
         $event = Event::create($validated);
 
+        $session = $this->createAttendanceSession($event, $validated['attendance'] ?? []);
+
         if ($event->status === 'Scheduled' && $event->starts_at?->isFuture()) {
             app(StudentUpdateNotifier::class)->notifyStudents(
                 $event->sport_id ? [$event->sport_id] : null,
@@ -77,7 +86,38 @@ class EventController extends Controller
             );
         }
 
-        return redirect()->route('events.index')->with('success', 'Event created successfully.');
+        return redirect()
+            ->to($session
+                ? route('admin.attendance', ['session_id' => $session->id]).'#attendance-session-detail'
+                : route('events.index'))
+            ->with('success', $session
+                ? 'Event created successfully with its attendance session. The roster is ready for check-ins.'
+                : 'Event created successfully.');
+    }
+
+    /**
+     * Creates the attendance session that was filled in on the event form.
+     *
+     * The session is optional: when no attendance title was entered the event
+     * is simply saved on its own.
+     */
+    private function createAttendanceSession(Event $event, array $data): ?AttendanceSession
+    {
+        if (! filled($data['title'] ?? null)) {
+            return null;
+        }
+
+        return $this->attendance->createSession([
+            'title' => $data['title'],
+            'session_date' => $data['session_date'] ?? $event->starts_at?->format('Y-m-d'),
+            'start_time' => $data['start_time'] ?? null,
+            'end_time' => $data['end_time'] ?? null,
+            'sport_id' => $data['sport_id'] ?? null,
+            'late_grace_minutes' => $data['late_grace_minutes'] ?? null,
+            'venue' => $data['venue'] ?? null,
+            'description' => $data['description'] ?? null,
+            'status' => $data['status'] ?? 'Open',
+        ], $event);
     }
 
     public function edit(Event $event): View
@@ -162,6 +202,17 @@ class EventController extends Controller
             'max_participants' => ['nullable', 'integer', 'min:1'],
             'status' => ['required', 'in:'.implode(',', self::statuses())],
             'notes' => ['nullable', 'string', 'max:2000'],
+            // Optional attendance session created together with the event.
+            'attendance' => ['nullable', 'array'],
+            'attendance.title' => ['nullable', 'string', 'max:255'],
+            'attendance.session_date' => ['nullable', 'date'],
+            'attendance.start_time' => ['nullable', 'date_format:H:i'],
+            'attendance.end_time' => ['nullable', 'date_format:H:i', 'after_or_equal:attendance.start_time'],
+            'attendance.sport_id' => ['nullable', 'exists:sports,id'],
+            'attendance.late_grace_minutes' => ['nullable', 'integer', 'min:0', 'max:120'],
+            'attendance.venue' => ['nullable', 'string', 'max:255'],
+            'attendance.description' => ['nullable', 'string', 'max:2000'],
+            'attendance.status' => ['nullable', 'in:Open,Closed,Cancelled'],
         ]);
 
         $validated['event_type'] = $validated['event_type'] ?? 'Other';
@@ -198,19 +249,7 @@ class EventController extends Controller
     {
         return array_merge([
             'title' => 'Event Scheduling',
-            'navItems' => [
-                ['key' => 'dashboard', 'label' => 'Dashboard', 'icon' => 'dashboard', 'route' => 'dashboard'],
-                ['key' => 'events', 'label' => 'Events', 'icon' => 'calendar', 'route' => 'events.index'],
-                ['key' => 'calendar', 'label' => 'Calendar', 'icon' => 'calendar', 'route' => 'admin.calendar'],
-                ['key' => 'applications', 'label' => 'Applications', 'icon' => 'clipboard', 'route' => 'admin.applications'],
-                ['key' => 'sports', 'label' => 'Sports', 'icon' => 'trophy', 'route' => 'sports.index'],
-                ['key' => 'athletes', 'label' => 'Athletes', 'icon' => 'activity', 'route' => 'athletes.index'],
-                ['key' => 'medical', 'label' => 'Medical', 'icon' => 'medical', 'route' => 'admin.medical'],
-                ['key' => 'coaches', 'label' => 'Coaches', 'icon' => 'users', 'route' => 'coaches.index'],
-                ['key' => 'attendance', 'label' => 'Attendance', 'icon' => 'clipboard', 'route' => 'admin.attendance'],
-                ['key' => 'achievements', 'label' => 'Achievements', 'icon' => 'trophy', 'route' => 'admin.achievements'],
-                ['key' => 'reports', 'label' => 'Reports', 'icon' => 'chart', 'route' => 'reports.index'],
-            ],
+            'navItems' => PortalNavigation::admin(),
             'active' => 'events',
             'roleLabel' => 'Admin Portal',
             'userName' => auth()->user()->name,

@@ -9,6 +9,7 @@ use App\Models\Coach;
 use App\Models\Event;
 use App\Models\Sport;
 use App\Models\User;
+use App\Support\PortalNavigation;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
@@ -27,6 +28,19 @@ use Symfony\Component\HttpFoundation\Response;
 class ReportController extends Controller
 {
     public const REPORTS = ['athletes', 'attendance', 'coaches', 'athlete-summary'];
+
+    /**
+     * The ways the official athlete list can be categorized. The download
+     * always follows the same category as the preview.
+     */
+    public const ATHLETE_CATEGORIES = ['all', 'sport', 'boys', 'girls'];
+
+    public const ATHLETE_CATEGORY_LABELS = [
+        'all' => 'All Athletes',
+        'sport' => 'By Sport',
+        'boys' => 'Boys',
+        'girls' => 'Girls',
+    ];
 
     public const SCHOOL = 'SURIGAO DEL NORTE NATIONAL HIGH SCHOOL';
 
@@ -95,7 +109,19 @@ class ReportController extends Controller
             fputcsv($handle, []);
             fputcsv($handle, array_column($payload['columns'], 'label'));
 
+            $group = null;
+
             foreach ($payload['rows'] as $row) {
+                /*
+                 * A categorized list repeats its heading for every group, so
+                 * the downloaded file mirrors the structure of the preview.
+                 */
+                if ($payload['grouped'] && ($row['group'] ?? null) !== $group) {
+                    $group = $row['group'] ?? null;
+                    fputcsv($handle, []);
+                    fputcsv($handle, [strtoupper((string) $group)]);
+                }
+
                 fputcsv($handle, array_map(fn (array $column) => (string) ($row[$column['key']] ?? ''), $payload['columns']));
             }
 
@@ -125,6 +151,7 @@ class ReportController extends Controller
                 'grade' => ['nullable', 'string', 'max:100'],
                 'gender' => ['nullable', 'string', 'max:30'],
                 'eligibility' => ['nullable', 'in:Eligible,Not Eligible,Pending'],
+                'category' => ['nullable', 'in:'.implode(',', self::ATHLETE_CATEGORIES)],
             ]),
             'coaches' => $request->validate([
                 'search' => ['nullable', 'string', 'max:100'],
@@ -134,6 +161,7 @@ class ReportController extends Controller
             ]),
             'athlete-summary' => $request->validate([
                 'sport_id' => ['nullable', 'integer', 'exists:sports,id'],
+                'event_id' => ['nullable', 'integer', 'exists:events,id'],
                 'session_id' => ['nullable', 'integer', 'exists:attendance_sessions,id'],
                 'athlete_id' => ['nullable', 'integer', 'exists:users,id'],
                 'from' => ['nullable', 'date'],
@@ -141,6 +169,7 @@ class ReportController extends Controller
             ]),
             default => $request->validate([
                 'sport_id' => ['nullable', 'integer', 'exists:sports,id'],
+                'event_id' => ['nullable', 'integer', 'exists:events,id'],
                 'session_id' => ['nullable', 'integer', 'exists:attendance_sessions,id'],
                 'athlete_id' => ['nullable', 'integer', 'exists:users,id'],
                 'from' => ['nullable', 'date'],
@@ -163,35 +192,56 @@ class ReportController extends Controller
             default => $this->attendanceReport($filters),
         };
 
+        $rows = $rows->values();
+
         return [
             'key' => $report,
             'title' => $title,
             'columns' => $this->columns($report),
-            'rows' => $rows->values(),
+            'rows' => $rows,
             'summary' => $summary,
             'filtersLabel' => $this->filtersLabel($report, $filters),
             'emptyMessage' => $emptyMessage,
+            // Rows are filed under a heading when the report is categorized,
+            // so the download can repeat that heading for every group.
+            'grouped' => $report === 'athletes' && $this->athleteCategory($filters) === 'sport',
+            'groups' => $report === 'athletes'
+                ? $rows->groupBy('group')->map->count()->map(fn ($count, $label) => ['label' => $label, 'value' => $count])->values()
+                : [],
         ];
     }
 
     /**
      * Complete athlete list: every Student account matching the filters, with
      * the sport and coach relationships Athlete Management displays.
+     *
+     * The list can be categorized: all athletes, grouped by sport, or split
+     * into boys and girls. The download uses the very same rows, so a file
+     * always matches the preview.
      */
     private function athleteReport(array $filters): array
     {
+        $category = $this->athleteCategory($filters);
+
         $athletes = User::query()
             ->where('role', 'Student')
             ->with(['sport.coaches', 'applications' => fn ($query) => $query->orderByDesc('created_at')->orderByDesc('id')])
             ->athleteFilters($filters)
             ->orderBy('name')
             ->get()
-            ->values()
-            ->map(function (User $athlete, int $index) {
+            ->values();
+
+        if (in_array($category, ['boys', 'girls'], true)) {
+            $wanted = $category === 'boys' ? 'Male' : 'Female';
+            $athletes = $athletes->filter(fn (User $athlete) => $this->athleteSex($athlete) === $wanted)->values();
+        }
+
+        $rows = $athletes
+            ->map(function (User $athlete) use ($category) {
                 $application = $athlete->applications->first();
 
                 return [
-                    'no' => $index + 1,
+                    'group' => $this->athleteGroup($athlete, $category),
                     'student_id' => $athlete->student_id ?: 'Not provided',
                     'name' => $athlete->name,
                     'sport' => $athlete->sport?->name ?? 'Unassigned',
@@ -203,19 +253,79 @@ class ReportController extends Controller
                     'registered' => $athlete->created_at?->format('M j, Y') ?? '—',
                     'status' => $athlete->status ?? 'Active',
                 ];
-            });
+            })
+            ->when($category === 'sport', fn ($rows) => $rows->sortBy('group')->values())
+            ->values()
+            ->map(fn (array $row, int $index) => ['no' => $index + 1] + $row);
+
+        $summary = [
+            ['label' => 'Total Athletes', 'value' => $athletes->count()],
+            ['label' => 'Active', 'value' => $athletes->where('status', 'Active')->count()],
+            ['label' => 'Inactive', 'value' => $athletes->where('status', 'Inactive')->count()],
+            ['label' => 'Sports Represented', 'value' => $athletes->pluck('sport')->filter()->unique()->count()],
+        ];
+
+        if (in_array($category, ['boys', 'girls'], true)) {
+            $summary[] = ['label' => 'Boys', 'value' => $athletes->filter(fn (User $athlete) => $this->athleteSex($athlete) === 'Male')->count()];
+            $summary[] = ['label' => 'Girls', 'value' => $athletes->filter(fn (User $athlete) => $this->athleteSex($athlete) === 'Female')->count()];
+        }
+
+        if ($category === 'sport') {
+            foreach ($rows->groupBy('group')->sortKeys() as $sport => $sportRows) {
+                $summary[] = ['label' => $sport, 'value' => $sportRows->count()];
+            }
+        }
 
         return [
             'OFFICIAL ATHLETE LIST',
-            $athletes,
-            [
-                ['label' => 'Total Athletes', 'value' => $athletes->count()],
-                ['label' => 'Active', 'value' => $athletes->where('status', 'Active')->count()],
-                ['label' => 'Inactive', 'value' => $athletes->where('status', 'Inactive')->count()],
-                ['label' => 'Sports Represented', 'value' => $athletes->pluck('sport')->filter()->unique()->count()],
-            ],
+            $rows,
+            $summary,
             'No athletes found.',
         ];
+    }
+
+    /**
+     * The category the athlete list is built for.
+     */
+    private function athleteCategory(array $filters): string
+    {
+        $category = $filters['category'] ?? 'all';
+
+        return in_array($category, self::ATHLETE_CATEGORIES, true) ? $category : 'all';
+    }
+
+    /**
+     * The label a row is filed under for the chosen category.
+     */
+    private function athleteGroup(User $athlete, string $category): string
+    {
+        return match ($category) {
+            'sport' => $athlete->sport?->name ?? 'Unassigned Sport',
+            'boys' => 'Boys',
+            'girls' => 'Girls',
+            default => 'All Athletes',
+        };
+    }
+
+    /**
+     * The athlete's recorded sex. It comes from the latest application and
+     * falls back to the gender category of the sport they play, so an athlete
+     * without an application is still filed in the right group.
+     */
+    private function athleteSex(User $athlete): string
+    {
+        $application = $athlete->applications->first();
+        $gender = $application?->gender;
+
+        if (in_array($gender, ['Male', 'Female'], true)) {
+            return $gender;
+        }
+
+        return match ($athlete->sport?->gender) {
+            'Boys' => 'Male',
+            'Girls' => 'Female',
+            default => '',
+        };
     }
 
     /**
@@ -363,6 +473,12 @@ class ReportController extends Controller
                         ->orWhereHas('session', fn ($sessionQuery) => $sessionQuery->forSport((int) $sportId));
                 });
             })
+            ->when($filters['event_id'] ?? null, function ($query, $eventId) {
+                $query->where(function ($nested) use ($eventId) {
+                    $nested->where('event_id', $eventId)
+                        ->orWhereHas('session', fn ($sessionQuery) => $sessionQuery->where('event_id', $eventId));
+                });
+            })
             ->when($filters['session_id'] ?? null, fn ($query, $sessionId) => $query->forSession((int) $sessionId))
             ->when($filters['athlete_id'] ?? null, fn ($query, $athleteId) => $query->where('user_id', $athleteId))
             ->when($filters['from'] ?? null, fn ($query, $from) => $query->whereDate('attended_on', '>=', $from))
@@ -428,6 +544,7 @@ class ReportController extends Controller
         return match ($report) {
             'athletes' => [
                 ['key' => 'no', 'label' => '#'],
+                ['key' => 'group', 'label' => 'Category'],
                 ['key' => 'student_id', 'label' => 'Student ID'],
                 ['key' => 'name', 'label' => 'Athlete Name'],
                 ['key' => 'sport', 'label' => 'Sport'],
@@ -487,8 +604,17 @@ class ReportController extends Controller
         if (! empty($filters['search'])) {
             $labels->push('Search: '.$filters['search']);
         }
+        if ($report === 'athletes') {
+            $category = $this->athleteCategory($filters);
+            if ($category !== 'all') {
+                $labels->push('Category: '.self::ATHLETE_CATEGORY_LABELS[$category]);
+            }
+        }
         if (! empty($filters['sport_id'])) {
             $labels->push('Sport: '.(Sport::find($filters['sport_id'])?->name ?? '—'));
+        }
+        if (! empty($filters['event_id'])) {
+            $labels->push('Event: '.(Event::find($filters['event_id'])?->title ?? '—'));
         }
         if (! empty($filters['status'])) {
             $labels->push('Status: '.$filters['status']);
@@ -534,8 +660,19 @@ class ReportController extends Controller
             default => 'attendance-report',
         }];
 
+        if ($report === 'athletes') {
+            $category = $this->athleteCategory($filters);
+            if ($category !== 'all') {
+                $parts[] = self::ATHLETE_CATEGORY_LABELS[$category];
+            }
+        }
+
         if (! empty($filters['sport_id']) && $sport = Sport::find($filters['sport_id'])) {
             $parts[] = $sport->name;
+        }
+
+        if (! empty($filters['event_id']) && $event = Event::find($filters['event_id'])) {
+            $parts[] = $event->title;
         }
 
         if (! empty($filters['from']) && ! empty($filters['to'])) {
@@ -600,8 +737,18 @@ class ReportController extends Controller
 
         if (in_array($report, ['attendance', 'athlete-summary'], true)) {
             $options['recordStatuses'] = array_merge(config('attendance.record_statuses'), ['Pending']);
+            $options['events'] = Event::query()
+                ->with('sport')
+                ->orderByDesc('starts_at')
+                ->limit(200)
+                ->get()
+                ->map(fn (Event $event) => [
+                    'id' => $event->id,
+                    'label' => $event->title.' — '.$event->starts_at?->format('M j, Y').' ('.($event->sport?->name ?? 'All sports').')',
+                ]);
             $options['sessions'] = AttendanceSession::query()
                 ->with('sport')
+                ->when(! empty($filters['event_id']), fn ($query, $eventId) => $query->where('event_id', $eventId))
                 ->orderByDesc('session_date')
                 ->orderByDesc('id')
                 ->limit(200)
@@ -628,19 +775,7 @@ class ReportController extends Controller
     {
         return [
             'title' => 'Reports',
-            'navItems' => [
-                ['key' => 'dashboard', 'label' => 'Dashboard', 'icon' => 'dashboard', 'route' => 'dashboard'],
-                ['key' => 'events', 'label' => 'Events', 'icon' => 'calendar', 'route' => 'events.index'],
-                ['key' => 'calendar', 'label' => 'Calendar', 'icon' => 'calendar', 'route' => 'admin.calendar'],
-                ['key' => 'applications', 'label' => 'Applications', 'icon' => 'clipboard', 'route' => 'admin.applications'],
-                ['key' => 'sports', 'label' => 'Sports', 'icon' => 'trophy', 'route' => 'sports.index'],
-                ['key' => 'athletes', 'label' => 'Athletes', 'icon' => 'activity', 'route' => 'athletes.index'],
-                ['key' => 'medical', 'label' => 'Medical', 'icon' => 'medical', 'route' => 'admin.medical'],
-                ['key' => 'coaches', 'label' => 'Coaches', 'icon' => 'users', 'route' => 'coaches.index'],
-                ['key' => 'attendance', 'label' => 'Attendance', 'icon' => 'clipboard', 'route' => 'admin.attendance'],
-                ['key' => 'achievements', 'label' => 'Achievements', 'icon' => 'trophy', 'route' => 'admin.achievements'],
-                ['key' => 'reports', 'label' => 'Reports', 'icon' => 'chart', 'route' => 'reports.index'],
-            ],
+            'navItems' => PortalNavigation::admin(),
             'active' => 'reports',
             'roleLabel' => 'Admin Portal',
             'userName' => auth()->user()?->name ?? 'Admin User',

@@ -6,9 +6,9 @@
 <section class="card certificate-generator-card">
     <div class="section-heading">
         <div>
-            <span class="admin-dashboard-kicker">CERTIFICATE GENERATOR</span>
-            <h2>Generate Achievement Certificate</h2>
-            <p>Choose an achievement to produce its official SportsHub certificate</p>
+            <span class="admin-dashboard-kicker">CERTIFICATE PREVIEW</span>
+            <h2>Preview Achievement Certificate</h2>
+            <p>Pick an achievement to see its official SportsHub certificate. The certificate itself is issued through the Certificate Requests workflow.</p>
         </div>
         <a class="text-link" href="{{ route('admin.achievements') }}">Back to Achievements</a>
     </div>
@@ -20,13 +20,13 @@
                 <option value="">Select an achievement</option>
                 @foreach ($certificateAchievements as $option)
                     <option value="{{ $option->id }}" @selected($certificateAchievement?->id === $option->id)>
-                        {{ $option->athlete?->name ?? 'Unknown athlete' }} &mdash; {{ $option->sportLabel() }} &mdash; {{ $option->title }}
+                        {{ $option->recipientName() }} &mdash; {{ $option->sportLabel() }} &mdash; {{ $option->title }}
                     </option>
                 @endforeach
             </select>
             <small class="form-hint">The certificate pulls its details straight from the selected achievement record.</small>
         </div>
-        <button class="button" type="submit">Generate Certificate</button>
+        <button class="button" type="submit">Preview Certificate</button>
     </form>
 </section>
 
@@ -41,7 +41,7 @@
         </div>
 
         <div class="achievement-detail-grid">
-            <div><span>Athlete</span><strong>{{ $certificateAchievement->athlete?->name ?? 'Unknown athlete' }}</strong>@if ($certificateAchievement->athlete?->student_id)<small>Student ID {{ $certificateAchievement->athlete->student_id }}</small>@endif</div>
+            <div><span>{{ $certificateAchievement->recipientLabel() }}</span><strong>{{ $certificateAchievement->recipientName() }}</strong>@if ($certificateAchievement->athlete?->student_id)<small>Student ID {{ $certificateAchievement->athlete->student_id }}</small>@endif</div>
             <div><span>Type</span><strong>{{ $certificateAchievement->achievement_type }}</strong></div>
             <div><span>Sport</span><strong>{{ $certificateAchievement->sportLabel() }}</strong></div>
             <div><span>Place</span><strong>{{ $certificateAchievement->place ?: 'Not recorded' }}</strong></div>
@@ -55,5 +55,5 @@
         </div>
     </section>
 @else
-    <div class="card certificate-empty-card"><p class="empty-state">Select an achievement above to generate its certificate.</p></div>
+    <div class="card certificate-empty-card"><p class="empty-state">Select an achievement above to preview its certificate.</p></div>
 @endif

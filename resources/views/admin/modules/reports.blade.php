@@ -81,6 +81,15 @@
 
 			@if ($report === 'athletes')
 				<div class="form-group">
+					<label for="report-category">Category</label>
+					<select class="form-control" id="report-category" name="category">
+						@foreach (\App\Http\Controllers\ReportController::ATHLETE_CATEGORY_LABELS as $categoryKey => $categoryLabel)
+							<option value="{{ $categoryKey }}" @selected(($filters['category'] ?? 'all') === $categoryKey)>{{ $categoryLabel }}</option>
+						@endforeach
+					</select>
+					<small class="form-hint">The list and the download are filed under the same category.</small>
+				</div>
+				<div class="form-group">
 					<label for="report-status">Status</label>
 					<select class="form-control" id="report-status" name="status">
 						<option value="">All Status</option>
@@ -140,6 +149,16 @@
 			@endif
 
 			@if (in_array($report, ['attendance', 'athlete-summary'], true))
+				<div class="form-group">
+					<label for="report-event">Event</label>
+					<select class="form-control" id="report-event" name="event_id">
+						<option value="">All Events</option>
+						@foreach (($options['events'] ?? []) as $event)
+							<option value="{{ $event['id'] }}" @selected(($filters['event_id'] ?? null) == $event['id'])>{{ $event['label'] }}</option>
+						@endforeach
+					</select>
+					<small class="form-hint">Pick an event to download the attendance of that event only.</small>
+				</div>
 				<div class="form-group">
 					<label for="report-session">Attendance Session</label>
 					<select class="form-control" id="report-session" name="session_id">
@@ -224,7 +243,12 @@
 					</tr>
 				</thead>
 				<tbody>
+					@php($group = null)
 					@forelse ($rows as $row)
+						@if (($payload['grouped'] ?? false) && ($row['group'] ?? null) !== $group)
+							@php($group = $row['group'] ?? null)
+							<tr class="report-group-row"><td colspan="{{ count($columns) }}">{{ $group }}</td></tr>
+						@endif
 						<tr>
 							@foreach ($columns as $column)
 								<td>

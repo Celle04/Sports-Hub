@@ -78,14 +78,30 @@
         }
         hideConfirmError();
         setBusy(false);
+        /* Opening the card must never move the page. */
+        dialog._scrollY = window.scrollY || window.pageYOffset || 0;
         dialog.showModal();
+        window.requestAnimationFrame(function () {
+            var target = dialog.querySelector('[data-app-modal-autofocus]')
+                || dialog.querySelector('input, select, textarea, button:not([data-app-modal-close])');
+            if (target) {
+                try {
+                    target.focus({ preventScroll: true });
+                } catch (e) {
+                    target.focus();
+                }
+            }
+            window.scrollTo(0, dialog._scrollY);
+        });
     }
 
     function closeDialog(dialog) {
         if (!dialog || typeof dialog.close !== 'function') {
             return;
         }
+        var scrollY = dialog._scrollY || window.scrollY || window.pageYOffset || 0;
         dialog.close();
+        window.scrollTo(0, scrollY);
     }
 
     // Open the confirmation modal with the reset action's details.

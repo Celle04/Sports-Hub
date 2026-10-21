@@ -25,6 +25,7 @@ use App\Models\Sport;
 use App\Models\User;
 use App\Notifications\CertificateRequestNotification;
 use App\Services\AttendanceSessionService;
+use App\Support\PortalNavigation;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Route;
@@ -101,17 +102,12 @@ Route::get('/apply', function () {
 
 Route::post('/apply', [ApplicationController::class, 'store'])->name('application.store');
 
-$studentNav = [
-    ['key' => 'dashboard', 'label' => 'Dashboard', 'icon' => 'dashboard', 'route' => 'student.dashboard'],
-    ['key' => 'sports', 'label' => 'Sports', 'icon' => 'trophy', 'route' => 'student.sports'],
-    ['key' => 'calendar', 'label' => 'Calendar', 'icon' => 'calendar', 'route' => 'student.calendar'],
-    ['key' => 'schedule', 'label' => 'My Schedule', 'icon' => 'calendar', 'route' => 'student.schedule'],
-    ['key' => 'attendance', 'label' => 'Attendance', 'icon' => 'clipboard', 'route' => 'student.attendance'],
-    ['key' => 'achievements', 'label' => 'Achievements', 'icon' => 'trophy', 'route' => 'student.achievements'],
-    ['key' => 'application', 'label' => 'My Application', 'icon' => 'clipboard', 'route' => 'student.application'],
-    ['key' => 'coach', 'label' => 'Coach Info', 'icon' => 'users', 'route' => 'student.coach'],
-    ['key' => 'profile', 'label' => 'My Profile', 'icon' => 'user', 'route' => 'student.profile'],
-];
+/*
+ * PortalNavigation is the single source of truth for both portals, so the
+ * grouped sidebar never drifts between modules. The group key is presentation
+ * only: every route name below is unchanged.
+ */
+$studentNav = PortalNavigation::student();
 
 $calendarData = function (?string $month = null): array {
     $monthValue = $month ?: request('month', now()->format('Y-m'));
@@ -370,11 +366,39 @@ Route::middleware(['force.password.change'])->group(function () use ($studentPag
     Route::get('/student/achievements', fn () => $studentAchievementData())->middleware('auth')->name('student.achievements');
 Route::get('/student/achievements/{achievement}', fn (int $achievement) => $studentAchievementData($achievement))->middleware('auth')->name('student.achievements.show');
 Route::get('/student/achievements/{achievement}/certificate', function (int $achievement) {
-    $record = Achievement::query()->forAthlete(auth()->user())->with('sport')->findOrFail($achievement);
+    $student = auth()->user();
+    $record = Achievement::query()->forAthlete($student)->with('sport')->findOrFail($achievement);
 
-    abort_unless($record->hasCertificate(), 404, 'No certificate is attached to this achievement.');
+    /*
+     * The certificate is only available once an administrator generated it
+     * and marked it ready for release, and only for the athlete who owns
+     * the achievement.
+     */
+    $certificateRequest = CertificateRequest::query()
+        ->forStudent($student)
+        ->where('achievement_id', $record->id)
+        ->where('status', CertificateRequest::STATUS_ISSUED)
+        ->latest('handled_at')
+        ->first();
 
-    return Storage::disk('private')->download($record->certificate_path, $record->certificateDiskName());
+    /*
+     * A certificate is available once an administrator generated it and marked
+     * it ready for release. Records that were issued before the workflow
+     * existed keep their own file, so nothing that was already handed out
+     * disappears.
+     */
+    $file = $certificateRequest?->isGenerated()
+        ? $certificateRequest->certificate_path
+        : ($record->hasCertificate() && ! $record->certificateRequests()->whereNotNull('certificate_path')->exists()
+            ? $record->certificate_path
+            : null);
+
+    abort_unless($file, 404, 'Your certificate is not available yet.');
+
+    return Storage::disk('private')->download(
+        $file,
+        $record->certificateFileName(),
+    );
 })->middleware('auth')->name('student.achievements.certificate');
 
 Route::post('/student/achievements/{achievement}/certificate-request', function (int $achievement) {
@@ -553,20 +577,7 @@ Route::post('/notifications/read-all', function () {
     return back();
 })->middleware('auth')->name('notifications.read-all');
 
-$adminNav = [
-    ['key' => 'dashboard', 'label' => 'Dashboard', 'icon' => 'dashboard', 'route' => 'dashboard'],
-    ['key' => 'events', 'label' => 'Events', 'icon' => 'calendar', 'route' => 'events.index'],
-    ['key' => 'calendar', 'label' => 'Calendar', 'icon' => 'calendar', 'route' => 'admin.calendar'],
-    ['key' => 'applications', 'label' => 'Applications', 'icon' => 'clipboard', 'route' => 'admin.applications'],
-    ['key' => 'sports', 'label' => 'Sports', 'icon' => 'trophy', 'route' => 'sports.index'],
-    ['key' => 'athletes', 'label' => 'Athletes', 'icon' => 'activity', 'route' => 'athletes.index'],
-    ['key' => 'medical', 'label' => 'Medical', 'icon' => 'medical', 'route' => 'admin.medical'],
-    ['key' => 'coaches', 'label' => 'Coaches', 'icon' => 'users', 'route' => 'coaches.index'],
-    ['key' => 'attendance', 'label' => 'Attendance', 'icon' => 'clipboard', 'route' => 'admin.attendance'],
-    ['key' => 'achievements', 'label' => 'Achievements', 'icon' => 'trophy', 'route' => 'admin.achievements'],
-    ['key' => 'certificate-requests', 'label' => 'Certificate Requests', 'icon' => 'certificate', 'route' => 'admin.certificate-requests'],
-    ['key' => 'reports', 'label' => 'Reports', 'icon' => 'chart', 'route' => 'reports.index'],
-];
+$adminNav = PortalNavigation::admin();
 
 Route::get('/notifications', function () use ($studentNav, $adminNav) {
     $user = auth()->user();
@@ -575,7 +586,7 @@ Route::get('/notifications', function () use ($studentNav, $adminNav) {
     return view('notifications.index', [
         'notifications' => $user->notifications()->latest()->simplePaginate(20),
         'title' => 'Notifications',
-        'navItems' => $isStudent ? $studentNav : $adminNav,
+        'navItems' => PortalNavigation::for($user->role),
         'active' => 'notifications',
         'roleLabel' => $isStudent ? 'Athlete/User Portal' : 'Admin Portal',
         'userName' => $user->name,
@@ -599,26 +610,61 @@ $adminPage = function (string $page, array $data = []) use ($adminNav) {
         'reports' => ['Reports', 'Generate and download reports', null],
     ][$page];
 
-    return view('admin.page', array_merge(['page' => $page, 'heading' => $content[0], 'subtitle' => $content[1], 'action' => $content[2], 'active' => $page, 'navItems' => $adminNav, 'roleLabel' => 'Admin Portal', 'userName' => 'Admin User', 'userRole' => 'Administrator'], $data));
+    return view('admin.page', array_merge(['page' => $page, 'heading' => $content[0], 'subtitle' => $content[1], 'action' => $content[2], 'active' => $page, 'navItems' => $adminNav, 'roleLabel' => 'Admin Portal', 'userName' => auth()->user()->name, 'userRole' => 'Administrator'], $data));
 };
 
-Route::get('/dashboard', function () use ($adminPage, $calendarData) {
-    $countedToday = Attendance::whereDate('attended_on', today())
-        ->whereNotNull('attendance_session_id')
-        ->whereIn('status', config('attendance.counted_statuses'))
-        ->get();
-    $attendanceRate = $countedToday->count() > 0
-        ? round($countedToday->whereIn('status', ['Present', 'Late'])->count() / $countedToday->count() * 100, 1)
-        : 0;
+Route::get('/dashboard', function () use ($adminPage) {
+    $today = today();
 
-    $registeredAthletes = User::where('role', 'Student')->count();
-    $registeredSports = Sport::count();
-    $recordedAchievements = Achievement::count();
+    /*
+     * Every figure on the command centre is resolved once here and then reused
+     * by the metric cards and the panels, so a single aggregate query backs
+     * each number instead of the same count being re-run per card.
+     */
+    $athleteCount = User::where('role', 'Student')->count();
+    $activeAthleteCount = User::where('role', 'Student')->where('status', 'Active')->count();
+    $sportCount = Sport::count();
+    $activeSportCount = Sport::where('status', 'Active')->count();
+    $upcomingEventCount = Event::where('status', 'Scheduled')->where('starts_at', '>=', now())->count();
+    $todaySessionCount = AttendanceSession::whereDate('session_date', $today)->count();
+    $openSessionCount = AttendanceSession::whereDate('session_date', $today)->where('status', 'Open')->count();
+    $pendingApplicationCount = Application::where('status', 'Pending')->count();
+    $recordedAchievementCount = Achievement::count();
     $medalCounts = Achievement::query()
         ->whereIn('achievement_type', Achievement::MEDAL_TYPES)
         ->selectRaw('achievement_type, COUNT(*) as total')
         ->groupBy('achievement_type')
         ->pluck('total', 'achievement_type');
+    $medalCount = (int) $medalCounts->sum();
+
+    $attendanceToday = Attendance::whereDate('attended_on', $today)
+        ->whereNotNull('attendance_session_id')
+        ->whereIn('status', config('attendance.counted_statuses'))
+        ->selectRaw('status, COUNT(*) as total')
+        ->groupBy('status')
+        ->pluck('total', 'status');
+    $countedToday = (int) $attendanceToday->sum();
+    $presentTodayCount = (int) $attendanceToday->get('Present', 0) + (int) $attendanceToday->get('Late', 0);
+    $attendanceRate = $countedToday > 0
+        ? round($presentTodayCount / $countedToday * 100, 1)
+        : 0;
+    $pendingCheckInCount = Attendance::whereDate('attended_on', $today)
+        ->where('status', 'Pending')
+        ->whereNotNull('attendance_session_id')
+        ->count();
+
+    $medicalStatusCounts = MedicalRecord::query()
+        ->selectRaw('medical_status, COUNT(*) as total')
+        ->groupBy('medical_status')
+        ->pluck('total', 'medical_status');
+    $clearedAthletes = (int) ($medicalStatusCounts->get('Cleared') ?? 0);
+
+    $athletesMissingMedical = User::where('role', 'Student')->whereDoesntHave('medicalRecords')->count();
+    $checkupsDue = MedicalRecord::whereNotNull('next_checkup_date')
+        ->whereBetween('next_checkup_date', [$today, $today->copy()->addDays(30)])
+        ->count();
+    $pendingCertificateRequests = CertificateRequest::where('status', CertificateRequest::STATUS_PENDING)->count();
+
     $achievementsBySport = Achievement::query()
         ->select('sport_id')
         ->selectRaw('COUNT(*) as total')
@@ -633,44 +679,126 @@ Route::get('/dashboard', function () use ($adminPage, $calendarData) {
         ->limit(6)
         ->get();
 
-    return $adminPage('dashboard', array_merge($calendarData(), [
+    /*
+     * The metric cards. Every value comes from the counts resolved above, so
+     * the command centre never shows a figure the database cannot back.
+     */
+    $metrics = [
+        [
+            'value' => $athleteCount,
+            'label' => 'Total Athletes',
+            'hint' => 'Active Athletes: '.$activeAthleteCount,
+            'action' => 'View athletes',
+            'route' => 'athletes.index',
+            'icon' => 'users',
+            'tone' => 'primary',
+        ],
+        [
+            'value' => $sportCount,
+            'label' => 'Total Sports',
+            'hint' => $activeSportCount.' active program'.($activeSportCount === 1 ? '' : 's'),
+            'action' => 'View programs',
+            'route' => 'sports.index',
+            'icon' => 'trophy',
+            'tone' => 'accent',
+        ],
+        [
+            'value' => $upcomingEventCount,
+            'label' => 'Upcoming Events',
+            'hint' => 'Scheduled from today onward',
+            'action' => 'View events',
+            'route' => 'events.index',
+            'icon' => 'calendar',
+            'tone' => 'info',
+        ],
+        [
+            'value' => $todaySessionCount,
+            'label' => "Today's Sessions",
+            'hint' => $openSessionCount.' still open for check-in',
+            'action' => 'Take attendance',
+            'route' => 'admin.attendance',
+            'icon' => 'clipboard',
+            'tone' => 'success',
+        ],
+        [
+            'value' => $pendingApplicationCount,
+            'label' => 'Pending Applications',
+            'hint' => 'Waiting for a decision',
+            'action' => 'Review queue',
+            'route' => 'admin.applications',
+            'icon' => 'bell',
+            'tone' => 'warning',
+        ],
+        [
+            'value' => $recordedAchievementCount,
+            'label' => 'Total Achievements',
+            'hint' => 'Recorded across all sports',
+            'action' => 'View achievements',
+            'route' => 'admin.achievements',
+            'icon' => 'certificate',
+            'tone' => 'primary',
+        ],
+        [
+            'value' => $medalCount,
+            'label' => 'Medals Awarded',
+            'hint' => 'Gold, silver and bronze',
+            'action' => 'View achievements',
+            'route' => 'admin.achievements',
+            'icon' => 'trophy',
+            'tone' => 'warning',
+        ],
+        [
+            'value' => $attendanceRate.'%',
+            'label' => 'Attendance Rate',
+            'hint' => $presentTodayCount.' present today',
+            'action' => 'Full report',
+            'route' => 'reports.index',
+            'icon' => 'chart',
+            'tone' => 'success',
+        ],
+    ];
+
+    return $adminPage('dashboard', [
+        'metrics' => $metrics,
         'sportsStats' => [
-            'athletes' => $registeredAthletes,
-            'sports' => $registeredSports,
-            'achievements' => $recordedAchievements,
+            'athletes' => $athleteCount,
+            'sports' => $sportCount,
+            'achievements' => $recordedAchievementCount,
             'gold' => (int) $medalCounts->get('Gold Medal', 0),
             'silver' => (int) $medalCounts->get('Silver Medal', 0),
             'bronze' => (int) $medalCounts->get('Bronze Medal', 0),
         ],
         'achievementsBySport' => $achievementsBySport,
         'recentAchievements' => $recentAchievements,
-        'stats' => [
-            ['value' => Sport::count(), 'label' => 'Total Sports', 'action' => 'View programs', 'route' => 'sports.index', 'icon' => 'trophy', 'tone' => 'red'],
-            ['value' => User::where('role', 'Student')->count(), 'label' => 'Active Athletes', 'action' => 'View athletes', 'route' => 'athletes.index', 'icon' => 'users', 'tone' => 'green'],
-            ['value' => Sport::whereHas('athletes', fn ($query) => $query->where('role', 'Student'))->count(), 'label' => 'Sports With Athletes', 'action' => 'View sports', 'route' => 'sports.index', 'icon' => 'activity', 'tone' => 'gold'],
-            ['value' => Event::where('status', 'Scheduled')->where('starts_at', '>=', now())->count(), 'label' => 'Upcoming Events', 'action' => 'View events', 'route' => 'events.index', 'icon' => 'calendar', 'tone' => 'red'],
-            ['value' => AttendanceSession::whereDate('session_date', today())->count(), 'label' => "Today's Sessions", 'action' => 'View attendance', 'route' => 'admin.attendance', 'icon' => 'clipboard', 'tone' => 'green'],
-            ['value' => Attendance::whereDate('attended_on', today())->whereIn('status', ['Present', 'Late'])->whereNotNull('attendance_session_id')->count(), 'label' => 'Present Today', 'action' => 'View attendance', 'route' => 'admin.attendance', 'icon' => 'user', 'tone' => 'gold'],
-            ['value' => Attendance::whereDate('attended_on', today())->where('status', 'Pending')->whereNotNull('attendance_session_id')->count(), 'label' => 'Pending Check-ins', 'action' => 'Review pending', 'route' => 'admin.attendance', 'icon' => 'bell', 'tone' => 'red'],
-            ['value' => $attendanceRate.'%', 'label' => 'Attendance Rate', 'action' => 'Full report', 'route' => 'reports.index', 'icon' => 'chart', 'tone' => 'green'],
-            ['value' => Application::where('status', 'Pending')->count(), 'label' => 'Pending Applications', 'action' => 'Review applications', 'route' => 'admin.applications', 'icon' => 'clipboard', 'tone' => 'gold'],
-            ['value' => MedicalRecord::where('medical_status', 'Cleared')->count().' / '.User::where('role', 'Student')->count(), 'label' => 'Medical Clearance', 'action' => 'View records', 'route' => 'admin.medical', 'icon' => 'medical', 'tone' => 'red'],
-            ['value' => Achievement::query()->whereIn('achievement_type', ['Gold Medal', 'Silver Medal', 'Bronze Medal'])->count(), 'label' => 'Medals Awarded', 'action' => 'View achievements', 'route' => 'admin.achievements', 'icon' => 'trophy', 'tone' => 'gold'],
-        ],
         'upcomingEvents' => Event::with('sport')->where('status', 'Scheduled')->where('starts_at', '>=', now())->orderBy('starts_at')->limit(5)->get(),
         'athletesBySport' => Sport::withCount(['athletes' => fn ($query) => $query->where('role', 'Student')])->orderBy('name')->get(),
         'medicalStatusCounts' => [
-            'Cleared' => MedicalRecord::where('medical_status', 'Cleared')->count(),
-            'Pending' => MedicalRecord::where('medical_status', 'Pending')->count(),
-            'Not Cleared' => MedicalRecord::where('medical_status', 'Not Cleared')->count(),
-            'Restricted' => MedicalRecord::where('medical_status', 'Restricted')->count(),
+            'Cleared' => (int) ($medicalStatusCounts->get('Cleared') ?? 0),
+            'Pending' => (int) ($medicalStatusCounts->get('Pending') ?? 0),
+            'Not Cleared' => (int) ($medicalStatusCounts->get('Not Cleared') ?? 0),
+            'Restricted' => (int) ($medicalStatusCounts->get('Restricted') ?? 0),
+        ],
+        'attendanceToday' => [
+            'counted' => $countedToday,
+            'present' => (int) $attendanceToday->get('Present', 0),
+            'late' => (int) $attendanceToday->get('Late', 0),
+            'absent' => (int) $attendanceToday->get('Absent', 0),
+            'excused' => (int) $attendanceToday->get('Excused', 0),
+            'pending' => $pendingCheckInCount,
+            'rate' => $attendanceRate,
+            'sessions' => $todaySessionCount,
+            'openSessions' => $openSessionCount,
+        ],
+        'medicalClearance' => [
+            'cleared' => $clearedAthletes,
+            'athletes' => $athleteCount,
         ],
         'pendingApplications' => Application::with('sportCategory')->where('status', 'Pending')->latest()->limit(5)->get(),
         'attentionItems' => collect([
-            Application::where('status', 'Pending')->count() ? ['tone' => 'warning', 'message' => Application::where('status', 'Pending')->count().' application(s) waiting for review', 'route' => 'admin.applications', 'action' => 'Review'] : null,
-            User::where('role', 'Student')->whereDoesntHave('medicalRecords')->count() ? ['tone' => 'danger', 'message' => User::where('role', 'Student')->whereDoesntHave('medicalRecords')->count().' athlete(s) need medical clearance', 'route' => 'admin.medical', 'action' => 'View'] : null,
-            MedicalRecord::whereNotNull('next_checkup_date')->whereBetween('next_checkup_date', [today(), today()->addDays(30)])->count() ? ['tone' => 'warning', 'message' => MedicalRecord::whereNotNull('next_checkup_date')->whereBetween('next_checkup_date', [today(), today()->addDays(30)])->count().' medical checkup(s) due within 30 days', 'route' => 'admin.medical', 'action' => 'View'] : null,
-            CertificateRequest::where('status', CertificateRequest::STATUS_PENDING)->count() ? ['tone' => 'warning', 'message' => CertificateRequest::where('status', CertificateRequest::STATUS_PENDING)->count().' certificate request(s) waiting for approval', 'route' => 'admin.certificate-requests', 'action' => 'Review'] : null,
+            $pendingApplicationCount ? ['tone' => 'warning', 'message' => $pendingApplicationCount.' application(s) waiting for review', 'route' => 'admin.applications', 'action' => 'Review'] : null,
+            $athletesMissingMedical ? ['tone' => 'danger', 'message' => $athletesMissingMedical.' athlete(s) need medical clearance', 'route' => 'admin.medical', 'action' => 'View'] : null,
+            $checkupsDue ? ['tone' => 'warning', 'message' => $checkupsDue.' medical checkup(s) due within 30 days', 'route' => 'admin.medical', 'action' => 'View'] : null,
+            $pendingCertificateRequests ? ['tone' => 'warning', 'message' => $pendingCertificateRequests.' certificate request(s) waiting for approval', 'route' => 'admin.certificate-requests', 'action' => 'Review'] : null,
         ])->filter()->values(),
         'recentActivity' => collect([
             ...User::where('role', 'Student')->latest('created_at')->limit(2)->get()->map(fn ($athlete) => ['label' => $athlete->name.' was added as an athlete', 'date' => $athlete->created_at])->all(),
@@ -680,7 +808,7 @@ Route::get('/dashboard', function () use ($adminPage, $calendarData) {
             ...AttendanceSession::latest('created_at')->limit(2)->get()->map(fn ($session) => ['label' => 'Attendance session created for '.$session->effectiveSportName(), 'date' => $session->created_at])->all(),
             ...Achievement::with('athlete')->latest('created_at')->limit(2)->get()->map(fn ($achievement) => ['label' => $achievement->title.' awarded to '.($achievement->athlete?->name ?? 'an athlete'), 'date' => $achievement->created_at])->all(),
         ])->sortByDesc('date')->take(5)->values(),
-    ]));
+    ]);
 })->middleware('auth')->name('dashboard');
 Route::get('/admin/calendar', fn () => $adminPage('calendar', $calendarData(request('month'))))->middleware('auth')->name('admin.calendar');
 Route::get('/applications', [ApplicationController::class, 'index'])->middleware('auth')->name('admin.applications');
@@ -739,8 +867,11 @@ Route::get('/admin/achievements/{achievement}/edit', [AchievementController::cla
 Route::put('/admin/achievements/{achievement}', [AchievementController::class, 'update'])->middleware('auth')->name('admin.achievements.update');
 Route::delete('/admin/achievements/{achievement}', [AchievementController::class, 'destroy'])->middleware('auth')->name('admin.achievements.destroy');
 Route::get('/admin/achievements/{achievement}/certificate', [AchievementController::class, 'certificate'])->middleware('auth')->name('admin.achievements.certificate');
+Route::post('/admin/achievements/{achievement}/certificate/issue', [AchievementController::class, 'issueCertificate'])->middleware('auth')->name('admin.achievements.certificate.issue');
 Route::get('/admin/certificate-requests', [CertificateRequestController::class, 'index'])->middleware('auth')->name('admin.certificate-requests');
 Route::post('/admin/certificate-requests/{certificateRequest}/approve', [CertificateRequestController::class, 'approve'])->middleware('auth')->name('admin.certificate-requests.approve');
+Route::post('/admin/certificate-requests/{certificateRequest}/generate', [CertificateRequestController::class, 'generate'])->middleware('auth')->name('admin.certificate-requests.generate');
+Route::post('/admin/certificate-requests/{certificateRequest}/release', [CertificateRequestController::class, 'release'])->middleware('auth')->name('admin.certificate-requests.release');
 Route::post('/admin/certificate-requests/{certificateRequest}/issue', [CertificateRequestController::class, 'issue'])->middleware('auth')->name('admin.certificate-requests.issue');
 Route::post('/admin/certificate-requests/{certificateRequest}/reject', [CertificateRequestController::class, 'reject'])->middleware('auth')->name('admin.certificate-requests.reject');
 Route::resource('coaches', CoachController::class)->only(['index', 'create', 'store', 'show', 'edit', 'update', 'destroy'])->middleware('auth');

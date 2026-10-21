@@ -160,4 +160,39 @@ class AdminDashboardTest extends TestCase
         $response->assertSee('Fastest Lap');
         $response->assertSee(route('admin.achievements.certificate.print', $achievement));
     }
+
+    public function test_admin_dashboard_renders_the_command_center_header_and_metric_cards(): void
+    {
+        $admin = User::factory()->create(['role' => 'Administrator']);
+        User::factory()->create(['role' => 'Student']);
+
+        $response = $this->actingAs($admin)->get(route('dashboard'));
+
+        $response->assertOk();
+        $response->assertSee('SportsHub Command');
+        $response->assertSee('Center');
+        $response->assertSee('Monitor athletes, sports activities, attendance, achievements, and upcoming events in one place.');
+        $response->assertSee('hub-metrics', false);
+        $response->assertSee('Total Athletes');
+        $response->assertSee('Total Sports');
+        $response->assertSee('Upcoming Events');
+        $response->assertSee("Today's Sessions");
+        $response->assertSee('Pending Applications');
+        $response->assertSee('Total Achievements');
+        $response->assertSee('Medals Awarded');
+        $response->assertSee('Attendance Rate');
+    }
+
+    public function test_admin_dashboard_header_actions_point_at_real_routes(): void
+    {
+        $admin = User::factory()->create(['role' => 'Administrator']);
+
+        $response = $this->actingAs($admin)->get(route('dashboard'));
+
+        $response->assertOk();
+        $response->assertSee(route('events.create'));
+        $response->assertSee(route('athletes.index'));
+        $response->assertSee(route('admin.attendance'));
+        $response->assertSee(route('reports.index'));
+    }
 }

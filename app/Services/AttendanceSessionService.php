@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Attendance;
 use App\Models\AttendanceSession;
+use App\Models\Event;
 use App\Models\User;
 use App\Notifications\AttendanceNotification;
 use Carbon\Carbon;
@@ -12,6 +13,40 @@ use Illuminate\Support\Facades\DB;
 
 class AttendanceSessionService
 {
+    /**
+     * Creates an attendance session and fills its roster.
+     *
+     * The session can belong to an event or stand on its own. The event sport
+     * is inherited when the session does not name one, so a session created
+     * from the Event module always follows the event it belongs to.
+     *
+     * @param  array<string, mixed>  $data
+     */
+    public function createSession(array $data, ?Event $event = null): AttendanceSession
+    {
+        $status = $data['status'] ?? 'Open';
+
+        $session = AttendanceSession::create([
+            'title' => $data['title'],
+            'event_id' => $event?->id ?? ($data['event_id'] ?? null),
+            'sport_id' => $data['sport_id'] ?? $event?->sport_id,
+            'session_date' => $data['session_date'],
+            'start_time' => $data['start_time'] ?? null,
+            'end_time' => $data['end_time'] ?? null,
+            'late_grace_minutes' => $data['late_grace_minutes'] ?? config('attendance.late_grace_minutes'),
+            'venue' => $data['venue'] ?? $event?->venue,
+            'description' => $data['description'] ?? null,
+            'status' => $status,
+            'created_by' => auth()->id(),
+            'opened_at' => $status === 'Open' ? now() : null,
+            'closed_at' => in_array($status, ['Closed', 'Cancelled'], true) ? now() : null,
+        ]);
+
+        $this->syncRoster($session);
+
+        return $session;
+    }
+
     /**
      * Athletes eligible for a session, derived entirely from the athlete's
      * assigned sport. No manual selection is involved anywhere in this class.

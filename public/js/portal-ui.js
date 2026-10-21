@@ -10,8 +10,80 @@
 
     var THEME_KEY = 'sports_hub_theme';
     var SIDEBAR_KEY = 'sports_hub_sidebar';
+    var SCROLL_KEY = 'sports_hub_scroll';
     var root = document.documentElement;
     var mobileQuery = window.matchMedia('(max-width: 760px)');
+
+    /* ---- Keep the page where the user left it -------------------------------
+     * Every action in the portal (closing a session, approving an
+     * application, applying a filter, opening a record) submits a form or
+     * follows a link and comes back on a fresh request, which normally lands
+     * at the top of the page. The position is remembered before the action and
+     * restored once the new page is ready.
+     */
+    (function scrollMemory() {
+        /* Pagination is the one place where starting at the top is expected. */
+        function isPaginationLink(node) {
+            var link = node && node.closest ? node.closest('a[href]') : null;
+            if (!link) { return false; }
+            if (link.hasAttribute('download')) { return true; }
+            if (link.closest('.pagination, nav[aria-label*="agination" i], [rel="next"], [rel="prev"]')) { return true; }
+            return link.getAttribute('rel') === 'next' || link.getAttribute('rel') === 'prev';
+        }
+
+        function remember() {
+            try {
+                window.sessionStorage.setItem(SCROLL_KEY, JSON.stringify({
+                    path: window.location.pathname,
+                    y: window.scrollY || window.pageYOffset || 0
+                }));
+            } catch (e) {
+                /* private mode or storage disabled - the page still works */
+            }
+        }
+
+        function restore() {
+            try {
+                if (pending === null) {
+                    var raw = window.sessionStorage.getItem(SCROLL_KEY);
+                    if (!raw) { return; }
+                    window.sessionStorage.removeItem(SCROLL_KEY);
+                    pending = JSON.parse(raw);
+                }
+
+                if (!pending || pending.path !== window.location.pathname) { return; }
+                if (!pending.y) { return; }
+
+                /* A link that points at a section of the page (for example the
+                   attendance record that was just opened) scrolls to that
+                   section on its own, so the remembered position steps aside. */
+                if (window.location.hash) { return; }
+
+                window.scrollTo(0, pending.y);
+            } catch (e) {
+                /* ignore: the page simply starts at the top */
+            }
+        }
+
+        var pending = null;
+
+        document.addEventListener('submit', remember, true);
+
+        document.addEventListener('click', function (event) {
+            if (isPaginationLink(event.target)) { return; }
+            remember();
+        }, true);
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', restore);
+        } else {
+            restore();
+        }
+
+        /* The page grows while the fonts and images settle, so the position is
+           applied once more when everything has loaded. */
+        window.addEventListener('load', restore);
+    })();
 
     function readPreference(key, fallback) {
         try {
@@ -31,14 +103,16 @@
 
     function syncToggleLabel() {
         var isMobile = mobileQuery.matches;
-        var open = isMobile
+        /* On desktop the rail is "expanded" unless it has been collapsed;
+           on mobile the drawer is "expanded" while it is open. */
+        var expanded = isMobile
             ? root.classList.contains('sidebar-open')
-            : root.classList.contains('sidebar-collapsed');
+            : !root.classList.contains('sidebar-collapsed');
         var label = isMobile
-            ? (open ? 'Close navigation' : 'Open navigation')
-            : (open ? 'Expand sidebar' : 'Collapse sidebar');
+            ? (expanded ? 'Close navigation' : 'Open navigation')
+            : (expanded ? 'Collapse sidebar' : 'Expand sidebar');
         document.querySelectorAll('[data-sidebar-toggle]').forEach(function (toggle) {
-            toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+            toggle.setAttribute('aria-expanded', expanded ? 'true' : 'false');
             toggle.setAttribute('aria-label', label);
             toggle.setAttribute('data-tooltip', label);
         });
@@ -65,8 +139,13 @@
         }
         var toggle = document.getElementById('theme-toggle');
         if (toggle) {
+            /* The button always names the action it performs, so screen reader
+               users and the tooltip agree on what the next click will do. */
+            var label = isDark ? 'Light Mode' : 'Dark Mode';
             toggle.setAttribute('aria-pressed', isDark ? 'true' : 'false');
+            toggle.setAttribute('aria-label', label);
             toggle.setAttribute('title', isDark ? 'Switch to light mode' : 'Switch to dark mode');
+            toggle.setAttribute('data-tooltip', isDark ? 'Switch to light mode' : 'Switch to dark mode');
         }
     }
 
@@ -260,6 +339,7 @@
             if (open) {
                 menu.hidden = false;
                 trigger.setAttribute('aria-expanded', 'true');
+                positionMenu();
             } else {
                 menu.hidden = true;
                 trigger.setAttribute('aria-expanded', 'false');
@@ -267,6 +347,60 @@
         }
         function open() { setOpen(true); }
         function close() { setOpen(false); }
+
+        /*
+         * The panel is anchored to the bell with fixed positioning and then
+         * clamped to the viewport, so it can never be pushed off screen: on a
+         * phone it spans the width between the screen edges, on a desktop it
+         * stays tucked under the trigger. When there is no room underneath it
+         * flips above the trigger instead of being cut off.
+         */
+        function positionMenu() {
+            var margin = 12;
+            var gap = 8;
+            var triggerRect = trigger.getBoundingClientRect();
+            var viewportWidth = window.innerWidth;
+            var viewportHeight = window.innerHeight;
+
+            var width = Math.min(menu.offsetWidth || 420, viewportWidth - margin * 2);
+            if (width < 260) {
+                width = Math.max(0, viewportWidth - margin * 2);
+            }
+
+            var left = triggerRect.right - width;
+            left = Math.max(margin, Math.min(left, viewportWidth - width - margin));
+
+            menu.style.position = 'fixed';
+            menu.style.left = left + 'px';
+            menu.style.right = 'auto';
+            menu.style.width = width + 'px';
+
+            var top = triggerRect.bottom + gap;
+            var roomBelow = viewportHeight - top - margin;
+            var roomAbove = triggerRect.top - gap - margin;
+
+            if (roomBelow < 180 && roomAbove > roomBelow) {
+                menu.style.top = 'auto';
+                menu.style.bottom = Math.max(margin, viewportHeight - triggerRect.top + gap) + 'px';
+                menu.style.maxHeight = Math.max(200, roomAbove) + 'px';
+                return;
+            }
+
+            menu.style.bottom = 'auto';
+            menu.style.top = Math.max(margin, top) + 'px';
+            menu.style.maxHeight = Math.max(200, roomBelow) + 'px';
+        }
+
+        /* Re-anchor the panel, or close it when the bell scrolls away. */
+        function reposition() {
+            if (!isOpen()) { return; }
+            var rect = trigger.getBoundingClientRect();
+            if (rect.bottom < 0 || rect.top > window.innerHeight) {
+                close();
+                return;
+            }
+            positionMenu();
+        }
 
         trigger.addEventListener('click', function (event) {
             event.preventDefault();
@@ -296,6 +430,10 @@
                 close();
             }
         });
+
+        /* Keep the panel anchored to the bell while the page moves. */
+        window.addEventListener('resize', reposition);
+        window.addEventListener('scroll', reposition, true);
     })();
 
     if (document.readyState === 'loading') {

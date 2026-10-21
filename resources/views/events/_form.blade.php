@@ -19,4 +19,47 @@
 <div class="event-form-errors">
     @foreach(['title','sport_id','event_type','venue','starts_at','ends_at','coach_id','team_name','max_participants','description','notes','status'] as $field) @error($field)<small class="form-error">{{ $message }}</small>@enderror @endforeach
 </div>
-<div class="medical-form-actions"><button class="button" type="submit">{{ isset($event) ? 'Update Event' : 'Save Event' }}</button><a class="button button-muted" href="{{ route('events.index') }}">Cancel</a></div>
+<div class="medical-form-actions">
+    <button class="button" type="submit">{{ isset($event) ? 'Update Event' : 'Save Event' }}</button>
+    <button class="button button-secondary" type="button" data-app-modal-open="event-attendance-dialog">
+        <svg class="button-icon" aria-hidden="true"><use href="#icon-clipboard"></use></svg>{{ $attendanceMode === 'link' ? 'Create Attendance' : 'Add Attendance' }}
+    </button>
+    <a class="button button-muted" href="{{ route('events.index') }}">Cancel</a>
+</div>
+
+{{--
+    The attendance pop-out card. On the create screen the fields travel with
+    the event form, so one submit saves the event and its first session. On the
+    edit screen they belong to their own form, which adds another session to
+    the event that already exists.
+--}}
+<dialog class="app-modal" id="event-attendance-dialog" aria-labelledby="event-attendance-title" aria-describedby="event-attendance-intro">
+    <div class="app-modal-box event-attendance-modal">
+        <header class="app-modal-head">
+            <span class="app-modal-icon" aria-hidden="true"><svg><use href="#icon-clipboard"></use></svg></span>
+            <div class="app-modal-title">
+                <h2 id="event-attendance-title">Attendance for this event</h2>
+                <p id="event-attendance-intro">
+                    @if ($attendanceMode === 'link')
+                        Add an attendance session to this event. The roster is built from the athletes assigned to the event sport.
+                    @else
+                        Optional: attach an attendance session to the event while you save it. The roster is built from the athletes assigned to the event sport.
+                    @endif
+                </p>
+            </div>
+            <button class="app-modal-close" type="button" data-app-modal-close aria-label="Close dialog"><svg aria-hidden="true"><use href="#icon-x"></use></svg></button>
+        </header>
+        <div class="app-modal-body">
+            @include('events._attendance-fields', [
+                'attendancePrefix' => $attendancePrefix,
+                'attendanceFormId' => $attendanceFormId,
+            ])
+        </div>
+        <footer class="app-modal-foot">
+            <button class="button button-muted" type="button" data-app-modal-close>Cancel</button>
+            <button class="button" type="submit" @if ($attendanceFormId) form="{{ $attendanceFormId }}" @endif>
+                {{ $attendanceMode === 'link' ? 'Create Attendance Session' : 'Save Event & Attendance' }}
+            </button>
+        </footer>
+    </div>
+</dialog>

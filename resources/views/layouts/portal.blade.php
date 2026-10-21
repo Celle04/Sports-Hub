@@ -57,67 +57,94 @@
         <symbol id="icon-file" viewBox="0 0 24 24"><path d="M6 3h8l4 4v14H6V3Z" /><path d="M14 3v4h4" /></symbol>
     </svg>
     <div class="portal">
+        @php
+            /*
+             * The navigation is grouped for the sidebar. The grouping is purely
+             * presentational: every route name below is the one the portal has
+             * always used.
+             */
+            $navGroups = collect($navItems ?? [])->groupBy('group');
+            $portalUser = auth()->user();
+            $portalHome = $homeUrl ?? ($portalUser?->role === 'Student' ? route('student.dashboard') : route('dashboard'));
+            $portalProfileUrl = $portalUser?->role === 'Student' ? route('student.profile') : null;
+            $portalTopbarTitle = $topbarTitle ?? (isset($page) ? \Illuminate\Support\Str::headline($page) : ($title ?? 'SportsHub'));
+        @endphp
         <aside class="portal-sidebar" id="portal-sidebar">
             <button type="button" class="portal-sidebar-close" data-sidebar-close aria-label="Close navigation">
                 <svg aria-hidden="true"><use href="#icon-x"></use></svg>
             </button>
             <div class="portal-sidebar-head">
-                <div class="portal-brand">
-                    <img class="portal-logo" src="{{ asset('images/snnhs logo.png') }}" alt="SNNHS logo">
-                    <span>
+                <a class="portal-brand" href="{{ $portalHome }}">
+                    <span class="portal-logo-tile"><img class="portal-logo" src="{{ asset('images/snnhs logo.png') }}" alt="SNNHS logo"></span>
+                    <span class="portal-brand-text">
                         <strong>SportsHub</strong>
                         <small>{{ $roleLabel ?? 'SportsHub' }}</small>
                     </span>
-                </div>
+                </a>
                 <button type="button" class="portal-sidebar-collapse" data-sidebar-toggle aria-label="Collapse sidebar" aria-expanded="true" aria-controls="portal-sidebar" data-tooltip="Collapse sidebar">
                     <svg class="nav-icon" aria-hidden="true"><use href="#icon-panel-left"></use></svg>
                 </button>
             </div>
 
-            <div class="user-chip">
-                @auth
-                    <a class="user-chip-link" href="{{ auth()->user()->role === 'Student' ? route('student.profile') : route('dashboard') }}">
-                        <span class="user-chip-body">
-                            <x-avatar :user="auth()->user()" size="sm" decorative class="user-chip-avatar" />
-                            <span class="user-chip-text">
-                                {{ $userName ?? auth()->user()->name }}
-                                <small>{{ $userRole ?? auth()->user()->role }}</small>
-                            </span>
-                        </span>
-                    </a>
-                @else
-                    <div class="user-chip-body">
-                        <span class="avatar avatar--sm avatar-initials user-chip-avatar" aria-hidden="true">{{ \Illuminate\Support\Str::upper(\Illuminate\Support\Str::substr($userName ?? 'Juan Dela Cruz', 0, 2)) }}</span>
-                        <span class="user-chip-text">
-                            {{ $userName ?? 'Juan Dela Cruz' }}
-                            <small>{{ $userRole ?? 'Basketball' }}</small>
-                        </span>
-                    </div>
-                @endauth
-            </div>
-
             <nav class="portal-nav" aria-label="Portal navigation">
-                @foreach ($navItems as $item)
-                    <a class="{{ $active === $item['key'] ? 'active' : '' }}" href="{{ route($item['route']) }}" data-tooltip="{{ $item['label'] }}" aria-label="{{ $item['label'] }}" {{ $active === $item['key'] ? 'aria-current="page"' : '' }}>
-                        <svg class="nav-icon" aria-hidden="true"><use href="#icon-{{ $item['icon'] }}"></use></svg>
-                        <span>{{ $item['label'] }}</span>
-                    </a>
+                @foreach ($navGroups as $groupLabel => $groupItems)
+                    <div class="portal-nav-group">
+                        <span class="portal-nav-group-label">{{ $groupLabel }}</span>
+                        @foreach ($groupItems as $item)
+                            <a class="{{ ($active ?? null) === $item['key'] ? 'active' : '' }}" href="{{ route($item['route']) }}" data-tooltip="{{ $item['label'] }}" aria-label="{{ $item['label'] }}" {{ ($active ?? null) === $item['key'] ? 'aria-current="page"' : '' }}>
+                                <svg class="nav-icon" aria-hidden="true"><use href="#icon-{{ $item['icon'] }}"></use></svg>
+                                <span>{{ $item['label'] }}</span>
+                            </a>
+                        @endforeach
+                    </div>
                 @endforeach
             </nav>
 
-            <form method="POST" action="{{ route('logout') }}">
-                @csrf
-                <button class="portal-logout" type="submit" data-tooltip="Logout" aria-label="Logout"><svg class="nav-icon" aria-hidden="true"><use href="#icon-logout"></use></svg><span>Logout</span></button>
-            </form>
+            <div class="portal-sidebar-foot">
+                <div class="user-chip">
+                    @auth
+                        <a class="user-chip-link" href="{{ $portalProfileUrl ?? $portalHome }}">
+                            <span class="user-chip-body">
+                                <x-avatar :user="auth()->user()" size="sm" decorative class="user-chip-avatar" />
+                                <span class="user-chip-text">
+                                    {{ $userName ?? auth()->user()->name }}
+                                    <small>{{ $userRole ?? auth()->user()->role }}</small>
+                                </span>
+                            </span>
+                        </a>
+                    @else
+                        <div class="user-chip-body">
+                            <span class="avatar avatar--sm avatar-initials user-chip-avatar" aria-hidden="true">{{ \Illuminate\Support\Str::upper(\Illuminate\Support\Str::substr($userName ?? 'Juan Dela Cruz', 0, 2)) }}</span>
+                            <span class="user-chip-text">
+                                {{ $userName ?? 'Juan Dela Cruz' }}
+                                <small>{{ $userRole ?? 'Basketball' }}</small>
+                            </span>
+                        </div>
+                    @endauth
+                </div>
+
+                <form method="POST" action="{{ route('logout') }}">
+                    @csrf
+                    <button class="portal-logout" type="submit" data-tooltip="Logout" aria-label="Logout"><svg class="nav-icon" aria-hidden="true"><use href="#icon-logout"></use></svg><span>Logout</span></button>
+                </form>
+            </div>
         </aside>
 
         <div class="portal-sidebar-backdrop" data-sidebar-backdrop></div>
 
         <main class="portal-main">
+            <div class="portal-content">
             <header class="portal-topbar">
-                <button type="button" class="portal-icon-button portal-sidebar-open" data-sidebar-toggle aria-label="Open navigation" aria-expanded="false" aria-controls="portal-sidebar" data-tooltip="Open navigation">
-                    <svg aria-hidden="true"><use href="#icon-panel-left"></use></svg>
-                </button>
+                <div class="portal-topbar-start">
+                    <button type="button" class="portal-icon-button portal-sidebar-open" data-sidebar-toggle aria-label="Open navigation" aria-expanded="false" aria-controls="portal-sidebar" data-tooltip="Open navigation">
+                        <svg aria-hidden="true"><use href="#icon-panel-left"></use></svg>
+                    </button>
+                    <nav class="portal-breadcrumb" aria-label="Breadcrumb">
+                        <span class="portal-breadcrumb-context">{{ $roleLabel ?? 'SportsHub' }}</span>
+                        <span class="portal-breadcrumb-separator" aria-hidden="true">/</span>
+                        <strong class="portal-breadcrumb-current">{{ $portalTopbarTitle }}</strong>
+                    </nav>
+                </div>
                 <div class="portal-topbar-actions">
                     <button type="button" class="portal-icon-button" id="theme-toggle" aria-label="Dark Mode" aria-pressed="false" data-tooltip="Dark Mode">
                         <svg class="theme-icon theme-icon-sun" aria-hidden="true"><use href="#icon-sun"></use></svg>
@@ -131,7 +158,7 @@
                     $recentNotifications = $notificationUser->notifications()->latest()->limit(10)->get();
                 @endphp
                 <div class="portal-notifications" aria-label="Notifications">
-                    <button type="button" class="portal-notification-trigger" aria-haspopup="true" aria-expanded="false" aria-controls="portal-notification-menu" data-notification-toggle>
+                    <button type="button" class="portal-notification-trigger" id="portal-notification-trigger" aria-haspopup="true" aria-expanded="false" aria-controls="portal-notification-menu" data-notification-toggle>
                         <svg class="portal-notification-icon" aria-hidden="true"><use href="#icon-bell"></use></svg>
                         <span class="portal-notification-label">Notifications</span>
                         @if ($unreadNotificationCount > 0)
@@ -195,11 +222,30 @@
                         </footer>
                     </div>
                 </div>
+
+                @if ($portalProfileUrl)
+                    <a class="portal-topbar-profile" href="{{ $portalProfileUrl }}">
+                        <span class="portal-topbar-profile-text">
+                            <strong>{{ $userName ?? auth()->user()->name }}</strong>
+                            <small>{{ $roleLabel ?? auth()->user()->role }}</small>
+                        </span>
+                        <x-avatar :user="auth()->user()" size="sm" decorative class="portal-topbar-avatar" />
+                    </a>
+                @else
+                    <div class="portal-topbar-profile">
+                        <span class="portal-topbar-profile-text">
+                            <strong>{{ $userName ?? auth()->user()->name }}</strong>
+                            <small>{{ $roleLabel ?? auth()->user()->role }}</small>
+                        </span>
+                        <x-avatar :user="auth()->user()" size="sm" decorative class="portal-topbar-avatar" />
+                    </div>
+                @endif
             @endauth
                 </div>
             </header>
 
-            @yield('content')
+                @yield('content')
+            </div>
         </main>
     </div>
     @include('partials.confirm-dialog')
@@ -210,6 +256,7 @@
     <script src="{{ asset('js/app-review.js') }}" defer></script>
     <script src="{{ asset('js/confirm-delete.js') }}" defer></script>
     <script src="{{ asset('js/password-reset.js') }}" defer></script>
+    <script src="{{ asset('js/achievement-form.js') }}" defer></script>
     <script src="{{ asset('js/portal-ui.js') }}" defer></script>
 </body>
 </html>

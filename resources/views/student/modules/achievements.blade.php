@@ -43,9 +43,11 @@
 
 		<div class="achievement-detail-actions">
 			@php($certificateRequest = $certificateRequests[$selectedAchievement->id] ?? null)
-			@if ($selectedAchievement->hasCertificate())
-				<a class="button" href="{{ route('student.achievements.certificate', $selectedAchievement) }}">View Certificate</a>
-				<span class="badge status-issued">Certificate issued</span>
+			@if ($certificateRequest && $certificateRequest->isReleased())
+				<a class="button" href="{{ route('student.achievements.certificate', $selectedAchievement) }}">Download Certificate</a>
+				<span class="badge status-issued">Certificate available</span>
+			@elseif ($certificateRequest && $certificateRequest->isGenerated())
+				<span class="badge status-approved">Certificate prepared &middot; waiting for release</span>
 			@elseif ($certificateRequest && in_array($certificateRequest->status, ['Pending', 'Approved'], true))
 				<span class="badge status-{{ strtolower($certificateRequest->status) }}">Certificate requested &middot; {{ $certificateRequest->status }}</span>
 			@else
@@ -101,11 +103,12 @@
 									<h3>{{ $achievement->title }}</h3>
 									<p>{{ $achievement->competitionLabel() ?: 'No competition recorded' }}</p>
 									<div class="meta">{{ $achievement->sportLabel() }} &middot; {{ $achievement->dateAchievedLabel() }}@if ($achievement->place) &middot; {{ $achievement->place }}@endif</div>
-									@if ($achievement->hasCertificate())
-										<span class="student-achievement-certificate">Certificate available</span>
-									@elseif (($certificateRequests[$achievement->id] ?? null)?->isOpen())
-										<span class="student-achievement-certificate">Certificate requested</span>
-									@endif
+@php($achievementRequest = $certificateRequests[$achievement->id] ?? null)
+@if ($achievementRequest?->isReleased())
+    <span class="student-achievement-certificate">Certificate available</span>
+@elseif ($achievementRequest?->isOpen())
+    <span class="student-achievement-certificate">Certificate requested</span>
+@endif
 								</div>
 							</a>
 						@endforeach

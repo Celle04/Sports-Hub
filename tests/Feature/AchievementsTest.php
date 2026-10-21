@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Achievement;
+use App\Models\CertificateRequest;
 use App\Models\Event;
 use App\Models\Sport;
 use App\Models\User;
@@ -10,7 +11,6 @@ use App\Notifications\StudentUpdateNotification;
 use App\Services\StudentUpdateNotifier;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
@@ -141,39 +141,29 @@ class AchievementsTest extends TestCase
         Storage::disk('private')->assertMissing('achievement-certificates/cert.pdf');
     }
 
-    public function test_certificate_upload_is_stored_on_the_private_disk_and_downloaded_by_id(): void
+    public function test_the_achievement_form_has_no_certificate_upload_control(): void
+    {
+        [$admin, $sport, $athlete] = $this->context();
+
+        $this->actingAs($admin)->get(route('admin.achievements'))
+            ->assertOk()
+            ->assertDontSee('name="certificate"', false)
+            ->assertDontSee('type="file"', false);
+    }
+
+    public function test_saving_an_achievement_does_not_create_a_certificate(): void
     {
         [$admin, $sport, $athlete] = $this->context();
 
         $this->actingAs($admin)->post(route('admin.achievements.store'), $this->payload($athlete, [
             'sport_id' => $sport->id,
-            'certificate' => UploadedFile::fake()->create('certificate.pdf', 120, 'application/pdf'),
         ]))->assertRedirect(route('admin.achievements'));
 
         $achievement = Achievement::firstOrFail();
 
-        $this->assertStringStartsWith('achievement-certificates/', $achievement->certificate_path);
-        Storage::disk('private')->assertExists($achievement->certificate_path);
-
-        $this->actingAs($admin)
-            ->get(route('admin.achievements.certificate', $achievement))
-            ->assertOk();
-    }
-
-    public function test_replacing_a_certificate_removes_the_previous_file(): void
-    {
-        [$admin, $sport, $athlete] = $this->context();
-        $achievement = Achievement::create($this->payload($athlete, ['sport_id' => $sport->id]));
-        Storage::disk('private')->put('achievement-certificates/old.pdf', 'binary');
-        $achievement->update(['certificate_path' => 'achievement-certificates/old.pdf']);
-
-        $this->actingAs($admin)->put(route('admin.achievements.update', $achievement), $this->payload($athlete, [
-            'sport_id' => $sport->id,
-            'certificate' => UploadedFile::fake()->create('new.png', 90, 'image/png'),
-        ]))->assertRedirect(route('admin.achievements'));
-
-        Storage::disk('private')->assertMissing('achievement-certificates/old.pdf');
-        Storage::disk('private')->assertExists($achievement->fresh()->certificate_path);
+        $this->assertNull($achievement->certificate_path);
+        $this->assertFalse($achievement->hasCertificate());
+        $this->assertSame(0, CertificateRequest::count());
     }
 
     public function test_an_achievement_without_a_certificate_reports_none(): void
@@ -354,18 +344,46 @@ class AchievementsTest extends TestCase
             ->assertNotFound();
     }
 
-    public function test_the_athlete_can_download_their_own_certificate(): void
+    public function test_the_athlete_can_download_their_own_released_certificate(): void
     {
         [$admin, $sport, $athlete] = $this->context();
         $achievement = Achievement::create($this->payload($athlete, ['sport_id' => $sport->id]));
         Storage::disk('private')->put('achievement-certificates/mine.pdf', 'binary');
         $achievement->update(['certificate_path' => 'achievement-certificates/mine.pdf']);
 
+        CertificateRequest::create([
+            'achievement_id' => $achievement->id,
+            'student_id' => $athlete->id,
+            'status' => CertificateRequest::STATUS_ISSUED,
+            'certificate_path' => 'achievement-certificates/mine.pdf',
+            'certificate_generated_at' => now(),
+        ]);
+
         $this->actingAs($athlete)
             ->get(route('student.achievements.certificate', $achievement))
             ->assertOk();
     }
 
+    public function test_the_athlete_cannot_download_a_certificate_that_was_not_released(): void
+    {
+        [$admin, $sport, $athlete] = $this->context();
+        $achievement = Achievement::create($this->payload($athlete, ['sport_id' => $sport->id]));
+        Storage::disk('private')->put('achievement-certificates/mine.pdf', 'binary');
+        $achievement->update(['certificate_path' => 'achievement-certificates/mine.pdf']);
+
+        // Generated, but not marked ready for release yet.
+        CertificateRequest::create([
+            'achievement_id' => $achievement->id,
+            'student_id' => $athlete->id,
+            'status' => CertificateRequest::STATUS_APPROVED,
+            'certificate_path' => 'achievement-certificates/mine.pdf',
+            'certificate_generated_at' => now(),
+        ]);
+
+        $this->actingAs($athlete)
+            ->get(route('student.achievements.certificate', $achievement))
+            ->assertNotFound();
+    }
     public function test_an_athlete_cannot_reach_the_admin_achievement_routes(): void
     {
         [$admin, $sport, $athlete] = $this->context();
@@ -628,31 +646,7 @@ class AchievementsTest extends TestCase
             ->assertSessionHasErrors('date_achieved');
     }
 
-    public function test_an_unsupported_certificate_format_is_rejected(): void
-    {
-        [$admin, $sport, $athlete] = $this->context();
 
-        $this->actingAs($admin)
-            ->post(route('admin.achievements.store'), $this->payload($athlete, [
-                'sport_id' => $sport->id,
-                'certificate' => UploadedFile::fake()->create('malware.exe', 10, 'application/octet-stream'),
-            ]))
-            ->assertSessionHasErrors('certificate');
-
-        $this->assertDatabaseCount('achievements', 0);
-    }
-
-    public function test_an_oversized_certificate_is_rejected(): void
-    {
-        [$admin, $sport, $athlete] = $this->context();
-
-        $this->actingAs($admin)
-            ->post(route('admin.achievements.store'), $this->payload($athlete, [
-                'sport_id' => $sport->id,
-                'certificate' => UploadedFile::fake()->create('huge.pdf', 4096, 'application/pdf'),
-            ]))
-            ->assertSessionHasErrors('certificate');
-    }
 
     public function test_achievement_relationships_are_exposed_on_the_existing_models(): void
     {

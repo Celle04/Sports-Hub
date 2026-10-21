@@ -121,4 +121,134 @@ class AttendanceManagementTest extends TestCase
         $this->patch(route('admin.attendance.sessions.open', $session))->assertSessionHas('success');
         $this->assertSame(1, Attendance::where('attendance_session_id', $session->id)->where('user_id', $athlete->id)->count());
     }
+
+    public function test_the_attendance_module_only_shows_attendance_details(): void
+    {
+        $sport = Sport::create(['name' => 'Basketball', 'classification' => 'Team Sport', 'description' => 'Basketball']);
+        $event = Event::create([
+            'title' => 'Practice Session',
+            'sport_id' => $sport->id,
+            'venue' => 'Main Court',
+            'starts_at' => now()->addDay(),
+            'ends_at' => now()->addDay()->addHours(2),
+            'status' => 'Scheduled',
+        ]);
+        $admin = User::factory()->create(['role' => 'Administrator']);
+
+        $response = $this->actingAs($admin)->get(route('admin.attendance'));
+
+        $response->assertOk()
+            ->assertSee('Attendance Sessions')
+            // The create form now lives in the Event module.
+            ->assertDontSee('Create Attendance Session')
+            ->assertDontSee('action="'.route('admin.attendance.sessions.store').'"', false)
+            ->assertSee(route('events.index'));
+    }
+
+    public function test_the_attendance_module_lists_the_event_of_every_session(): void
+    {
+        $sport = Sport::create(['name' => 'Volleyball', 'classification' => 'Team Sport', 'description' => 'Volleyball']);
+        $event = Event::create([
+            'title' => 'Volleyball Training',
+            'sport_id' => $sport->id,
+            'venue' => 'Gym',
+            'starts_at' => now()->addDay(),
+            'ends_at' => now()->addDay()->addHours(2),
+            'status' => 'Scheduled',
+        ]);
+        $admin = User::factory()->create(['role' => 'Administrator']);
+
+        AttendanceSession::create([
+            'title' => 'Volleyball Set 1',
+            'event_id' => $event->id,
+            'sport_id' => $sport->id,
+            'session_date' => today()->toDateString(),
+            'status' => 'Open',
+            'created_by' => $admin->id,
+        ]);
+
+        $this->actingAs($admin)->get(route('admin.attendance'))
+            ->assertOk()
+            ->assertSee('Volleyball Training')
+            ->assertSee(route('events.show', $event));
+    }
+
+    public function test_the_session_action_forms_carry_their_csrf_token(): void
+    {
+        $sport = Sport::create(['name' => 'Basketball', 'classification' => 'Team Sport', 'description' => 'Basketball']);
+        $admin = User::factory()->create(['role' => 'Administrator']);
+
+        AttendanceSession::create([
+            'title' => 'Basketball Training',
+            'sport_id' => $sport->id,
+            'session_date' => today()->toDateString(),
+            'status' => 'Open',
+            'created_by' => $admin->id,
+        ]);
+
+        $html = $this->actingAs($admin)->get(route('admin.attendance'))->assertOk()->getContent();
+
+        // The token has to live inside the form element, not inside its tag.
+        $this->assertStringNotContainsString('sessions/'.AttendanceSession::firstOrFail()->id.'/sync" <input', $html);
+        $this->assertMatchesRegularExpression('#<form method="POST" action="[^"]+/sync">\s*<input type="hidden" name="_token"#', $html);
+        $this->assertMatchesRegularExpression('#<input type="hidden" name="_method" value="PATCH">#', $html);
+    }
+
+    public function test_the_session_list_shows_the_newest_record_first(): void
+    {
+        $sport = Sport::create(['name' => 'Basketball', 'classification' => 'Team Sport', 'description' => 'Basketball']);
+        $admin = User::factory()->create(['role' => 'Administrator']);
+
+        $older = AttendanceSession::create([
+            'title' => 'Older Session',
+            'sport_id' => $sport->id,
+            'session_date' => now()->subWeek()->toDateString(),
+            'status' => 'Closed',
+            'created_by' => $admin->id,
+        ]);
+
+        $newer = AttendanceSession::create([
+            'title' => 'Newer Session',
+            'sport_id' => $sport->id,
+            'session_date' => now()->subWeek()->toDateString(),
+            'status' => 'Open',
+            'created_by' => $admin->id,
+        ]);
+
+        $html = $this->actingAs($admin)->get(route('admin.attendance'))->assertOk()->getContent();
+
+        // The list follows the upload order, so the latest record leads.
+        $this->assertLessThan(
+            strpos($html, 'Older Session'),
+            strpos($html, 'Newer Session'),
+            'The newest attendance session should be listed first.'
+        );
+    }
+
+    public function test_opening_a_session_jumps_to_its_detail(): void
+    {
+        $sport = Sport::create(['name' => 'Basketball', 'classification' => 'Team Sport', 'description' => 'Basketball']);
+        $admin = User::factory()->create(['role' => 'Administrator']);
+
+        $session = AttendanceSession::create([
+            'title' => 'Basketball Training',
+            'sport_id' => $sport->id,
+            'session_date' => today()->toDateString(),
+            'status' => 'Open',
+            'created_by' => $admin->id,
+        ]);
+
+        $html = $this->actingAs($admin)->get(route('admin.attendance'))->assertOk()->getContent();
+
+        // The view link points at the detail card.
+        $this->assertStringContainsString('#attendance-session-detail', $html);
+
+        $detail = $this->actingAs($admin)
+            ->get(route('admin.attendance', ['session_id' => $session->id]))
+            ->assertOk()
+            ->getContent();
+
+        // The card carries the id the link scrolls to.
+        $this->assertStringContainsString('id="attendance-session-detail"', $detail);
+    }
 }

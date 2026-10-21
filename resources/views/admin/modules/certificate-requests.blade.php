@@ -32,13 +32,20 @@
                 @foreach ($items as $request)
                     <div class="cert-request-item">
                         <div class="cert-request-identity">
-                            <strong>{{ $request->student?->name }}</strong>
+                            <strong>{{ $request->student?->name ?? ($request->achievement?->team_name ?? 'Team achievement') }}</strong>
                             @if ($request->student?->student_id)<span class="meta">{{ $request->student->student_id }}</span>@endif
                             <span class="badge status-{{ $section['status'] }}">{{ $request->status }}</span>
                         </div>
                         <div class="cert-request-detail">
                             <strong>{{ $request->achievement?->title }}</strong>
                             <span class="meta">{{ $request->achievement?->sportLabel() }} &middot; requested {{ $request->created_at?->format('M j, Y') }}</span>
+                            <span class="meta cert-request-generation">
+                                @if ($request->isGenerated())
+                                    PDF generated {{ $request->certificate_generated_at?->format('M j, Y g:i A') }} &middot; Ref {{ $request->certificateReference() }}
+                                @else
+                                    Certificate not generated yet
+                                @endif
+                            </span>
                             @if ($request->remarks)
                                 <p class="cert-request-remarks">&ldquo;{{ $request->remarks }}&rdquo;</p>
                             @endif
@@ -52,7 +59,14 @@
                                     <button class="button button-danger" type="button" data-confirm-dialog data-confirm-title="Reject Certificate Request?" data-confirm-message="Reject this certificate request? You can include a reason for the applicant." data-confirm-label="Reject" data-confirm-icon="warning" data-confirm-variant="danger" data-confirm-method="POST" data-confirm-url="{{ route('admin.certificate-requests.reject', $request) }}">Reject</button>
                                 </form>
                             @elseif ($request->status === 'Approved')
-                                <button class="button" type="button" data-confirm-dialog data-confirm-title="Issue Certificate?" data-confirm-message="Generate and issue this official certificate now?" data-confirm-label="Issue Certificate" data-confirm-icon="file" data-confirm-variant="info" data-confirm-method="POST" data-confirm-url="{{ route('admin.certificate-requests.issue', $request) }}">Issue Certificate</button>
+                                @if ($request->isGenerated())
+                                    <a class="text-link" href="{{ route('admin.achievements.certificate', $request->achievement) }}">Download PDF</a>
+                                    <button class="button button-secondary" type="button" data-confirm-dialog data-confirm-title="Regenerate Certificate?" data-confirm-message="Generate the certificate again? The previous file is kept in the certificate history." data-confirm-label="Regenerate" data-confirm-icon="file" data-confirm-variant="info" data-confirm-method="POST" data-confirm-url="{{ route('admin.certificate-requests.generate', $request) }}">Regenerate PDF</button>
+                                    <button class="button" type="button" data-confirm-dialog data-confirm-title="Release Certificate?" data-confirm-message="Mark this certificate as ready for release? The athlete can download it from then on." data-confirm-label="Mark Ready" data-confirm-icon="check" data-confirm-variant="success" data-confirm-method="POST" data-confirm-url="{{ route('admin.certificate-requests.release', $request) }}">Mark Ready for Release</button>
+                                @else
+                                    <button class="button" type="button" data-confirm-dialog data-confirm-title="Generate Certificate?" data-confirm-message="Generate the official PDF for this request? You can review it before releasing it." data-confirm-label="Generate PDF" data-confirm-icon="file" data-confirm-variant="info" data-confirm-method="POST" data-confirm-url="{{ route('admin.certificate-requests.generate', $request) }}">Generate PDF</button>
+                                    <button class="button button-secondary" type="button" data-confirm-dialog data-confirm-title="Issue Certificate?" data-confirm-message="Generate and release this official certificate now?" data-confirm-label="Issue Certificate" data-confirm-icon="file" data-confirm-variant="info" data-confirm-method="POST" data-confirm-url="{{ route('admin.certificate-requests.issue', $request) }}">Issue Certificate</button>
+                                @endif
                             @elseif ($request->status === 'Issued')
                                 <a class="text-link" href="{{ route('admin.achievements.show', $request->achievement) }}">View Achievement</a>
                                 <a class="text-link" href="{{ route('admin.achievements.certificate', $request->achievement) }}">Download PDF</a>

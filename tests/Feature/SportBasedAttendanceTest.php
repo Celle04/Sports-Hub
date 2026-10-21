@@ -60,7 +60,7 @@ class SportBasedAttendanceTest extends TestCase
             'venue' => 'SNNHS Gymnasium',
             'description' => 'Regular basketball training session',
             'status' => 'Open',
-        ])->assertRedirect(route('admin.attendance', ['session_id' => AttendanceSession::firstOrFail()->id]));
+        ])->assertRedirect(route('admin.attendance', ['session_id' => AttendanceSession::firstOrFail()->id]).'#attendance-session-detail');
 
         $session = AttendanceSession::firstOrFail();
 
