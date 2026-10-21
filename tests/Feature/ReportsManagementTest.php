@@ -468,6 +468,50 @@ class ReportsManagementTest extends TestCase
         $this->assertStringContainsString('wanted-event', $response->headers->get('content-disposition'));
     }
 
+    public function test_the_athlete_list_export_scope_chooses_all_athletes_or_by_sport(): void
+    {
+        $admin = $this->admin();
+        $basketball = $this->sport('Basketball');
+        $volleyball = $this->sport('Volleyball');
+        User::factory()->create(['name' => 'Scope Player One', 'role' => 'Student', 'sport_id' => $basketball->id]);
+        User::factory()->create(['name' => 'Scope Player Two', 'role' => 'Student', 'sport_id' => $volleyball->id]);
+
+        // The export panel offers both scopes.
+        $this->actingAs($admin)->get(route('reports.index', ['report' => 'athletes']))
+            ->assertOk()
+            ->assertSee('All athletes')
+            ->assertSee('By sport')
+            ->assertSee('export_scope=sport', false);
+
+        // "All athletes" keeps every athlete in one list.
+        $response = $this->actingAs($admin)
+            ->get(route('reports.export', ['format' => 'csv', 'report' => 'athletes', 'export_scope' => 'all']))
+            ->assertOk();
+
+        $csv = $response->streamedContent();
+        $this->assertStringContainsString('Scope Player One', $csv);
+        $this->assertStringContainsString('Scope Player Two', $csv);
+        $this->assertStringNotContainsString('BASKETBALL', $csv);
+
+        // "By sport" files the list under a heading for every sport.
+        $response = $this->actingAs($admin)
+            ->get(route('reports.export', ['format' => 'csv', 'report' => 'athletes', 'export_scope' => 'sport']))
+            ->assertOk();
+
+        $csv = $response->streamedContent();
+        $this->assertStringContainsString('BASKETBALL', $csv);
+        $this->assertStringContainsString('VOLLEYBALL', $csv);
+        $this->assertStringContainsString('Scope Player One', $csv);
+        $this->assertStringContainsString('Scope Player Two', $csv);
+    }
+
+    public function test_the_athlete_list_export_scope_is_validated(): void
+    {
+        $this->actingAs($this->admin())
+            ->get(route('reports.index', ['report' => 'athletes', 'export_scope' => 'unknown']))
+            ->assertSessionHasErrors('export_scope');
+    }
+
     public function test_reports_never_expose_passwords_or_remember_tokens(): void
     {        $admin = $this->admin();
         $sport = $this->sport('Sepak Takraw');

@@ -14,6 +14,7 @@ use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\Response;
@@ -61,11 +62,25 @@ class ReportController extends Controller
             'report' => $report,
             'reportPayload' => $payload,
             'filters' => $filters,
+            'exportScope' => $report ? $this->exportScope($report, $filters) : 'all',
             'overview' => $this->overview(),
             'filterOptions' => $report ? $this->filterOptions($report, $filters) : [],
             'generatedAt' => now(),
             'generatedBy' => auth()->user()?->name ?? 'Administrator',
         ]));
+    }
+
+    /**
+     * The scope a download is filed under: the full list or the list grouped
+     * sport by sport.
+     */
+    private function exportScope(?string $report, array $filters): string
+    {
+        if ($report !== 'athletes') {
+            return 'all';
+        }
+
+        return ($filters['export_scope'] ?? 'all') === 'sport' ? 'sport' : 'all';
     }
 
     public function export(Request $request): Response
@@ -79,6 +94,15 @@ class ReportController extends Controller
 
         $report = $this->reportKey($request) ?? 'attendance';
         $filters = $this->validateFilters($report, $request);
+
+        /*
+         * The administrator picks the scope of the download: the full list, or
+         * the list filed sport by sport.
+         */
+        if ($report === 'athletes' && ($filters['export_scope'] ?? 'all') === 'sport') {
+            $filters['category'] = 'sport';
+        }
+
         $payload = $this->payload($report, $filters);
         $filename = $this->filename($report, $filters, $validated['format'] === 'pdf' ? 'pdf' : 'csv');
 
@@ -152,6 +176,7 @@ class ReportController extends Controller
                 'gender' => ['nullable', 'string', 'max:30'],
                 'eligibility' => ['nullable', 'in:Eligible,Not Eligible,Pending'],
                 'category' => ['nullable', 'in:'.implode(',', self::ATHLETE_CATEGORIES)],
+                'export_scope' => ['nullable', 'in:all,sport'],
             ]),
             'coaches' => $request->validate([
                 'search' => ['nullable', 'string', 'max:100'],
@@ -205,8 +230,13 @@ class ReportController extends Controller
             // Rows are filed under a heading when the report is categorized,
             // so the download can repeat that heading for every group.
             'grouped' => $report === 'athletes' && $this->athleteCategory($filters) === 'sport',
+            // The sports of the list, so a download can be split sport by sport.
             'groups' => $report === 'athletes'
-                ? $rows->groupBy('group')->map->count()->map(fn ($count, $label) => ['label' => $label, 'value' => $count])->values()
+                ? $rows->groupBy('sport_id')->map(fn (Collection $sportRows, $sportId) => [
+                    'id' => $sportId,
+                    'label' => $sportRows->first()['sport'] ?: 'Unassigned Sport',
+                    'value' => $sportRows->count(),
+                ])->values()
                 : [],
         ];
     }
@@ -242,6 +272,7 @@ class ReportController extends Controller
 
                 return [
                     'group' => $this->athleteGroup($athlete, $category),
+                    'sport_id' => $athlete->sport_id,
                     'student_id' => $athlete->student_id ?: 'Not provided',
                     'name' => $athlete->name,
                     'sport' => $athlete->sport?->name ?? 'Unassigned',

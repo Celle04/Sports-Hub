@@ -206,12 +206,43 @@
 		</form>
 	</section>
 
-	<div class="report-actions">
-		<button class="button button-secondary" type="button" onclick="window.print()">Print</button>
-		<a class="button button-secondary" href="{{ route('reports.export', array_merge(['report' => $report], $filters, ['format' => 'csv'])) }}">Export CSV</a>
-		<a class="button" href="{{ route('reports.export', array_merge(['report' => $report], $filters, ['format' => 'pdf'])) }}">Export PDF</a>
-		<a class="button button-muted" href="{{ route('reports.index') }}">All Reports</a>
-	</div>
+	@if ($report === 'athletes')
+		@php($exportFilters = array_merge($filters, ['export_scope' => $exportScope]))
+		<div class="report-export-panel">
+			<div class="report-export-choice">
+				<span class="report-export-label">Download the athlete list</span>
+				<div class="report-export-options" role="group" aria-label="Export scope">
+					<a class="report-export-option{{ $exportScope === 'all' ? ' is-active' : '' }}" href="{{ route('reports.index', array_merge(['report' => $report], $filters, ['export_scope' => 'all'])) }}">All athletes</a>
+					<a class="report-export-option{{ $exportScope === 'sport' ? ' is-active' : '' }}" href="{{ route('reports.index', array_merge(['report' => $report], $filters, ['export_scope' => 'sport'])) }}">By sport</a>
+				</div>
+				<small class="form-hint">By sport files the list under a heading for every sport, so the download can be split up straight away.</small>
+				@if ($exportScope === 'sport' && count($payload['groups'] ?? []) > 0)
+					<ul class="report-export-sports">
+						@foreach ($payload['groups'] as $group)
+							<li>
+								<span>{{ $group['label'] }}</span>
+								<span class="meta">{{ $group['value'] }} athlete{{ $group['value'] === 1 ? '' : 's' }}</span>
+								<a class="text-link" href="{{ route('reports.export', array_merge(['report' => $report, 'export_scope' => 'sport'], $group['id'] ? ['sport_id' => $group['id']] : [], ['format' => 'csv'])) }}">Download CSV</a>
+							</li>
+						@endforeach
+					</ul>
+				@endif
+			</div>
+			<div class="report-export-actions">
+				<button class="button button-secondary" type="button" onclick="window.print()">Print</button>
+				<a class="button button-secondary" href="{{ route('reports.export', array_merge(['report' => $report], $exportFilters, ['format' => 'csv'])) }}">Export CSV</a>
+				<a class="button" href="{{ route('reports.export', array_merge(['report' => $report], $exportFilters, ['format' => 'pdf'])) }}">Export PDF</a>
+				<a class="button button-muted" href="{{ route('reports.index') }}">All Reports</a>
+			</div>
+		</div>
+	@else
+		<div class="report-actions">
+			<button class="button button-secondary" type="button" onclick="window.print()">Print</button>
+			<a class="button button-secondary" href="{{ route('reports.export', array_merge(['report' => $report], $filters, ['format' => 'csv'])) }}">Export CSV</a>
+			<a class="button" href="{{ route('reports.export', array_merge(['report' => $report], $filters, ['format' => 'pdf'])) }}">Export PDF</a>
+			<a class="button button-muted" href="{{ route('reports.index') }}">All Reports</a>
+		</div>
+	@endif
 
 	<div class="report-print-header">
 		<p>SURIGAO DEL NORTE NATIONAL HIGH SCHOOL</p>
